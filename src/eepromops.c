@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include "eepromops.h"
+#include "debug.h"
 
 // EEPROM functions
 // Internal functions
@@ -43,6 +44,7 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
 
     if (eeprom_size == 0) {
         if (!eeprom_getsize(&descriptor)) {
+            debug("eeprom_getsize failed\n");
             descriptor.eeprom_size = 0;
             descriptor.eeprom_fid = -1;
         }
