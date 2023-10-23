@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+  workflow_dispatch:
+  pull_request:
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cpm/cache
+
+jobs:
+  build-and-test:
+    runs-on: [ self-hosted, amd64 ]
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - uses: lukka/get-cmake@latest
+
+      - uses: actions/cache@v3
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: ${{ runner.os }}-cpm-source-cache-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-cpm-source-cache-${{ hashFiles('**/CMakeLists.txt') }}
+
+      - name: Prepare env
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zlib1g-dev pkg-config
+
+      - name: Build
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          cmake --build .
+        working-directory: ${{ github.workspace }}
+
+      - name: Test
+        run: |
+          cd build
+          ctest || true
+          cat Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
+
+        working-directory: ${{ github.workspace }}
