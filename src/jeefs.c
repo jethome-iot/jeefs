@@ -19,7 +19,7 @@
 static uint32_t calculateCRC32(const uint8_t *data, size_t length);
 static int16_t findFile(EEPROMDescriptor eeprom_descriptor, const char *filename, JEEFSFileHeader *header, uint16_t *address);
 static int16_t getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentAddress);
-
+static inline bool isEmpty(char var);
 /*
  * JEEFS functions
  */
@@ -98,9 +98,7 @@ int16_t writeFile(EEPROMDescriptor eeprom_descriptor, const char *filename, cons
     return dataSize;
 }
 
-inline bool isEmpty(char var) {
-    return var == '\xFF' || var == '\0';
-}
+
 
 int16_t addFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize) {
     if (!filename || strlen(filename) > FILE_NAME_LENGTH) {
@@ -146,6 +144,7 @@ int16_t addFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const 
 
     // Check if there's enough space to write the new file
     if (currentAddress + sizeof(currentFileHeader) + dataSize >= eeprom_descriptor.eeprom_size) {
+        debug("addFile: not enough space %s %u %u eeprom_size: %u\n", filename, currentAddress, dataSize, eeprom_descriptor.eeprom_size);
         return NOSPACEERROR;  // Not enough space
     }
 
@@ -158,15 +157,21 @@ int16_t addFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const 
 
 
     // Write the new file header
-    if (eeprom_write(eeprom_descriptor, &newFileHeader, sizeof(JEEFSFileHeader), currentAddress) != sizeof(JEEFSFileHeader)) {
+    ssize_t writeSize;
+    writeSize = eeprom_write(eeprom_descriptor, &newFileHeader, sizeof(JEEFSFileHeader), currentAddress) !=
+                sizeof(JEEFSFileHeader);
+    if (writeSize) {
+        debug("addFile: write lastFile header eeprom error %s %li != %li\n", filename, writeSize, sizeof(JEEFSFileHeader));
         return -1; // Write error
     }
 
     // Write the file data
-    if (eeprom_write(eeprom_descriptor, data, dataSize, currentAddress + sizeof(JEEFSFileHeader)) != dataSize) {
+    writeSize = eeprom_write(eeprom_descriptor, data, dataSize, currentAddress + sizeof(JEEFSFileHeader));
+    if (writeSize != dataSize) {
+        debug("addFile: write data eeprom error %s %li != %li\n", filename, writeSize, dataSize);
         return -1; // Write error
     }
-
+    debug("addFile: write data eeprom ok %s %li\n", filename, writeSize);
     return dataSize; // Return number of data bytes written
 }
 
@@ -299,4 +304,8 @@ int16_t getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentA
         return 0; // Error reading header
     }
     return fileHeader.nextFileAddress;
+}
+
+static inline bool isEmpty(char var) {
+    return var == '\xFF' || var == '\0';
 }
