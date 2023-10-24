@@ -14,28 +14,20 @@
 #define DEBUG 1
 
 #include "jeefs.h"
-
-#ifndef TEST_DIR
-#define TEST_DIR "/tmp"
-#endif
-#ifndef TEST_EEPROM_PATH
-#define TEST_FILENAME "test_file"
-#endif
-
-#ifndef JEEFS_EEPROMSIZE
-#define JEEFS_EEPROMSIZE 16384
-#endif
+#include "tests-common.h"
 
 
-int generate_files(const char *path, const char *basename, int num_files);
-int delete_files(const char *path, const char *basename, int num_files);
 
 int main() {
     printf("Hello, World! DEBUG:%i\n",DEBUG);
     // print sizes of structures from jeefs.h
     printf("sizeof(EEPROMHeader) = %lu\n", sizeof(EEPROMHeader));
     printf("sizeof(JEEFSFileHeader) = %lu\n", sizeof(JEEFSFileHeader));
-    generate_files(TEST_DIR, TEST_FILENAME, 5);
+
+    // PREPARE: generate test files
+    delete_files(TEST_DIR, TEST_FILENAME, 5);
+    generate_files(TEST_DIR, TEST_FILENAME, 5, 0);
+
 
     EEPROMDescriptor ep=eeprom_open(TEST_EEPROM_PATH, 0);
     assert(("Check eeprom_open result", ep.eeprom_fid > 0));
@@ -56,59 +48,12 @@ int main() {
     }
     sleep(2);
 
+    // END: delete test files
     delete_files(TEST_DIR, TEST_FILENAME, 5);
     return 0;
 }
 
-// write function to generate five files with random sizes from 100 to 300bytes and fill it with random text data
-// args: path to dir, basename, number of files
-// return: 0 if success, -1 if error
 
-int generate_files(const char *path, const char *basename, int num_files) {
-    int i;
-    char filename[100];
-    char filedata[400];
-    FILE *fp;
-    for (i = 0; i < num_files; i++) {
-        sprintf(filename, "%s/%s_%d", path, basename, i);
-        fp = fopen(filename, "w+");
-        if (fp == NULL) {
-            printf("Error opening file %s", filename);
-            perror("Error opening file");
-            return -1;
-        }
-        // generate random data
-        sprintf(filedata, "Hello, file %d!", i);
-        for (size_t j = strlen(filedata); j < 400 - random() % 350; j++) {
-            filedata[j] = (char)('a' + (char)(random() % 26));
-            filedata[j + 1] = '\0';
-        }
-
-
-        // write data to file
-        if (fwrite(filedata, sizeof(char), strlen(filedata), fp) != strlen(filedata)) {
-            perror("Error writing to file");
-            return -1;
-        }
-        fclose(fp);
-    }
-
-    return 0;
-}
-
-int delete_files(const char *path, const char *basename, int num_files) {
-    int i;
-    char filename[100];
-    for (i = 0; i < num_files; i++) {
-        sprintf(filename, "%s/%s_%d", path, basename, i);
-        if (remove(filename) != 0) {
-            perror("Error deleting file");
-            return -1;
-        }
-    }
-
-    return 0;
-}
 
 // delete generated files
 // args: path to dir, basename, number of files
