@@ -18,18 +18,16 @@
 #pragma pack(push, 1)
 typedef struct {
     int eeprom_fid;      // File descriptor for the EEPROM
-    uint16_t eeprom_size; // Size of the EEPROM
-    uint8_t reserved[2];  // Adjusted for alignment to 4 bytes
-} EEPROMDescriptor; // sizeof(EEPROMDescriptor) = 8 bytes
+    size_t eeprom_size; // Size of the EEPROM
+    /*uint8_t reserved[2];  // Adjusted for alignment to 4 bytes */
+} EEPROMDescriptor;
 #pragma pack(pop)
 
 // EEPROM functions
-ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, size_t count, uint16_t offset);
-ssize_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, size_t count, uint16_t offset);
 EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size);
-
 int eeprom_close(EEPROMDescriptor eeprom_descriptor);
 
-
+ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t count, uint16_t offset);
+ssize_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint16_t count, uint16_t offset);
 
 #endif //JEEFS_EEPROMOPS_H
