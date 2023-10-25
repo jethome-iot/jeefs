@@ -4,7 +4,7 @@ find_package(ZLIB REQUIRED)
 
 add_library(jeefs
     jeefs.c
-        ../include/err.h
+        ../include/eepromerr.h
         ../include/debug.h
 )
 

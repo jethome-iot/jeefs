@@ -9,7 +9,7 @@
 #include <assert.h>
 
 #include "jeefs.h"
-#include "err.h"
+#include "eepromerr.h"
 #include "debug.h"
 
 
@@ -17,16 +17,39 @@
 
 // use libz implementation of crc32
 static uint32_t calculateCRC32(const uint8_t *data, size_t length);
-static int16_t findFile(EEPROMDescriptor eeprom_descriptor, const char *filename, JEEFSFileHeader *header, uint16_t *address);
-static int16_t getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentAddress);
-static inline bool isEmpty(char var);
+static int16_t EEPROM_FindFile(EEPROMDescriptor eeprom_descriptor, const char *filename, JEEFSFileHeader *header, uint16_t *address);
+static uint16_t EEPROM_getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentAddress);
+static inline bool EEPROM_ByteIsEmpty(char var);
+static inline bool EEPROM_WordIsEmpty(uint16_t var);
+static inline bool EEPROM_QWordIsEmpty(uint32_t var);
+
+
 /*
  * JEEFS functions
  */
 
-int16_t listFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH], uint16_t maxFiles) {
+EEPROMDescriptor EEPROM_OpenEEPROM(const char *pathname, uint16_t eeprom_size) {
+    EEPROMDescriptor desc;
+    desc = eeprom_open(pathname, eeprom_size);
+    if (desc.eeprom_fid == -1) return desc;  // handle error
+
+    return desc;
+}
+
+JEEPROMHeader EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor) {
+    JEEPROMHeader header;
+    eeprom_read(eeprom_descriptor, &header, sizeof(JEEPROMHeader), 0);
+    return header;
+}
+
+
+int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor) {
+    return eeprom_close(eeprom_descriptor);
+}
+
+int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH], uint16_t maxFiles) {
     uint16_t count = 0;
-    uint16_t currentAddress = sizeof(EEPROMHeader); // Assuming the EEPROM starts with the header
+    uint16_t currentAddress = sizeof(JEEPROMHeader); // Assuming the EEPROM starts with the header
 
     while (count < maxFiles) {
         JEEFSFileHeader fileHeader;
@@ -35,7 +58,7 @@ int16_t listFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_
         }
         strncpy(fileList[count], fileHeader.name, FILE_NAME_LENGTH);
         count++;
-        currentAddress = getNextFileAddress(eeprom_descriptor, currentAddress);
+        currentAddress = EEPROM_getNextFileAddress(eeprom_descriptor, currentAddress);
         if (currentAddress == 0) {
             break; // End of file list
         }
@@ -44,7 +67,7 @@ int16_t listFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_
     return count;
 }
 
-int16_t readFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8_t *buffer, uint16_t bufferSize) {
+int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8_t *buffer, uint16_t bufferSize) {
     if (!filename || strlen(filename) > FILE_NAME_LENGTH)
         return FILENAMENOTVALID;
 
@@ -53,7 +76,7 @@ int16_t readFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8
 
     JEEFSFileHeader fileHeader;
     uint16_t fileAddress;
-    if (findFile(eeprom_descriptor, filename, &fileHeader, &fileAddress) != 1) {
+    if (EEPROM_FindFile(eeprom_descriptor, filename, &fileHeader, &fileAddress) != 1) {
         return FILENOTFOUND; // File not found
     }
     if (fileHeader.dataSize > bufferSize) {
@@ -64,7 +87,8 @@ int16_t readFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8
 }
 
 
-int16_t writeFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize) {
+
+int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize) {
     if (!filename || strlen(filename) > FILE_NAME_LENGTH)
         return FILENAMENOTVALID;
 
@@ -73,17 +97,17 @@ int16_t writeFile(EEPROMDescriptor eeprom_descriptor, const char *filename, cons
 
     JEEFSFileHeader fileHeader;
     uint16_t fileAddress;
-    if (findFile(eeprom_descriptor, filename, &fileHeader, &fileAddress) != 1)
+    if (EEPROM_FindFile(eeprom_descriptor, filename, &fileHeader, &fileAddress) != 1)
         // File not found
         return FILENOTFOUND;
 
     // File found
     if (fileHeader.dataSize != dataSize) {
         // Different size, delete, defrag, and create new file
-        deleteFile(eeprom_descriptor, filename);
-        // not needed, already in deleteFile
+        EEPROM_DeleteFile(eeprom_descriptor, filename);
+        // not needed, already in EEPROM_DeleteFile
         // defragEEPROM(eeprom_descriptor);
-        return addFile(eeprom_descriptor, filename, data, dataSize);
+        return EEPROM_AddFile(eeprom_descriptor, filename, data, dataSize);
     }
 
     // Overwrite the file content
@@ -100,90 +124,145 @@ int16_t writeFile(EEPROMDescriptor eeprom_descriptor, const char *filename, cons
 
 
 
-int16_t addFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize) {
+
+int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize) {
+    /**
+     * 1. check filename
+     * 2. check data & datasize
+     * 3. check FindFile to existence
+     * 4. find free space
+     *    a) loop until found:
+     *    - empty/broken file header
+     *    - nextaddress is zero(FF)/overspace
+     * 5. update previous file header if non zero
+     * 6. write new file header
+     * 7. write data
+     *
+     */
+
     if (!filename || strlen(filename) > FILE_NAME_LENGTH) {
-        debug("addFile: %s %s %u\n", "FILENAMENOTVALID", filename, dataSize);
+        debug("EEPROM_AddFile: %s %s %u\n", "FILENAMENOTVALID", filename, dataSize);
         return FILENAMENOTVALID;
     }
 
     if (!data || dataSize == 0) {
-        debug("addFile: %s\n", "BUFFERNOTVALID");
+        debug("EEPROM_AddFile: %s\n", "BUFFERNOTVALID");
         return BUFFERNOTVALID;
     }
 
-    JEEFSFileHeader newFileHeader;
+
+    uint16_t currentAddress = sizeof(JEEPROMHeader); // Starting after the EEPROM header
+    uint16_t previousAddress;
     JEEFSFileHeader currentFileHeader;
-    uint16_t existingFileAddress;
-    if (findFile(eeprom_descriptor, filename, &currentFileHeader, &existingFileAddress) == 1) {
-        debug("addFile: file already exists: %s\n", filename);
+
+    if (EEPROM_FindFile(eeprom_descriptor, filename, &currentFileHeader, &previousAddress) == 1) {
+        debug("EEPROM_AddFile: file already exists: %s\n", filename);
+        // TODO: Update file or return error?
         return 0; // File already exists
     }
+    previousAddress = 0;
+    ssize_t readSize;
 
-    debug("addFile: file %s not found. add new\n", filename);
+    debug("EEPROM_AddFile: file %s not found. add new\n", filename);
 
-    uint16_t currentAddress = sizeof(EEPROMHeader); // Starting after the EEPROM header
+    while (!EEPROM_WordIsEmpty(currentAddress) && currentAddress < eeprom_descriptor.eeprom_size - sizeof(JEEFSFileHeader)) {
 
-    while (currentAddress < eeprom_descriptor.eeprom_size - sizeof(JEEFSFileHeader)) {
-        ssize_t readSize = eeprom_read(eeprom_descriptor, &currentFileHeader, sizeof(JEEFSFileHeader), currentAddress);
+        readSize = eeprom_read(eeprom_descriptor, &currentFileHeader, sizeof(JEEFSFileHeader), currentAddress);
 
         // If the current slot is empty (first time adding a file or a deleted slot) or there's an error in reading
         if (readSize != sizeof(JEEFSFileHeader)) {
-            debug("addFile: read eeprom error %s %li != %li\n", filename, readSize, sizeof(JEEFSFileHeader));
-            return -1; // Read error
+            debug("EEPROM_AddFile: read eeprom error %s %li != %li\n", filename, readSize, sizeof(JEEFSFileHeader));
+            return EEPROMREADERROR; // Read error
         }
 
-        if (currentFileHeader.nextFileAddress == 0 || currentFileHeader.nextFileAddress > eeprom_descriptor.eeprom_size ||  isEmpty(currentFileHeader.name[0])) {
-            break;
+        if (EEPROM_ByteIsEmpty(currentFileHeader.name[0])
+        || EEPROM_WordIsEmpty(currentFileHeader.dataSize)
+        ||
+            (   !EEPROM_WordIsEmpty(currentFileHeader.nextFileAddress)
+                && currentFileHeader.nextFileAddress != currentFileHeader.dataSize + sizeof (JEEFSFileHeader) + currentAddress
+                )
+        ) {
+            break; // Found empty slot or read error occurred
         }
 
-        // Move to the next file
-        assert(currentFileHeader.nextFileAddress == currentFileHeader.dataSize + sizeof(JEEFSFileHeader));
+        // TODO : read and check crc32 of data
+        // if (currentFileHeader.crc32 == calculateCRC32(data, dataSize))
+
+        previousAddress = currentAddress;
+        // TODO: select corruption of all header or only nextFileAddress?
+        /*if(currentFileHeader.nextFileAddress != currentFileHeader.dataSize + sizeof (JEEFSFileHeader)) {
+            // TODO: fix corruption, maybe restore or return error?
+            // return EEPROMCORRUPTED;
+            currentFileHeader.nextFileAddress = 0;
+            break; // Found empty slot or read error occurred
+        }*/
         currentAddress = currentFileHeader.nextFileAddress; // Move to next file
-        // currentAddress += sizeof(JEEFSFileHeader) + currentFileHeader.dataSize;
+
     }
+
+    // Exit from loop in search of empty space
+    // assume that currentAddress is empty or corrupted
+    // assume that previousAddress is valid or zero
+    // so if previousAddress is zero then currentAddress is first file and do not update previous file header
+    // if previousAddress is not zero then currentAddress is not first file and update previous file header
+    // write code below:
+
+    if (previousAddress) {
+        // TODO: check on read error
+        readSize = eeprom_read(eeprom_descriptor, &currentFileHeader, sizeof(JEEFSFileHeader), previousAddress);
+        currentFileHeader.nextFileAddress = previousAddress + sizeof(JEEFSFileHeader) + currentFileHeader.dataSize;
+        currentAddress = currentFileHeader.nextFileAddress;
+    } else
+        currentAddress = sizeof(JEEPROMHeader);
 
     // Check if there's enough space to write the new file
     if (currentAddress + sizeof(currentFileHeader) + dataSize >= eeprom_descriptor.eeprom_size) {
-        debug("addFile: not enough space %s %u %u eeprom_size: %u\n", filename, currentAddress, dataSize, eeprom_descriptor.eeprom_size);
-        return NOSPACEERROR;  // Not enough space
+        debug("EEPROM_AddFile: not enough space %s %u %u eeprom_size: %lu\n", filename, currentAddress, dataSize, eeprom_descriptor.eeprom_size);
+        return NOTENOUGHSPACE;  // Not enough space
     }
 
+    // TODO: check on write error
+    if (previousAddress)
+        readSize = eeprom_write(eeprom_descriptor, &currentFileHeader, sizeof(JEEFSFileHeader), previousAddress);
+
+
     // Prepare and write the new file header
-    memset(&newFileHeader, 0, sizeof(JEEFSFileHeader));
-    strncpy(newFileHeader.name, filename, FILE_NAME_LENGTH);
-    newFileHeader.dataSize = dataSize;
-    newFileHeader.crc32 = calculateCRC32(data, dataSize);
-    newFileHeader.nextFileAddress = 0; // Currently, it's the last file
+    memset(&currentFileHeader, 0, sizeof(JEEFSFileHeader));
+    strncpy(currentFileHeader.name, filename, FILE_NAME_LENGTH);
+    currentFileHeader.dataSize = dataSize;
+    currentFileHeader.crc32 = calculateCRC32(data, dataSize);
+    currentFileHeader.nextFileAddress = 0; // Currently, it's the last file
 
 
     // Write the new file header
     ssize_t writeSize;
-    writeSize = eeprom_write(eeprom_descriptor, &newFileHeader, sizeof(JEEFSFileHeader), currentAddress) !=
-                sizeof(JEEFSFileHeader);
-    if (writeSize) {
-        debug("addFile: write lastFile header eeprom error %s %li != %li\n", filename, writeSize, sizeof(JEEFSFileHeader));
+    writeSize = eeprom_write(eeprom_descriptor, &currentFileHeader, sizeof(JEEFSFileHeader), currentAddress);
+    if (writeSize != sizeof(JEEFSFileHeader)) {
+        debug("EEPROM_AddFile: write lastFile header eeprom error %s %li != %li\n", filename, writeSize, sizeof(JEEFSFileHeader));
         return -1; // Write error
     }
 
     // Write the file data
     writeSize = eeprom_write(eeprom_descriptor, data, dataSize, currentAddress + sizeof(JEEFSFileHeader));
     if (writeSize != dataSize) {
-        debug("addFile: write data eeprom error %s %li != %li\n", filename, writeSize, dataSize);
+        debug("EEPROM_AddFile: write data eeprom error %s %lu != %i\n", filename, writeSize, dataSize);
         return -1; // Write error
     }
-    debug("addFile: write data eeprom ok %s %li\n", filename, writeSize);
-    return dataSize; // Return number of data bytes written
+    debug("EEPROM_AddFile: write data eeprom ok %s %li seek:%i\n", filename, writeSize, currentAddress);
+
+    return (int16_t)(dataSize%INT16_MAX); // Return number of data bytes written
 }
 
 
-int16_t deleteFile(EEPROMDescriptor descriptor, const char *filename) {
+
+int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
     if (!filename || strlen(filename) > FILE_NAME_LENGTH)
         return FILENAMENOTVALID;
 
     JEEFSFileHeader header;
     uint16_t address;
 
-    int found = findFile(descriptor, filename, &header, &address);
+    int found = EEPROM_FindFile(descriptor, filename, &header, &address);
     if (found <= 0) {
         return FILENOTFOUND;  // File not found or error
     }
@@ -218,54 +297,11 @@ int16_t deleteFile(EEPROMDescriptor descriptor, const char *filename) {
     return 1;  // Successfully deleted
 }
 
-/*
-int16_t deleteFile(EEPROMDescriptor eeprom_descriptor, const char *filename) {
+int16_t EEPROM_FindFile(EEPROMDescriptor eeprom_descriptor, const char *filename, JEEFSFileHeader *header, uint16_t *address) {
     if (!filename || strlen(filename) > FILE_NAME_LENGTH)
         return FILENAMENOTVALID;
 
-    JEEFSFileHeader fileHeaderToDelete;
-    uint16_t fileAddressToDelete;
-    if (findFile(eeprom_descriptor, filename, &fileHeaderToDelete, &fileAddressToDelete) != 1) {
-        return 0; // File not found
-    }
-
-    uint16_t prevAddress = sizeof(EEPROMHeader);
-    JEEFSFileHeader prevFileHeader;
-    while (1) {
-        JEEFSFileHeader fileHeader;
-        ssize_t readSize = eeprom_read(eeprom_descriptor, &fileHeader, sizeof(JEEFSFileHeader), prevAddress);
-        if (readSize != sizeof(JEEFSFileHeader)) {
-            return FILENOTFOUND; // Reached the end or an error occurred
-        }
-
-        if (fileHeader.nextFileAddress == fileAddressToDelete) {
-            // Found the previous file that points to the file to delete
-            prevFileHeader = fileHeader;
-            break;
-        }
-        prevAddress = fileHeader.nextFileAddress; // Move to next file
-    }
-
-    // Update the previous file's nextFileAddress to skip the deleted file
-    prevFileHeader.nextFileAddress = fileHeaderToDelete.nextFileAddress;
-    eeprom_write(eeprom_descriptor, &prevFileHeader, sizeof(JEEFSFileHeader), prevAddress);
-
-    // Zero out the deleted file's header for safety
-    memset(&fileHeaderToDelete, 0, sizeof(JEEFSFileHeader));
-    eeprom_write(eeprom_descriptor, &fileHeaderToDelete, sizeof(JEEFSFileHeader), fileAddressToDelete);
-
-    // Defragment EEPROM
-    defragEEPROM(eeprom_descriptor);
-
-    return 1; // File deleted successfully
-}
-*/
-
-static int16_t findFile(EEPROMDescriptor eeprom_descriptor, const char *filename, JEEFSFileHeader *header, uint16_t *address) {
-    if (!filename || strlen(filename) > FILE_NAME_LENGTH)
-        return FILENAMENOTVALID;
-
-    uint16_t currentAddress = sizeof(EEPROMHeader); // Starting after the EEPROM header
+    uint16_t currentAddress = sizeof(JEEPROMHeader); // Starting after the EEPROM header
 
     while (1) {
         JEEFSFileHeader fileHeader;
@@ -285,7 +321,7 @@ static int16_t findFile(EEPROMDescriptor eeprom_descriptor, const char *filename
             return 1; // File found
         }
 
-        currentAddress = getNextFileAddress(eeprom_descriptor, currentAddress);
+        currentAddress = EEPROM_getNextFileAddress(eeprom_descriptor, currentAddress);
         if (currentAddress == 0) {
             break; // End of file list
         }
@@ -294,11 +330,11 @@ static int16_t findFile(EEPROMDescriptor eeprom_descriptor, const char *filename
     return 0; // File not found
 }
 
-uint32_t calculateCRC32(const uint8_t *data, size_t length) {
+inline uint32_t calculateCRC32(const uint8_t *data, size_t length) {
     return crc32(0L, data, length);
 }
 
-int16_t getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentAddress) {
+uint16_t EEPROM_getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentAddress) {
     JEEFSFileHeader fileHeader;
     if (eeprom_read(eeprom_descriptor, &fileHeader, sizeof(JEEFSFileHeader), currentAddress) != sizeof(JEEFSFileHeader)) {
         return 0; // Error reading header
@@ -306,6 +342,50 @@ int16_t getNextFileAddress(EEPROMDescriptor eeprom_descriptor, uint16_t currentA
     return fileHeader.nextFileAddress;
 }
 
-static inline bool isEmpty(char var) {
+
+int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, JEEPROMHeader header) {
+    header.crc32 = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof(header.crc32));
+    return eeprom_write(eeprom_descriptor, &header, sizeof(JEEPROMHeader), 0) == sizeof(JEEPROMHeader);
+}
+
+int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor)
+{
+    JEEPROMHeader header = EEPROM_GetHeader(eeprom_descriptor);
+    uint32_t crc32 = header.crc32;
+    //header.crc32 = 0;
+    // check header with magic "JetHome" in begin:
+    if (strncmp(header.magic, "JetHome", 7) != 0) {
+        debug("EEPROM_HeaderCheckConsistency: magic error %s\n", header.magic);
+        return -1;
+    }
+    uint32_t crc32_calc = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof(header.crc32));
+    if (crc32_calc != crc32) {
+        debug("EEPROM_HeaderCheckConsistency: crc32 error %u != %u\n", crc32_calc, crc32);
+        return -1;
+    }
+    return 1;
+}
+
+int EEPROM_FormatEEPROM(EEPROMDescriptor ep){
+    uint8_t buffer[ep.eeprom_size];
+    JEEPROMHeader *header = (JEEFSFileHeader *) buffer;
+
+    memset(buffer, 0, ep.eeprom_size);
+    //memset(&header, 0, sizeof(JEEPROMHeader));
+    strncpy(header->magic, "JetHome", 7);
+    header->crc32 = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof(header->crc32));
+    /*EEPROM_SetHeader(ep, header);*/
+    eeprom_write(ep, &buffer, ep.eeprom_size, 0);
+    return 1;
+}
+
+inline bool EEPROM_ByteIsEmpty(char var) {
     return var == '\xFF' || var == '\0';
+}
+inline bool EEPROM_WordIsEmpty(uint16_t var) {
+    return var == 0xFFFF || var == 0x0000;
+}
+
+inline bool EEPROM_QWordIsEmpty(uint32_t var) {
+    return var == 0xFFFFFFFF || var == 0x00000000;
 }

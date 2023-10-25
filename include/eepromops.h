@@ -28,6 +28,6 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size);
 int eeprom_close(EEPROMDescriptor eeprom_descriptor);
 
 ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t count, uint16_t offset);
-ssize_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint16_t count, uint16_t offset);
+uint16_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint16_t count, uint16_t offset);
 
 #endif //JEEFS_EEPROMOPS_H

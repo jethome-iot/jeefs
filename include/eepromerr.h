@@ -4,8 +4,8 @@
  * Author: Viacheslav Bocharov <adeep@lexina.in>
  */
 
-#ifndef JEEFS_ERR_H
-#define JEEFS_ERR_H
+#ifndef JEEFS_EEPROMERR_H
+#define JEEFS_EEPROMERR_H
 
 
 typedef enum {
@@ -22,6 +22,7 @@ typedef enum {
     FILEALREADYEXISTS = -7,
     // buffer not valid
     BUFFERNOTVALID = -8,
-    NOSPACEERROR = -9
+    EEPROMCORRUPTED = -10,
+    EEPROMREADERROR = -11
 } EEPROMError;
-#endif //JEEFS_ERR_H
+#endif //JEEFS_EEPROMERR_H

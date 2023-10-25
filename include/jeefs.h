@@ -14,8 +14,8 @@
 #include "eepromops.h"
 
 #define FILE_NAME_LENGTH   15
-#define MAGIC_LENGTH       8
 #define MAGIC              "JetHome"
+#define MAGIC_LENGTH       8
 #define SERIAL_LENGTH      16
 #define USID_LENGTH        32
 #define CPUID_LENGTH        32
@@ -33,7 +33,8 @@ typedef struct {
     uint8_t  cpuid[CPUID_LENGTH];
     uint8_t  version;
     uint8_t  reserved[1];  // Adjusted for alignment to 4 bytes
-} EEPROMHeader; // size = 96 bytes
+    uint32_t crc32;
+} JEEPROMHeader; // size = 96 bytes
 
 // File header structure
 typedef struct {
@@ -49,13 +50,13 @@ typedef struct {
  * Jethub EEPROM partition and file system
  *
  * API:
- * listFiles() - Returns the number of files found. Populates fileList with the names of the files.
- * readFile() - Reads the data of the file with the given filename into the buffer.
- * writeFile() - Overwrites the data of an existing file with the given filename.
- * addFile() - Creates a new file with the given filename and data.
- * deleteFile() - Deletes the file with the given filename.
+ * EEPROM_ListFiles() - Returns the number of files found. Populates fileList with the names of the files.
+ * EEPROM_ReadFile() - Reads the data of the file with the given filename into the buffer.
+ * EEPROM_WriteFile() - Overwrites the data of an existing file with the given filename.
+ * EEPROM_AddFile() - Creates a new file with the given filename and data.
+ * EEPROM_DeleteFile() - Deletes the file with the given filename.
  * defragEEPROM() - Compacts the EEPROM by removing gaps caused by deleted files or fragmentation.
- * checkConsistency() - Checks the integrity of the file system.
+ * EEPROM_HeaderCheckConsistency() - Checks the integrity of the file system.
  *
  * Base principles:
  * - EEPROM is divided into files (partitions). Each partition has a name, offset and size.
@@ -64,29 +65,29 @@ typedef struct {
  * - files can't be zero size
  * - files can't be fragmented
  * - files on overwrite if size differs are deleted and new file is created
- * - auto defragmentation on every deleteFile()
+ * - auto defragmentation on every EEPROM_DeleteFile()
  */
 
 // File system functions
 
 // Returns the number of files found. Populates fileList with the names of the files.
-int16_t listFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH], uint16_t maxFiles);
+int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH], uint16_t maxFiles);
 
 // Reads the data of the file with the given filename into the buffer.
 // Return: read bytes count, 0 if file not found, <0 if error.
-int16_t readFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8_t *buffer, uint16_t bufferSize);
+int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8_t *buffer, uint16_t bufferSize);
 
 // Overwrites the data of an existing file with the given filename.
 // Return: written bytes count, 0 if file not found, <0 if error.
-int16_t writeFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize);
+int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize);
 
 // Creates a new file with the given filename and data.
 // Return: written bytes count, 0 if file already exists, <0 if error.
-int16_t addFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize);
+int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data, uint16_t dataSize);
 
 // Deletes the file with the given filename.
 // Return: 1 if file deleted, 0 if file not found, <0 if error.
-int16_t deleteFile(EEPROMDescriptor eeprom_descriptor, const char *filename);
+int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename);
 
 // Compacts the EEPROM by removing gaps caused by deleted files or fragmentation.
 // Return: 1 if EEPROM compacted, 0 if no compaction needed, <0 if error.
@@ -94,6 +95,16 @@ int16_t defragEEPROM(EEPROMDescriptor eeprom_descriptor);
 
 // Checks the integrity of the file system.
 // Return: 1 if file system is consistent, 0 if file system is inconsistent, <0 if error.
-int16_t checkConsistency(EEPROMDescriptor eeprom_descriptor);
+int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor);
+
+// Set EEPROM_Header
+int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, JEEPROMHeader header);
+
+JEEPROMHeader EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor);
+
+EEPROMDescriptor EEPROM_OpenEEPROM(const char *pathname, uint16_t eeprom_size);
+int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor);
+
+int EEPROM_FormatEEPROM(EEPROMDescriptor ep);
 
 #endif //JEEFS_JEEFS_H
