@@ -41,7 +41,7 @@ jobs:
       - name: Test
         run: |
           cd build
-          ctest || true
+          ctest
           cat Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
 
         working-directory: ${{ github.workspace }}
