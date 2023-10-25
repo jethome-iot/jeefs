@@ -8,12 +8,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include "tests-common.h"
+#include "debug.h"
 
 int generate_files(const char *path, const char *basename, int num_files, int maxsize) {
     int i;
     char filename[100];
     char filedata[maxsize];
     FILE *fp;
+    //debug("Generating path: %s basename: %s num_files: %d maxsize: %d\n", path, basename, num_files, maxsize);
     for (i = 0; i < num_files; i++) {
         sprintf(filename, "%s/%s_%d", path, basename, i);
         fp = fopen(filename, "w+");
@@ -24,9 +26,10 @@ int generate_files(const char *path, const char *basename, int num_files, int ma
         }
         // generate random data
         sprintf(filedata, "Hello, file %d!", i);
-        for (size_t j = strlen(filedata); j < maxsize - random() % (maxsize-maxsize/3); j++) {
+        for (size_t j = strlen(filedata); j < maxsize - 2 - random() % (maxsize-maxsize/3); j++) {
             filedata[j] = (char)('a' + (char)(random() % 26));
-            filedata[j + 1] = '\0';
+            filedata[j + 1] = '\n';
+            filedata[j + 2] = '\0';
         }
 
         // write data to file
