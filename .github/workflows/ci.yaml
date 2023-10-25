@@ -41,7 +41,12 @@ jobs:
       - name: Test
         run: |
           cd build
-          set -o pipefail
-          ctest || cat Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
+          ctest
+
+      - name: Show test result
+        if: failure()
+        run: |
+          cd build
+          cat Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
 
         working-directory: ${{ github.workspace }}
