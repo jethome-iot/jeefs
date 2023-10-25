@@ -82,8 +82,9 @@ int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor, const char *filename
     if (fileHeader.dataSize > bufferSize) {
         return BUFFERNOTVALID; // Provided buffer is too small
     }
-    ssize_t readSize = eeprom_read(eeprom_descriptor, buffer, bufferSize, fileAddress + sizeof(JEEFSFileHeader));
-    return readSize > 0 ? readSize : 0; // Return read bytes or 0 on error
+
+    ssize_t readSize = eeprom_read(eeprom_descriptor, buffer, fileHeader.dataSize, fileAddress + sizeof(JEEFSFileHeader));
+    return readSize > 0 ? readSize : -1; // Return read bytes or 0 on error
 }
 
 
@@ -351,29 +352,30 @@ int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, JEEPROMHeader header) {
 int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor)
 {
     JEEPROMHeader header = EEPROM_GetHeader(eeprom_descriptor);
-    uint32_t crc32 = header.crc32;
+    uint32_t crc32old = header.crc32;
     //header.crc32 = 0;
     // check header with magic "JetHome" in begin:
     if (strncmp(header.magic, "JetHome", 7) != 0) {
         debug("EEPROM_HeaderCheckConsistency: magic error %s\n", header.magic);
         return -1;
     }
-    uint32_t crc32_calc = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof(header.crc32));
-    if (crc32_calc != crc32) {
-        debug("EEPROM_HeaderCheckConsistency: crc32 error %u != %u\n", crc32_calc, crc32);
+    uint32_t crc32_calc = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof((&header)->crc32));
+    if (crc32_calc != crc32old) {
+        debug("EEPROM_HeaderCheckConsistency: crc32 error %u != %u\n", crc32_calc, crc32old);
         return -1;
     }
-    return 1;
+    return 0;
 }
 
 int EEPROM_FormatEEPROM(EEPROMDescriptor ep){
     uint8_t buffer[ep.eeprom_size];
-    JEEPROMHeader *header = (JEEFSFileHeader *) buffer;
+    JEEPROMHeader *header = (JEEPROMHeader *) buffer;
 
     memset(buffer, 0, ep.eeprom_size);
     //memset(&header, 0, sizeof(JEEPROMHeader));
     strncpy(header->magic, "JetHome", 7);
-    header->crc32 = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof(header->crc32));
+    header->crc32 = calculateCRC32((uint8_t *)header, sizeof(JEEPROMHeader) - sizeof(header->crc32));
+    debug("EEPROM_FormatEEPROM: crc32: %x\n", header->crc32);
     /*EEPROM_SetHeader(ep, header);*/
     eeprom_write(ep, &buffer, ep.eeprom_size, 0);
     return 1;
