@@ -41,6 +41,9 @@ jobs:
       - name: Test
         run: |
           cd build
+          # create test eeprom.bin size 8192
+          dd if=/dev/zero of=tests/common/eeprom.bin bs=1 count=8192
+          
           ctest
 
       - name: Show test result
