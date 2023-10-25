@@ -1,7 +1,10 @@
 
 
-add_executable(test_eefs test_eefs.c
-        tests-common.c
-        tests-common.h)
-target_link_libraries(test_eefs jeefs)
-add_test(test_eefs test_eefs)
+add_library(test-common tests-common.c)
+
+
+target_link_libraries(test-common PUBLIC jeefs)
+
+target_include_directories(test-common PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)

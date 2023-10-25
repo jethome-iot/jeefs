@@ -18,6 +18,9 @@
 #include "debug.h"
 #include "eepromerr.h"
 
+void test1();
+
+void test2();
 
 int main() {
     printf("Hello, World! DEBUG:%i\n",DEBUG);
@@ -30,6 +33,21 @@ int main() {
     debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: %s\n",
           TEST_DIR, TEST_FILENAME, TEST_EEPROM_PATH, TEST_EEPROM_FILENAME, TEST_EEPROM_SIZE, dir);
 
+    // Test 1: open, write, close
+    test1();
+
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 1 - passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    // Test 2: open, read, compare files, close
+    test2();
+
+
+    // END: delete test files
+    //delete_files(TEST_DIR, TEST_FILENAME, 5);
+    return 0;
+}
+
+
+void test1() {
     EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
     assert(("Check eeprom_open result", ep.eeprom_fid > 0));
     assert(("Check eeprom_open result size = 8192", ep.eeprom_size == TEST_EEPROM_SIZE));
@@ -58,19 +76,60 @@ int main() {
         if (err <= 0)
             break;
 
-        printf("File %d: %s size:%li\n", i, filename, filesize);
+        printf("File %d: %s size:%i\n", i, filename, filesize);
         memset(filedata, 0, sizeof(filedata));
     }
     assert("Check EEPROM_AddFile failed" && i == 11);
     assert("Check EEPROM_AddFile return error" && err == NOTENOUGHSPACE);
-    sleep(2);
-
-    // END: delete test files
-    //delete_files(TEST_DIR, TEST_FILENAME, 5);
     EEPROM_CloseEEPROM(ep);
-    return 0;
+
 }
 
+void test2 (){
+    EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
+    assert(("Check eeprom_open result", ep.eeprom_fid > 0));
+    assert(("Check eeprom_open result size = 8192", ep.eeprom_size == TEST_EEPROM_SIZE));
+    printf("EEPROM opened, size: %lu\n", ep.eeprom_size);
+
+    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
+    printf("Check EEPROM_header: %i\n", EEPROM_consistency);
+    assert("Check EEPROM_header consistency" && EEPROM_consistency == 0);
+
+    char filename[100];
+    uint8_t filedata[8192];
+    uint16_t filesize;
+    int i, err;
+    for (i=0; i < sizeof(test_files); i++) {
+        sprintf(filename, "%s_%d", TEST_FILENAME, i);
+        printf("!!!!++++ read file %s\n",filename);
+
+        err = EEPROM_ReadFile(ep, filename, filedata, 1);
+        if (i < 11)
+        {
+            assert("Check EEPROM_ReadFile buffer size" && err == BUFFERNOTVALID);
+        } else
+            assert("Check file not exists" && err == FILENOTFOUND);
+
+        err = EEPROM_ReadFile(ep, filename, filedata, sizeof(filedata));
+
+        if (i < 11)
+        {
+            assert ("Check file exists" && err == 0);
+        } else
+            assert("Check file not exists" && err == FILENOTFOUND);
+
+        filesize = strlen(test_files[i])+1;
+        assert("Compare file with original" && memcmp(filedata, test_files[i],filesize));
+
+
+        printf("File %d: %s size:%li checked ok\n", i, filename, filesize);
+        memset(filedata, 0, sizeof(filedata));
+    }
+    assert("Check EEPROM_AddFile failed" && i == 11);
+    assert("Check EEPROM_AddFile return error" && err == NOTENOUGHSPACE);
+    EEPROM_CloseEEPROM(ep);
+
+}
 
 
 // delete generated files

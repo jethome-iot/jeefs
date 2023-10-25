@@ -28,7 +28,7 @@
 #endif
 
 #ifndef TEST_FILENAME
-#define TEST_FILENAME TEST_DIR "/" "tstf"
+#define TEST_FILENAME "tstf"
 #endif
 
 #ifndef TEST_FULL_EEPROM_FILENAME
