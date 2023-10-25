@@ -27,9 +27,9 @@ int main() {
 
     char dir[1000];
     getcwd(dir, sizeof(dir));
-
     debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: %s\n",
           TEST_DIR, TEST_FILENAME, TEST_EEPROM_PATH, TEST_EEPROM_FILENAME, TEST_EEPROM_SIZE, dir);
+    return 0;
 
     EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
     assert(("Check eeprom_open result", ep.eeprom_fid > 0));

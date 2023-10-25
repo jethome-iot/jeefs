@@ -12,6 +12,9 @@ if (NOT DEFINED TEST_EEPROM_SIZE)
     set(TEST_EEPROM_SIZE 0)
 endif()
 
+if (DEFINED DEBUG)
+    add_definitions(-DDEBUG)
+endif()
 
 # path for temp files
 add_definitions(-DTEST_DIR=".")
