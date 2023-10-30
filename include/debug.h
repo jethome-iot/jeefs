@@ -9,6 +9,11 @@
 
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #if DEBUG==1
 #define debug(fmt, ...) printf("[D!] " fmt, ##__VA_ARGS__)
 #else
@@ -16,5 +21,8 @@
 //#define debug(...)
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif //JEEFS_DEBUG_H

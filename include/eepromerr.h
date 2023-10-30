@@ -7,6 +7,9 @@
 #ifndef JEEFS_EEPROMERR_H
 #define JEEFS_EEPROMERR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
     NOTHINGDO = 0,
@@ -25,4 +28,9 @@ typedef enum {
     EEPROMCORRUPTED = -10,
     EEPROMREADERROR = -11
 } EEPROMError;
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif //JEEFS_EEPROMERR_H

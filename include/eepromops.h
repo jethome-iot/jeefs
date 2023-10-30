@@ -7,6 +7,10 @@
 #ifndef JEEFS_EEPROMOPS_H
 #define JEEFS_EEPROMOPS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,5 +33,9 @@ int eeprom_close(EEPROMDescriptor eeprom_descriptor);
 
 ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t count, uint16_t offset);
 uint16_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint16_t count, uint16_t offset);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //JEEFS_EEPROMOPS_H

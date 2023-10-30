@@ -8,6 +8,10 @@
 #define JEEFS_JEEFS_H
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -106,5 +110,9 @@ EEPROMDescriptor EEPROM_OpenEEPROM(const char *pathname, uint16_t eeprom_size);
 int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor);
 
 int EEPROM_FormatEEPROM(EEPROMDescriptor ep);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //JEEFS_JEEFS_H
