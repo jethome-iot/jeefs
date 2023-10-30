@@ -2,11 +2,19 @@
 # find zlib as required
 find_package(ZLIB REQUIRED)
 
-add_library(jeefs
+add_library(jeefsstatic STATIC
     jeefs.c
         ../include/eepromerr.h
         ../include/debug.h
 )
+
+add_library(jeefs SHARED
+        jeefs.c
+        ../include/eepromerr.h
+        ../include/debug.h
+)
+
+set_target_properties(jeefsstatic PROPERTIES OUTPUT_NAME jeefs)
 
 if(JEEFS_USE_EEPROMOPS_MEMORY)
     # Link against eepromops-memory
