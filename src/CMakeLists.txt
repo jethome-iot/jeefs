@@ -16,11 +16,13 @@ add_library(jeefs SHARED
         ../include/jeefs.h
 )
 
-#set_target_properties(jeefsstatic PROPERTIES OUTPUT_NAME jeefs)
+set_target_properties(jeefsstatic PROPERTIES OUTPUT_NAME jeefs)
 
 if(JEEFS_USE_EEPROMOPS_MEMORY)
     # Link against eepromops-memory
-    target_link_libraries(jeefs eepromops-memory)
+    # link to static library  eepromops-memory
+    target_link_libraries(jeefsstatic  eepromops-memory)
+    target_link_libraries(jeefs  eepromops-memory)
 else()
     # Link against eepromops-file
     # TODO: add target_link_libraries(JeefsApp eepromops-file)
@@ -28,3 +30,4 @@ endif()
 
 
 target_link_libraries(jeefs ZLIB::ZLIB)
+target_link_libraries(jeefsstatic ZLIB::ZLIB)
