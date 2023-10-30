@@ -6,12 +6,14 @@ add_library(jeefsstatic STATIC
     jeefs.c
         ../include/eepromerr.h
         ../include/debug.h
+        ../include/jeefs.h
 )
 
 add_library(jeefs SHARED
         jeefs.c
         ../include/eepromerr.h
         ../include/debug.h
+        ../include/jeefs.h
 )
 
 set_target_properties(jeefsstatic PROPERTIES OUTPUT_NAME jeefs)
