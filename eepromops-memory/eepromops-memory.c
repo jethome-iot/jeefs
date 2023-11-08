@@ -209,7 +209,7 @@ ssize_t eeprom_save(EEPROMDescriptor desc) {
     while (current < block->size) {
         lseek(desc.eeprom_fid, current, SEEK_SET);
         written = write(desc.eeprom_fid, block->data + current, block->size - current);
-        if (written < 0) {
+        if (written <= 0) {
             debug("eeprom_save: write failed %i\n",errno);
             return -1;
         }
