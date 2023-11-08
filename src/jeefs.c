@@ -356,7 +356,7 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor)
     //header.crc32 = 0;
     // check header with magic "JetHome" in begin:
     if (strncmp(header.magic, "JetHome", 7) != 0) {
-        debug("EEPROM_HeaderCheckConsistency: magic error %s\n", header.magic);
+        debug("EEPROM_HeaderCheckConsistency: magic error %.8s\n", header.magic);
         return -1;
     }
     uint32_t crc32_calc = calculateCRC32((uint8_t *) &header, sizeof(JEEPROMHeader) - sizeof((&header)->crc32));
