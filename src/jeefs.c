@@ -290,7 +290,7 @@ int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
     }
 
     // Clear out the remaining space
-    uint8_t clearByte = 0xFF;
+    uint8_t clearByte = EEPROM_EMPTYBYTE;
     for (uint16_t i = 0; i < shiftSize && (readAddress - i) < descriptor.eeprom_size; i++) {
         eeprom_write(descriptor, &clearByte, 1, readAddress - i - 1);
     }
@@ -371,7 +371,7 @@ int EEPROM_FormatEEPROM(EEPROMDescriptor ep){
     uint8_t buffer[ep.eeprom_size];
     JEEPROMHeader *header = (JEEPROMHeader *) buffer;
 
-    memset(buffer, 0, ep.eeprom_size);
+    memset(buffer, EEPROM_EMPTYBYTE, ep.eeprom_size);
     //memset(&header, 0, sizeof(JEEPROMHeader));
     strncpy(header->magic, "JetHome", 7);
     header->crc32 = calculateCRC32((uint8_t *)header, sizeof(JEEPROMHeader) - sizeof(header->crc32));

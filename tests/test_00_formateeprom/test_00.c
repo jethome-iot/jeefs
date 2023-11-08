@@ -65,7 +65,16 @@ void test0(void) {
     ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
     EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
-    assert("Check EEPROM_header consistency" && EEPROM_consistency == 0);
+    assert("\nCheck EEPROM_header consistency failed" && EEPROM_consistency == 0);
+
+    int8_t buf[ep.eeprom_size],buf2[ep.eeprom_size];
+    memset(buf, EEPROM_EMPTYBYTE, ep.eeprom_size);
+    lseek(ep.eeprom_fid, 0, SEEK_SET);
+    assert(read(ep.eeprom_fid, buf2, ep.eeprom_size)==ep.eeprom_size);
+    printf("Check EEPROM data consistency\n");
+    for(int i=sizeof(JEEPROMHeader); i < ep.eeprom_size; i++) {
+        assert("\nCheck EEPROM data consistency failed\n" && buf[i] == buf2[i]);
+    }
 
     EEPROM_CloseEEPROM(ep);
 }

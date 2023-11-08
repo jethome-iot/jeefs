@@ -17,12 +17,13 @@ extern "C" {
 
 #include "eepromops.h"
 
-#define FILE_NAME_LENGTH   15
-#define MAGIC              "JetHome"
-#define MAGIC_LENGTH       8
-#define SERIAL_LENGTH      16
-#define USID_LENGTH        32
+#define FILE_NAME_LENGTH    15
+#define MAGIC               "JetHome"
+#define MAGIC_LENGTH        8
+#define SERIAL_LENGTH       16
+#define USID_LENGTH         32
 #define CPUID_LENGTH        32
+#define EEPROM_EMPTYBYTE    '\x00'
 
 #define MAC_LENGTH         6
 
