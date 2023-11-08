@@ -375,7 +375,7 @@ int EEPROM_FormatEEPROM(EEPROMDescriptor ep){
     //memset(&header, 0, sizeof(JEEPROMHeader));
     strncpy(header->magic, "JetHome", 7);
     header->crc32 = calculateCRC32((uint8_t *)header, sizeof(JEEPROMHeader) - sizeof(header->crc32));
-    debug("EEPROM_FormatEEPROM: crc32: %x\n", header->crc32);
+    debug("EEPROM_FormatEEPROM: crc32: %x buffer size:%lu header size: %lu\n", header->crc32, ep.eeprom_size, sizeof(*header));
     /*EEPROM_SetHeader(ep, header);*/
     eeprom_write(ep, &buffer, ep.eeprom_size, 0);
     return 1;
