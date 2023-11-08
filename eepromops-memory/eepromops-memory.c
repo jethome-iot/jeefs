@@ -126,7 +126,8 @@ uint16_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint1
 
     if (block->saveonwrite) {
         // TODO: add check for write errors
-        eeprom_save(eeprom_descriptor);
+        count = eeprom_save(eeprom_descriptor);
+        debug("saved %i bytes\n", count);
         block->dirty = false;
     }
 
