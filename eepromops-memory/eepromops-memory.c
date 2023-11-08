@@ -204,7 +204,20 @@ EEPROMBlock *find_block(int fid) {
 ssize_t eeprom_save(EEPROMDescriptor desc) {
     EEPROMBlock *block = find_block(desc.eeprom_fid);
     if (!block) return -1;
+    int current = 0;
+    ssize_t written = 0;
+    while (current < block->size) {
+        lseek(desc.eeprom_fid, current, SEEK_SET);
+        written = write(desc.eeprom_fid, block->data + current, block->size - current);
+        if (written < 0) {
+            debug("eeprom_save: write failed %i\n",errno);
+            return -1;
+        }
+        current += written;
 
-    lseek(desc.eeprom_fid, 0, SEEK_SET);
-    return write(desc.eeprom_fid, block->data, block->size);
+    }
+
+    // lseek(desc.eeprom_fid, 0, SEEK_SET);
+    return current;
+    //write(desc.eeprom_fid, block->data, block->size);
 }
