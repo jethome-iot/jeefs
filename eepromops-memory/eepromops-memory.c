@@ -204,7 +204,7 @@ EEPROMBlock *find_block(int fid) {
 ssize_t eeprom_save(EEPROMDescriptor desc) {
     EEPROMBlock *block = find_block(desc.eeprom_fid);
     if (!block) return -1;
-    int current = 0;
+    ssize_t current = 0;
     ssize_t written = 0;
     while (current < block->size) {
         lseek(desc.eeprom_fid, current, SEEK_SET);
