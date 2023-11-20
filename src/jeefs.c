@@ -48,7 +48,7 @@ int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor) {
 }
 
 int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH], uint16_t maxFiles) {
-    uint16_t count = 0;
+    int16_t count = 0;
     uint16_t currentAddress = sizeof(JEEPROMHeader); // Assuming the EEPROM starts with the header
 
     while (count < maxFiles) {
