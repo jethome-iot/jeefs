@@ -7,9 +7,6 @@
 #ifndef JEEFS_EEPROMOPS_H
 #define JEEFS_EEPROMOPS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -18,6 +15,10 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #pragma pack(push, 1)
 typedef struct {
