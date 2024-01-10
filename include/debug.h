@@ -14,11 +14,11 @@ extern "C" {
 #endif
 
 
-#if DEBUG==1
-#define debug(fmt, ...) printf("[D!] " fmt, ##__VA_ARGS__)
+#ifdef DEBUG
+#define debug(fmt, ...) printf("[D!] %s:%i: " fmt, __FILE__, __LINE__, ##__VA_ARGS__);fflush(stdout);
 #else
-#define debug(fmt, ...) printf("[D] %s:%i: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-//#define debug(...)
+//#define debug(fmt, ...) printf("[D] %s:%i: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#define debug(...)
 #endif
 
 #ifdef __cplusplus
