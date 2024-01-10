@@ -50,9 +50,10 @@ void test2 (){
     for (i=0; i < sizeof(test_files)/sizeof (char *); i++) {
         sprintf(filename, "%s_%d", TEST_FILENAME, i);
         printf("!!!!++++ read file %s\n",filename);
+        fflush(stdout);
 
         err = EEPROM_ReadFile(ep, filename, filedata, 1);
-        if (i < 11)
+        if (i < 10)
         {
             assert("Check EEPROM_ReadFile buffer size" && err == BUFFERNOTVALID);
         } else
@@ -61,11 +62,14 @@ void test2 (){
         memset(filedata, 0, sizeof(filedata));
         err = EEPROM_ReadFile(ep, filename, filedata, sizeof(filedata));
 
-        if (i < 11)
+        if (i < 10)
         {
-            debug("err: %i\n", err);
             assert ("Check file exists" && err > 0);
+            assert ("Check filesize" && strlen(test_files[i])+1 == err);
+
             filesize = strlen(test_files[i])+1;
+            debug("readed: %i filesize = %i cmp = %i\n", err, filesize, memcmp(filedata, test_files[i],filesize));
+            //fflush(stdout);
             assert("Compare file with original" && memcmp(filedata, test_files[i],filesize) == 0);
         } else
             assert("Check file not exists" && err == FILENOTFOUND);

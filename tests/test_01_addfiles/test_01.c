@@ -69,8 +69,12 @@ void test1() {
         memcpy(filedata, test_files[i],filesize);
 
         err = EEPROM_AddFile(ep, filename, filedata, strlen(test_files[i])+1);
-        if (err <= 0)
+        printf("EEPROM_AddFile: %i\n", err);
+        fflush(stdout);
+        if (err <= 0) {
+            i = i - 1;
             break;
+        }
 
         printf("File %d: %s size:%i\n", i, filename, filesize);
         memset(filedata, 0, sizeof(filedata));
