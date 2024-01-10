@@ -22,6 +22,8 @@ extern "C" {
 #define SERIAL_LENGTH       16
 #define USID_LENGTH         32
 #define CPUID_LENGTH        32
+#define BOARDNAME_LENGTH    32
+#define BOARDVERSION_LENGTH 32
 #define EEPROM_EMPTYBYTE    '\x00'
 
 #define MAC_LENGTH         6
@@ -37,8 +39,10 @@ typedef struct {
     uint8_t  cpuid[CPUID_LENGTH];
     uint8_t  version;
     uint8_t  reserved[1];  // Adjusted for alignment to 4 bytes
+    char     boardname[BOARDNAME_LENGTH];
+    char     boardversion[BOARDVERSION_LENGTH];
     uint32_t crc32;
-} JEEPROMHeader; // size = 96 bytes
+} JEEPROMHeader; // sizeof(JEEPROMHeader) = 160 bytes
 
 // File header structure
 typedef struct {
@@ -46,7 +50,7 @@ typedef struct {
     uint16_t dataSize;
     uint32_t crc32;
     uint16_t nextFileAddress;
-} JEEFSFileHeader; //
+} JEEFSFileHeader; // 24 bytes
 
 #pragma pack(pop)
 
