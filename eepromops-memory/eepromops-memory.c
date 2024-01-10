@@ -112,6 +112,7 @@ ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t coun
 }
 
 uint16_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint16_t count, uint16_t offset) {
+    uint16_t count2;
     if (offset + count > eeprom_descriptor.eeprom_size) return -1;
 
     EEPROMBlock *block = find_block(eeprom_descriptor.eeprom_fid);
@@ -126,7 +127,9 @@ uint16_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint1
 
     if (block->saveonwrite) {
         // TODO: add check for write errors
-        count = eeprom_save(eeprom_descriptor);
+        count2 = eeprom_save(eeprom_descriptor);
+        if (count2 < count || count2 != eeprom_descriptor.eeprom_size)
+            count = count2;
         debug("saved %i bytes\n", count);
         block->dirty = false;
     }
