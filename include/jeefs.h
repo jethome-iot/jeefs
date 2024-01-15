@@ -16,8 +16,9 @@
 extern "C" {
 #endif
 
-#define FILE_NAME_LENGTH    15
 #define MAGIC               "JetHome"
+#define HEADER_VERSION      1
+#define FILE_NAME_LENGTH    15
 #define MAGIC_LENGTH        8
 #define SERIAL_LENGTH       16
 #define USID_LENGTH         32
@@ -33,16 +34,18 @@ extern "C" {
 // EEPROM header structure
 typedef struct {
     char     magic[MAGIC_LENGTH];
+    uint8_t  version;
     char     boardname[BOARDNAME_LENGTH+1];
     char     boardversion[BOARDVERSION_LENGTH+1];
+    uint16_t modules[16];
     uint8_t  serial[SERIAL_LENGTH];
     uint8_t  mac[MAC_LENGTH];
     uint8_t  usid[USID_LENGTH];
     uint8_t  cpuid[CPUID_LENGTH];
-    uint8_t  version;
     uint8_t  reserved[1];  // Adjusted for alignment to 4 bytes
+    uint8_t  reserved2[256]; // for future use
     uint32_t crc32;
-} JEEPROMHeader; // sizeof(JEEPROMHeader) = 160 bytes
+} JEEPROMHeader; // sizeof(JEEPROMHeader) = 256 bytes
 
 // File header structure
 typedef struct {
