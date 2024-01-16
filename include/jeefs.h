@@ -45,7 +45,7 @@ typedef struct {
     uint8_t  reserved[1];  // Adjusted for alignment to 4 bytes
     uint8_t  reserved2[256]; // for future use
     uint32_t crc32;
-} JEEPROMHeader; // sizeof(JEEPROMHeader) = 256 bytes
+} JEEPROMHeader; // sizeof(JEEPROMHeader) = 512 bytes
 
 // File header structure
 typedef struct {
