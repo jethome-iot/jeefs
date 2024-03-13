@@ -20,7 +20,7 @@ extern "C" {
 #define HEADER_VERSION      1
 #define FILE_NAME_LENGTH    15
 #define MAGIC_LENGTH        8
-#define SERIAL_LENGTH       16
+#define SERIAL_LENGTH       32
 #define USID_LENGTH         32
 #define CPUID_LENGTH        32
 #define BOARDNAME_LENGTH    31
@@ -33,17 +33,18 @@ extern "C" {
 
 // EEPROM header structure
 typedef struct {
-    char     magic[MAGIC_LENGTH];
-    uint8_t  version;
-    char     boardname[BOARDNAME_LENGTH+1];
-    char     boardversion[BOARDVERSION_LENGTH+1];
-    uint16_t modules[16];
-    uint8_t  serial[SERIAL_LENGTH];
-    uint8_t  mac[MAC_LENGTH];
-    uint8_t  usid[USID_LENGTH];
-    uint8_t  cpuid[CPUID_LENGTH];
-    uint8_t  reserved[1];  // Adjusted for alignment to 4 bytes
-    uint8_t  reserved2[256]; // for future use
+    char     magic[MAGIC_LENGTH];                   // 8 bytes
+    uint8_t  version;                               // 1 byte
+    uint8_t  reserved1[3];                          // 3 bytes align
+    char     boardname[BOARDNAME_LENGTH+1];         // 32 bytes
+    char     boardversion[BOARDVERSION_LENGTH+1];   // 32 bytes
+    uint16_t modules[16];                           // 32 bytes
+    uint8_t  serial[SERIAL_LENGTH];                 // 32 bytes
+    uint8_t  mac[MAC_LENGTH];                       // 6 bytes
+    uint8_t  reserved2[2];                          // 2 bytes align
+    uint8_t  usid[USID_LENGTH];                     // 32 bytes
+    uint8_t  cpuid[CPUID_LENGTH];                   // 32 bytes
+    uint8_t  reserved3[296];                        // for future use
     uint32_t crc32;
 } JEEPROMHeader; // sizeof(JEEPROMHeader) = 512 bytes
 
@@ -51,8 +52,8 @@ typedef struct {
 typedef struct {
     char     name[FILE_NAME_LENGTH+1];
     uint16_t dataSize;
-    uint32_t crc32;
     uint16_t nextFileAddress;
+    uint32_t crc32;
 } JEEFSFileHeader; // 24 bytes
 
 #pragma pack(pop)
