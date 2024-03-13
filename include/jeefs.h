@@ -31,7 +31,7 @@ extern "C" {
 
 #pragma pack(push, 1)
 
-// EEPROM header structure
+// EEPROM header structure v.1
 typedef struct {
     char     magic[MAGIC_LENGTH];                   // 8 bytes
     uint8_t  version;                               // 1 byte
