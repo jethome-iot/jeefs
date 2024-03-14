@@ -56,19 +56,6 @@ typedef struct {
     uint32_t crc32;
 } JEEFSFileHeader; // 24 bytes
 
-enum __attribute__ ((__packed__)) JHModulesTypes
-{
-    JHModule_Empty = 0,
-    JHModule_WiFi_AP6255 = 1, //  AMPAK AP6255/6256
-    JHModule_WiFi_RTL8822CS = 2,
-    JHModule_WiFi_AMLOGICW155 = 3,
-    JHModule_WiFi_RTL8821CU = 4,
-    // skipped
-    JHModule_ZigBee_ZB3CX = 50,  // CC2538+CC2592
-    JHModule_ZigBee_ZB6C = 51,   // CC2652P1
-    JHModule_ZigBee_ZB4C = 52,   // EFR32MG21
-};
-
 #pragma pack(pop)
 
 /**
