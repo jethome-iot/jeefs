@@ -19,42 +19,59 @@ extern "C" {
 #define MAGIC               "JetHome"
 #define HEADER_VERSION      1
 #define FILE_NAME_LENGTH    15
+#define MAC_LENGTH          6
 #define MAGIC_LENGTH        8
-#define SERIAL_LENGTH       32
+#define SERIAL_LENGTH       16
 #define USID_LENGTH         32
 #define CPUID_LENGTH        32
 #define BOARDNAME_LENGTH    31
 #define BOARDVERSION_LENGTH 31
 #define EEPROM_EMPTYBYTE    '\x00'
 
-#define MAC_LENGTH         6
 
 #pragma pack(push, 1)
 
-// EEPROM header structure v.1
+// EEPROM header structure
 typedef struct {
     char     magic[MAGIC_LENGTH];                   // 8 bytes
-    uint8_t  version;                               // 1 byte
-    uint8_t  reserved1[3];                          // 3 bytes align
+    uint32_t  version;                              // 1 byte
+    uint8_t  reserved1[3];                          // 3 bytes VERSION align
     char     boardname[BOARDNAME_LENGTH+1];         // 32 bytes
     char     boardversion[BOARDVERSION_LENGTH+1];   // 32 bytes
     uint16_t modules[16];                           // 32 bytes
     uint8_t  serial[SERIAL_LENGTH];                 // 32 bytes
     uint8_t  mac[MAC_LENGTH];                       // 6 bytes
-    uint8_t  reserved2[2];                          // 2 bytes align
+    uint8_t  reserved2[2];                          // 2 bytes for extended MAC
+    uint8_t  usid[USID_LENGTH];
+    uint8_t  cpuid[CPUID_LENGTH];
+    uint8_t  reserved3[312];
+    uint32_t crc32;
+} JEEPROMHeaderv1; // sizeof(JEEPROMHeader) = 512 bytes
+
+
+// EEPROM header structure v.2 (256-byte version)
+typedef struct {
+    char     magic[MAGIC_LENGTH];                   // 8 bytes
+    uint8_t  version;                               // 1 byte
+    uint8_t  reserved1[3];                          // 3 bytes VERSION align
+    char     boardname[BOARDNAME_LENGTH+1];         // 32 bytes
+    char     boardversion[BOARDVERSION_LENGTH+1];   // 32 bytes
+    uint8_t  serial[SERIAL_LENGTH];                 // 32 bytes
     uint8_t  usid[USID_LENGTH];                     // 32 bytes
     uint8_t  cpuid[CPUID_LENGTH];                   // 32 bytes
-    uint8_t  reserved3[296];                        // for future use
-    uint32_t crc32;
-} JEEPROMHeader; // sizeof(JEEPROMHeader) = 512 bytes
+    uint8_t  mac[MAC_LENGTH];                       // 8 bytes
+    uint8_t  reserved2[2];                          // 2 bytes for extended MAC
+    uint8_t  reserved3[72];                         // 72 bytes for future use
+    uint32_t crc32;                                 // 4 bytes header CRC
+} JEEPROMHeaderv2; // sizeof(JEEPROMHeader) = 256 bytes
 
 // File header structure
 typedef struct {
-    char     name[FILE_NAME_LENGTH+1];
-    uint16_t dataSize;
-    uint16_t nextFileAddress;
-    uint32_t crc32;
-} JEEFSFileHeader; // 24 bytes
+    char     name[FILE_NAME_LENGTH+1];  // 16 bytes
+    uint16_t dataSize;                  // 2 bytes
+    uint32_t crc32;                     // 4 bytes
+    uint16_t nextFileAddress;           // 2 bytes
+} JEEFSFileHeaderv1; // 24 bytes
 
 #pragma pack(pop)
 
@@ -102,11 +119,11 @@ int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
 int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename);
 
 // Compacts the EEPROM by removing gaps caused by deleted files or fragmentation.
-// Return: 1 if EEPROM compacted, 0 if no compaction needed, <0 if error.
+// Return: 1 if EEPROM compacted, 0 if no compaction is needed, <0 if error.
 int16_t defragEEPROM(EEPROMDescriptor eeprom_descriptor);
 
 // Checks the integrity of the file system.
-// Return: 1 if file system is consistent, 0 if file system is inconsistent, <0 if error.
+// Return: 1 if the filesystem is consistent, 0 if the filesystem is inconsistent, <0 if error.
 int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor);
 
 // Set EEPROM_Header
