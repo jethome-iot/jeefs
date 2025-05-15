@@ -23,8 +23,8 @@ void test0(void);
 int main() {
     printf("Hello, World! DEBUG:%i\n",DEBUG);
     // print sizes of structures from jeefs.h
-    printf("sizeof(JEEPROMHeader) = %lu\n", sizeof(JEEPROMHeader));
-    printf("sizeof(JEEFSFileHeader) = %lu\n", sizeof(JEEFSFileHeader));
+    printf("sizeof(JEEPROMHeaderv1) = %lu\n", sizeof(JEEPROMHeaderv1));
+    printf("sizeof(JEEFSFileHeaderv1) = %lu\n", sizeof(JEEFSFileHeaderv1));
 
     char dir[1000];
     getcwd(dir, sizeof(dir));
@@ -72,7 +72,7 @@ void test0(void) {
     lseek(ep.eeprom_fid, 0, SEEK_SET);
     assert(read(ep.eeprom_fid, buf2, ep.eeprom_size)==ep.eeprom_size);
     printf("Check EEPROM data consistency\n");
-    for(int i=sizeof(JEEPROMHeader); i < ep.eeprom_size; i++) {
+    for(int i=sizeof(JEEPROMHeaderv1); i < ep.eeprom_size; i++) {
         assert("\nCheck EEPROM data consistency failed\n" && buf[i] == buf2[i]);
     }
 
