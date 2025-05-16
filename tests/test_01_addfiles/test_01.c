@@ -49,11 +49,11 @@ void test1() {
 
     int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
-    EEPROM_FormatEEPROM(ep, 2);
+    EEPROM_FormatEEPROM(ep, 1);
     if (EEPROM_consistency < 0) {
         printf("EEPROM header is not consistent, format EEPROM\n");
         // TODO: check error code
-        EEPROM_FormatEEPROM(ep, 2);
+        EEPROM_FormatEEPROM(ep, 1);
     }
     EEPROM_CloseEEPROM(ep);
     ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);

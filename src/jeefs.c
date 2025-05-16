@@ -459,22 +459,24 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
     debug("EEPROM_HeaderCheckConsistency: magic error %.8s\n", header.magic);
     return -1;
   }
-  union JEEPROMHeaderu *header = malloc(headersize);
+  union JEEPROMHeaderu header[sizeof(union JEEPROMHeaderu)];
   int result = EEPROM_GetHeader(eeprom_descriptor, header, headersize);
-  uint32_t crc32old;
-  uint32_t crc32_calc;
+  uint32_t crc32old = 0;
+  uint32_t crc32_calc = 0;
 
   switch (header->version.version) {
   case 1:
     crc32old = header->v1.crc32;
-    crc32_calc = calculateCRC32((uint8_t *)&header,
+    crc32_calc = calculateCRC32((uint8_t *)header,
                                 headersize - sizeof(header->v1.crc32));
+    break;
   case 2:
     crc32old = header->v2.crc32;
     crc32_calc = calculateCRC32((uint8_t *)header,
                                 headersize - sizeof(header->v2.crc32));
+    break;
   }
-  if (crc32_calc != crc32old) {
+  if (!crc32old || (crc32_calc != crc32old)) {
     debug("EEPROM_HeaderCheckConsistency: crc32 error %u != %u\n", crc32_calc,
           crc32old);
     return -1;

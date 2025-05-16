@@ -46,7 +46,7 @@ void test2 (){
     uint8_t filedata[8192];
     uint16_t filesize;
     int i, err;
-    debug("sizeof(test_files) = %lu\n", sizeof(test_files)/sizeof (char *));
+    printf("sizeof(test_files) = %lu\n", sizeof(test_files)/sizeof (char *));
     for (i=0; i < sizeof(test_files)/sizeof (char *); i++) {
         sprintf(filename, "%s_%d", TEST_FILENAME, i);
         printf("!!!!++++ read file %s\n",filename);
