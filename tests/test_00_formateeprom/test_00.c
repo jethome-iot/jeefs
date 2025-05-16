@@ -59,7 +59,7 @@ void test0(void) {
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
 
     assert("Check EEPROM_header non consistency on empty file" && EEPROM_consistency != 0);
-    EEPROM_FormatEEPROM(ep);
+    EEPROM_FormatEEPROM(ep,2);
     EEPROM_CloseEEPROM(ep);
 
     ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
