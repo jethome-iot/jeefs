@@ -70,7 +70,7 @@ typedef struct {
   uint32_t crc32;                             // 4 bytes header CRC
 } JEEPROMHeaderv2; // sizeof(JEEPROMHeader) = 256 bytes
 
-union JEEPROMHeaderu {
+union JEEPROMHeader {
   JEEPROMHeaderversion version;
   JEEPROMHeaderv1 v1;
   JEEPROMHeaderv2 v2;

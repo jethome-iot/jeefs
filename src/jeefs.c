@@ -459,7 +459,7 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
     debug("EEPROM_HeaderCheckConsistency: magic error %.8s\n", header.magic);
     return -1;
   }
-  union JEEPROMHeaderu header[sizeof(union JEEPROMHeaderu)];
+  union JEEPROMHeader header[sizeof(union JEEPROMHeader)];
   int result = EEPROM_GetHeader(eeprom_descriptor, header, headersize);
   uint32_t crc32old = 0;
   uint32_t crc32_calc = 0;
@@ -488,7 +488,7 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
 int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version) {
   uint8_t buffer[ep.eeprom_size];
   memset(buffer, EEPROM_EMPTYBYTE, ep.eeprom_size);
-  union JEEPROMHeaderu *header = (union JEEPROMHeaderu *)buffer;
+  union JEEPROMHeader *header = (union JEEPROMHeader *)buffer;
   strncpy(header->version.magic, "JetHome", 7);
   header->version.version = version;
   switch (version) {
