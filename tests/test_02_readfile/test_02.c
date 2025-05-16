@@ -25,7 +25,7 @@ void test2();
 int main() {
     printf("Hello, World! DEBUG:%i\n",DEBUG);
     // print sizes of structures from jeefs.h
-    printf("sizeof(JEEPROMHeader) = %lu\n", sizeof(JEEPROMHeader));
+    printf("sizeof(JEEPROMHeader) = %lu\n", sizeof(JEEPROMHeaderv2));
     printf("sizeof(JEEFSFileHeader) = %lu\n", sizeof(JEEFSFileHeader));
 
     test2();

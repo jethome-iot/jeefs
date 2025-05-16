@@ -83,6 +83,8 @@ typedef struct {
   uint16_t nextFileAddress;        // 2 bytes
 } JEEFSFileHeaderv1;               // 24 bytes
 
+#define JEEFSFileHeader JEEFSFileHeaderv1
+
 #pragma pack(pop)
 
 /**

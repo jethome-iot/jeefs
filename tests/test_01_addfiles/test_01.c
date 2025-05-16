@@ -25,7 +25,7 @@ void test2();
 int main() {
     printf("Hello, World! DEBUG:%i\n",DEBUG);
     // print sizes of structures from jeefs.h
-    printf("sizeof(JEEPROMHeader) = %lu\n", sizeof(JEEPROMHeader));
+    printf("sizeof(JEEPROMHeaderv1) = %lu\n", sizeof(JEEPROMHeaderv2));
     printf("sizeof(JEEFSFileHeader) = %lu\n", sizeof(JEEFSFileHeader));
 
     char dir[1000];
@@ -49,11 +49,11 @@ void test1() {
 
     int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
-    EEPROM_FormatEEPROM(ep);
+    EEPROM_FormatEEPROM(ep, 2);
     if (EEPROM_consistency < 0) {
         printf("EEPROM header is not consistent, format EEPROM\n");
         // TODO: check error code
-        EEPROM_FormatEEPROM(ep);
+        EEPROM_FormatEEPROM(ep, 2);
     }
     EEPROM_CloseEEPROM(ep);
     ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
