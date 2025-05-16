@@ -79,7 +79,7 @@ int EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor, void *header,
           sizeof(JEEPROMHeaderversion));
     return -1; // Invalid size
   }
-  eeprom_read(eeprom_descriptor, &header, sizeof(JEEPROMHeaderversion), 0);
+  eeprom_read(eeprom_descriptor, header, sizeof(JEEPROMHeaderversion), 0);
   int _size = EEPROM_GetHeaderSize(header);
   if (_size < 0) {
     debug("EEPROM_GetHeader: header size error %d\n", _size);
