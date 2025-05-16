@@ -64,7 +64,7 @@ void test0(void) {
 
     ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
     EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
-    printf("Check EEPROM_header: %i\n", EEPROM_consistency);
+    printf("test00: Check EEPROM_header: %i\n", EEPROM_consistency);
     assert("\nCheck EEPROM_header consistency failed" && EEPROM_consistency == 0);
 
     int8_t buf[ep.eeprom_size],buf2[ep.eeprom_size];

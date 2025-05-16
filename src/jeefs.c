@@ -46,7 +46,7 @@ EEPROMDescriptor EEPROM_OpenEEPROM(const char *pathname, uint16_t eeprom_size) {
 int inline EEPROM_GetHeaderSize_read(EEPROMDescriptor eeprom_descriptor) {
   JEEPROMHeaderversion header;
   eeprom_read(eeprom_descriptor, &header, sizeof(JEEPROMHeaderversion), 0);
-  int _size = EEPROM_GetHeaderSize(&header);
+  return EEPROM_GetHeaderSize(&header);
 }
 
 int inline EEPROM_GetHeaderSize(void *header) {
@@ -471,7 +471,7 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
                                 headersize - sizeof(header->v1.crc32));
   case 2:
     crc32old = header->v2.crc32;
-    crc32_calc = calculateCRC32((uint8_t *)&header,
+    crc32_calc = calculateCRC32((uint8_t *)header,
                                 headersize - sizeof(header->v2.crc32));
   }
   if (crc32_calc != crc32old) {
@@ -488,6 +488,7 @@ int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version) {
   memset(buffer, EEPROM_EMPTYBYTE, ep.eeprom_size);
   union JEEPROMHeaderu *header = (union JEEPROMHeaderu *)buffer;
   strncpy(header->version.magic, "JetHome", 7);
+  header->version.version = version;
   switch (version) {
   case 1:
     header->v1.crc32 = calculateCRC32(
