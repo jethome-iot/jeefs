@@ -70,6 +70,11 @@ typedef struct {
   uint32_t crc32;                             // 4 bytes header CRC
 } JEEPROMHeaderv2; // sizeof(JEEPROMHeader) = 256 bytes
 
+union JEEPROMHeaderu {
+  JEEPROMHeaderversion version;
+  JEEPROMHeaderv1 v1;
+  JEEPROMHeaderv2 v2;
+};
 // File header structure
 typedef struct {
   char name[FILE_NAME_LENGTH + 1]; // 16 bytes
@@ -145,12 +150,17 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor);
 // Set EEPROM_Header
 int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, void *header);
 
-void *EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor);
+int EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor, void *header,
+                     int size);
 
 EEPROMDescriptor EEPROM_OpenEEPROM(const char *pathname, uint16_t eeprom_size);
 int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor);
 
-int EEPROM_FormatEEPROM(EEPROMDescriptor ep);
+/*
+ * EEPROM_FormatEEPROM() - Formats the EEPROM with the specified version.
+ * Returns 0 on success, -1 on error.
+ */
+int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version);
 
 #ifdef __cplusplus
 }

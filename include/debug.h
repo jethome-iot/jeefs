@@ -13,11 +13,13 @@
 extern "C" {
 #endif
 
-
 #ifdef DEBUG
-#define debug(fmt, ...) printf("[D!] %s:%i: " fmt, __FILE__, __LINE__, ##__VA_ARGS__);fflush(stdout);
+#define debug(fmt, ...)                                                        \
+  printf("[D!] %s:%i: " fmt, __FILE__, __LINE__, ##__VA_ARGS__);               \
+  fflush(stdout);
 #else
-//#define debug(fmt, ...) printf("[D] %s:%i: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+// #define debug(fmt, ...) printf("[D] %s:%i: " fmt, __FILE__, __LINE__,
+// ##__VA_ARGS__)
 #define debug(...)
 #endif
 
@@ -25,4 +27,4 @@ extern "C" {
 }
 #endif
 
-#endif //JEEFS_DEBUG_H
+#endif // JEEFS_DEBUG_H
