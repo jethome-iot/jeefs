@@ -1,0 +1,18 @@
+[package]
+name = "jeefs-header"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0+ OR MIT"
+description = "JEEFS EEPROM header parsing library"
+
+[dependencies]
+crc32fast = "1"
+serde_json = "1"
+
+[[bin]]
+name = "verify_rs"
+path = "src/bin/verify_rs.rs"
+
+[[bin]]
+name = "verify_golden_rs"
+path = "src/bin/verify_golden_rs.rs"

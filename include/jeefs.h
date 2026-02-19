@@ -11,81 +11,13 @@
 #include <stdint.h>
 
 #include "eepromops.h"
+#include "jeefs_generated.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define MAGIC "JetHome"
-#define HEADER_VERSION 1
-#define FILE_NAME_LENGTH 15
-#define MAC_LENGTH 6
-#define MAGIC_LENGTH 8
-#define SERIAL_LENGTH 32
-#define USID_LENGTH 32
-#define CPUID_LENGTH 32
-#define BOARDNAME_LENGTH 31
-#define BOARDVERSION_LENGTH 31
-#define EEPROM_EMPTYBYTE '\x00'
-
-#pragma pack(push, 1)
-
-// EEPROM header structure for version check
-typedef struct {
-  char magic[MAGIC_LENGTH]; // 8 bytes
-  uint8_t version;          // 1 byte
-  uint8_t reserved1[3];     // 3 bytes align
-} JEEPROMHeaderversion;
-
-// EEPROM header structure v.1
-typedef struct {
-  char magic[MAGIC_LENGTH];                   // 8 bytes
-  uint8_t version;                            // 1 byte
-  uint8_t reserved1[3];                       // 3 bytes align
-  char boardname[BOARDNAME_LENGTH + 1];       // 32 bytes
-  char boardversion[BOARDVERSION_LENGTH + 1]; // 32 bytes
-  uint8_t serial[SERIAL_LENGTH];              // 32 bytes
-  uint8_t usid[USID_LENGTH];                  // 32 bytes
-  uint8_t cpuid[CPUID_LENGTH];                // 32 bytes
-  uint8_t mac[MAC_LENGTH];                    // 6 bytes
-  uint8_t reserved2[2];                       // 2 bytes for extended MAC
-  uint16_t modules[16];                       // 32 bytes
-  uint8_t reserved3[296];                     // for future use
-  uint32_t crc32;
-} JEEPROMHeaderv1; // sizeof(JEEPROMHeader) = 512 bytes
-
-// EEPROM header structure v.2 (256-byte version)
-typedef struct {
-  char magic[MAGIC_LENGTH];                   // 8 bytes
-  uint8_t version;                            // 1 byte
-  uint8_t reserved1[3];                       // 3 bytes VERSION align
-  char boardname[BOARDNAME_LENGTH + 1];       // 32 bytes
-  char boardversion[BOARDVERSION_LENGTH + 1]; // 32 bytes
-  uint8_t serial[SERIAL_LENGTH];              // 32 bytes
-  uint8_t usid[USID_LENGTH];                  // 32 bytes
-  uint8_t cpuid[CPUID_LENGTH];                // 32 bytes
-  uint8_t mac[MAC_LENGTH];                    // 6 bytes
-  uint8_t reserved2[2];                       // 2 bytes for extended MAC
-  uint8_t reserved3[72];                      // 72 bytes for future use
-  uint32_t crc32;                             // 4 bytes header CRC
-} JEEPROMHeaderv2; // sizeof(JEEPROMHeader) = 256 bytes
-
-union JEEPROMHeader {
-  JEEPROMHeaderversion version;
-  JEEPROMHeaderv1 v1;
-  JEEPROMHeaderv2 v2;
-};
-// File header structure
-typedef struct {
-  char name[FILE_NAME_LENGTH + 1]; // 16 bytes
-  uint16_t dataSize;               // 2 bytes
-  uint32_t crc32;                  // 4 bytes
-  uint16_t nextFileAddress;        // 2 bytes
-} JEEFSFileHeaderv1;               // 24 bytes
-
 #define JEEFSFileHeader JEEFSFileHeaderv1
-
-#pragma pack(pop)
 
 /**
  * Jethub EEPROM partition and file system

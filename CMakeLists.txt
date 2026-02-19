@@ -19,6 +19,42 @@ add_subdirectory(eepromops-memory)
 # TODO: add_subdirectory(eepromops-file)
 
 
+# --- Code generation from format specs ---
+find_package(Python3 COMPONENTS Interpreter)
+
+if(Python3_FOUND)
+    set(FORMAT_SPECS
+        ${CMAKE_SOURCE_DIR}/docs/format/header-common.md
+        ${CMAKE_SOURCE_DIR}/docs/format/header-v1.md
+        ${CMAKE_SOURCE_DIR}/docs/format/header-v2.md
+        ${CMAKE_SOURCE_DIR}/docs/format/header-v3.md
+        ${CMAKE_SOURCE_DIR}/docs/format/filesystem-v1.md
+    )
+
+    set(CODEGEN_SOURCES
+        ${CMAKE_SOURCE_DIR}/tools/jeefs_codegen/__main__.py
+        ${CMAKE_SOURCE_DIR}/tools/jeefs_codegen/parser.py
+        ${CMAKE_SOURCE_DIR}/tools/jeefs_codegen/validator.py
+        ${CMAKE_SOURCE_DIR}/tools/jeefs_codegen/models.py
+        ${CMAKE_SOURCE_DIR}/tools/jeefs_codegen/generators/c_generator.py
+        ${CMAKE_SOURCE_DIR}/tools/jeefs_codegen/generators/python_generator.py
+    )
+
+    add_custom_command(
+        OUTPUT ${CMAKE_SOURCE_DIR}/include/jeefs_generated.h
+        COMMAND ${Python3_EXECUTABLE} -m jeefs_codegen
+                --specs ${FORMAT_SPECS}
+                --c-output ${CMAKE_SOURCE_DIR}/include/jeefs_generated.h
+        DEPENDS ${FORMAT_SPECS} ${CODEGEN_SOURCES}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tools
+        COMMENT "Generating jeefs_generated.h from format specs"
+    )
+
+    add_custom_target(codegen DEPENDS
+        ${CMAKE_SOURCE_DIR}/include/jeefs_generated.h
+    )
+endif()
+
 include_directories(include)
 add_subdirectory(src)
 add_subdirectory(srcpp)

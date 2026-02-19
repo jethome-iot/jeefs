@@ -2,6 +2,13 @@
 # find zlib as required
 find_package(ZLIB REQUIRED)
 
+add_library(jeefs_header STATIC
+        jeefs_header.c
+        ../include/jeefs.h
+        ../include/jeefs_header.h
+)
+target_link_libraries(jeefs_header ZLIB::ZLIB)
+
 add_library(jeefsstatic STATIC
     jeefs.c
         ../include/eepromerr.h

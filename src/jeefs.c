@@ -52,7 +52,8 @@ int inline EEPROM_GetHeaderSize_read(EEPROMDescriptor eeprom_descriptor) {
 int inline EEPROM_GetHeaderSize(void *header) {
   if (strncmp(((JEEPROMHeaderversion *)header)->magic, MAGIC, MAGIC_LENGTH) !=
       0) {
-    debug("EEPROM_GetHeaderSize: magic error %s\n", header.magic);
+    debug("EEPROM_GetHeaderSize: magic error %.8s\n",
+          ((JEEPROMHeaderversion *)header)->magic);
     return -1; // Invalid header
   }
   int ver = ((JEEPROMHeaderversion *)header)->version;
@@ -64,8 +65,11 @@ int inline EEPROM_GetHeaderSize(void *header) {
   case 2:
     size = sizeof(JEEPROMHeaderv2);
     break;
+  case 3:
+    size = sizeof(JEEPROMHeaderv3);
+    break;
   default:
-    debug("EEPROM_GetHeader: version error %u\n",
+    debug("EEPROM_GetHeaderSize: version error %u\n",
           ((JEEPROMHeaderversion *)header)->version);
     return -1; // Unsupported version
   }
@@ -282,7 +286,7 @@ int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
                                         currentFileHeader.dataSize;
     currentAddress = currentFileHeader.nextFileAddress;
   } else
-    currentAddress = sizeof(JEEPROMHeaderv1);
+    currentAddress = headerSize;
 
   // Check if there's enough space to write the new file
   if (currentAddress + sizeof(currentFileHeader) + dataSize >=
@@ -378,8 +382,10 @@ int16_t EEPROM_FindFile(EEPROMDescriptor eeprom_descriptor,
   if (!filename || strlen(filename) > FILE_NAME_LENGTH)
     return FILENAMENOTVALID;
 
-  uint16_t currentAddress =
-      sizeof(JEEPROMHeaderv1); // Starting after the EEPROM header
+  int headerSize = EEPROM_GetHeaderSize_read(eeprom_descriptor);
+  if (headerSize < 0)
+    return -1;
+  uint16_t currentAddress = (uint16_t)headerSize;
 
   while (1) {
     JEEFSFileHeaderv1 fileHeader;
@@ -437,43 +443,57 @@ int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, void *header) {
   int size;
   if (h->version == 1) {
     ((JEEPROMHeaderv1 *)header)->crc32 = calculateCRC32(
-        (uint8_t *)&header,
+        (uint8_t *)header,
         sizeof(JEEPROMHeaderv1) - sizeof(((JEEPROMHeaderv1 *)header)->crc32));
     size = sizeof(JEEPROMHeaderv1);
   } else if (h->version == 2) {
     ((JEEPROMHeaderv2 *)header)->crc32 = calculateCRC32(
-        (uint8_t *)&header,
+        (uint8_t *)header,
         sizeof(JEEPROMHeaderv2) - sizeof(((JEEPROMHeaderv2 *)header)->crc32));
     size = sizeof(JEEPROMHeaderv2);
+  } else if (h->version == 3) {
+    ((JEEPROMHeaderv3 *)header)->crc32 = calculateCRC32(
+        (uint8_t *)header,
+        sizeof(JEEPROMHeaderv3) - sizeof(((JEEPROMHeaderv3 *)header)->crc32));
+    size = sizeof(JEEPROMHeaderv3);
   } else {
     debug("EEPROM_SetHeader: %s\n", "UNKNOWNVERSION");
     return -1; // @TODO: errno
   }
-  return -(eeprom_write(eeprom_descriptor, &header, size, 0) ==
+  return -(eeprom_write(eeprom_descriptor, header, size, 0) ==
            size); // @TODO: errno
 }
 
 int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
-  uint16_t headersize = EEPROM_GetHeaderSize_read(eeprom_descriptor);
+  int headersize = EEPROM_GetHeaderSize_read(eeprom_descriptor);
   if (headersize < 0) {
-    debug("EEPROM_HeaderCheckConsistency: magic error %.8s\n", header.magic);
+    debug("EEPROM_HeaderCheckConsistency: invalid header\n");
     return -1;
   }
-  union JEEPROMHeader header[sizeof(union JEEPROMHeader)];
-  int result = EEPROM_GetHeader(eeprom_descriptor, header, headersize);
+  union JEEPROMHeader header;
+  int result = EEPROM_GetHeader(eeprom_descriptor, &header, headersize);
+  if (result < 0) {
+    debug("EEPROM_HeaderCheckConsistency: read error\n");
+    return -1;
+  }
   uint32_t crc32old = 0;
   uint32_t crc32_calc = 0;
 
-  switch (header->version.version) {
+  switch (header.version.version) {
   case 1:
-    crc32old = header->v1.crc32;
-    crc32_calc = calculateCRC32((uint8_t *)header,
-                                headersize - sizeof(header->v1.crc32));
+    crc32old = header.v1.crc32;
+    crc32_calc = calculateCRC32((uint8_t *)&header,
+                                headersize - sizeof(header.v1.crc32));
     break;
   case 2:
-    crc32old = header->v2.crc32;
-    crc32_calc = calculateCRC32((uint8_t *)header,
-                                headersize - sizeof(header->v2.crc32));
+    crc32old = header.v2.crc32;
+    crc32_calc = calculateCRC32((uint8_t *)&header,
+                                headersize - sizeof(header.v2.crc32));
+    break;
+  case 3:
+    crc32old = header.v3.crc32;
+    crc32_calc = calculateCRC32((uint8_t *)&header,
+                                headersize - sizeof(header.v3.crc32));
     break;
   }
   if (!crc32old || (crc32_calc != crc32old)) {
@@ -489,7 +509,7 @@ int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version) {
   uint8_t buffer[ep.eeprom_size];
   memset(buffer, EEPROM_EMPTYBYTE, ep.eeprom_size);
   union JEEPROMHeader *header = (union JEEPROMHeader *)buffer;
-  strncpy(header->version.magic, "JetHome", 7);
+  memcpy(header->version.magic, MAGIC, MAGIC_LENGTH);
   header->version.version = version;
   switch (version) {
   case 1:
@@ -504,11 +524,20 @@ int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version) {
     debug("EEPROM_FormatEEPROM: crc32: %x buffer size:%lu header size: %lu\n",
           header->v2.crc32, ep.eeprom_size, sizeof(header->v2));
     break;
+  case 3:
+    header->v3.signature_version = JEEFS_SIG_NONE;
+    header->v3.timestamp = 0;
+    memset(header->v3.signature, 0, SIGNATURE_FIELD_SIZE);
+    header->v3.crc32 = calculateCRC32(
+        (uint8_t *)header, sizeof(JEEPROMHeaderv3) - sizeof(header->v3.crc32));
+    debug("EEPROM_FormatEEPROM: crc32: %x buffer size:%lu header size: %lu\n",
+          header->v3.crc32, ep.eeprom_size, sizeof(header->v3));
+    break;
   default:
     debug("EEPROM_FormatEEPROM: %s\n", "UNKNOWNVERSION");
     return -1;
   }
-  eeprom_write(ep, &buffer, ep.eeprom_size, 0);
+  eeprom_write(ep, buffer, ep.eeprom_size, 0);
   return 0;
 }
 

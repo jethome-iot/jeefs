@@ -1,0 +1,16 @@
+{
+    "struct": "JEEPROMHeaderv3",
+    "version": 3,
+    "header_size": 256,
+    "crc_coverage": 252,
+    "fields": {
+        "boardname": "JetHub-D1p",
+        "boardversion": "2.0",
+        "serial": "SN-2024-00042",
+        "usid": "ABCDEF0123456789",
+        "cpuid": "FEDCBA9876543210",
+        "mac": "F0:57:8D:01:02:03",
+        "signature_version": 0,
+        "timestamp": 1700000000
+    }
+}

@@ -31,3 +31,8 @@ endif()
 target_link_libraries(jeefspp jeefs)
 
 target_link_libraries(jeefspp ZLIB::ZLIB)
+
+# Header-only C++ wrapper for pure header API (no FS dependency)
+add_library(jeefs_headerpp INTERFACE)
+target_include_directories(jeefs_headerpp INTERFACE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(jeefs_headerpp INTERFACE jeefs_header ZLIB::ZLIB)

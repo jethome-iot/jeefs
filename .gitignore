@@ -55,4 +55,13 @@ dkms.conf
 cmake-build-**
 build/**
 
+# Rust
+rust/*/target/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+python/.venv/
+
 .idea/**
