@@ -158,6 +158,10 @@ tests/               # C test suite (ctest)
 EEPROM_FORMAT.md     # Canonical binary format specification
 ```
 
+## CI/CD
+
+- GitHub Actions workflows MUST use `runs-on: self-hosted` — never `ubuntu-latest` or other GitHub-hosted runners.
+
 ## Language/Style Notes
 
 - C11 for core library, C++17 for wrapper
