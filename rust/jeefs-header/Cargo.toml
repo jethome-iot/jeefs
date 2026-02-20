@@ -20,3 +20,7 @@ path = "src/bin/verify_golden_rs.rs"
 [[bin]]
 name = "generate_rs"
 path = "src/bin/generate_rs.rs"
+
+[[example]]
+name = "read_header"
+path = "../../examples/rust/read_header.rs"

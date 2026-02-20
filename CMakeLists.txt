@@ -59,8 +59,14 @@ include_directories(include)
 add_subdirectory(src)
 add_subdirectory(srcpp)
 
+option(JEEFS_BUILD_EXAMPLES "Build examples" ON)
+
 if (JEEFS_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif (JEEFS_BUILD_TESTS)
+
+if (JEEFS_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif (JEEFS_BUILD_EXAMPLES)
 
