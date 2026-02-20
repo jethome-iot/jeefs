@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+//! JEEFS EEPROM header parsing library.
+//!
+//! Provides zero-copy parsing and CRC32 verification of JEEFS EEPROM headers
+//! (versions 1, 2, and 3).
+
+pub mod generated;
+pub mod header;
+
+pub use generated::*;
+pub use header::*;

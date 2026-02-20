@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  # ── C / C++ build + ctest (includes C, C++, Python, Rust verifiers) ──
+  build-and-test:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake zlib1g-dev python3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            rust/jeefs-header/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: rust-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
+          restore-keys: rust-${{ runner.os }}-
+
+      - name: Create EEPROM test file
+        run: |
+          mkdir -p build/tests/common
+          dd if=/dev/zero of=build/tests/common/eeprom.bin bs=1 count=8192
+
+      - name: CMake configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: CMake build (C, C++, Rust verifiers)
+        run: cmake --build build
+
+      - name: Run all ctest (C / C++ / Python / Rust cross-language)
+        run: cd build && ctest --verbose --output-on-failure
+
+      - name: Show test results
+        if: always()
+        run: cat build/Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
+
+  # ── Rust unit tests ──
+  rust-tests:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            rust/jeefs-header/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: rust-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
+          restore-keys: rust-${{ runner.os }}-
+
+      - name: Rust unit tests
+        run: cargo test --manifest-path rust/jeefs-header/Cargo.toml --verbose
+
+  # ── Python tests ──
+  python-tests:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Python package with test deps
+        run: pip install -e "python/[test]"
+
+      - name: Run pytest
+        run: python -m pytest python/tests/ -v
+
+  # ── Code generation validation ──
+  codegen-check:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate specs (no output, just check parsing)
+        working-directory: tools
+        run: |
+          python -m jeefs_codegen \
+            --specs ../docs/format/header-common.md \
+                    ../docs/format/header-v1.md \
+                    ../docs/format/header-v2.md \
+                    ../docs/format/header-v3.md \
+                    ../docs/format/filesystem-v1.md \
+            --validate-only
+
+      - name: Check generated C header is up-to-date
+        working-directory: tools
+        run: |
+          python -m jeefs_codegen \
+            --specs ../docs/format/header-common.md \
+                    ../docs/format/header-v1.md \
+                    ../docs/format/header-v2.md \
+                    ../docs/format/header-v3.md \
+                    ../docs/format/filesystem-v1.md \
+            --c-output /tmp/jeefs_generated.h
+          diff -u ../include/jeefs_generated.h /tmp/jeefs_generated.h
+
+      - name: Check generated Rust module is up-to-date
+        working-directory: tools
+        run: |
+          python -m jeefs_codegen \
+            --specs ../docs/format/header-common.md \
+                    ../docs/format/header-v1.md \
+                    ../docs/format/header-v2.md \
+                    ../docs/format/header-v3.md \
+                    ../docs/format/filesystem-v1.md \
+            --rs-output /tmp/generated.rs
+          diff -u ../rust/jeefs-header/src/generated.rs /tmp/generated.rs

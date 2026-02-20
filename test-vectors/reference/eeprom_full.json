@@ -1,0 +1,31 @@
+{
+    "description": "Golden reference EEPROM image: v3 header + 3 files in JEEFS filesystem",
+    "eeprom_size": 8192,
+    "header": {
+        "struct": "JEEPROMHeaderv3",
+        "version": 3,
+        "header_size": 256,
+        "boardname": "JetHub-D1p",
+        "boardversion": "2.0",
+        "serial": "SN-GOLDEN-001",
+        "usid": "GOLDEN_USID_1234",
+        "cpuid": "GOLDEN_CPUID_ABCD",
+        "mac": "F0:57:8D:A0:1D:01",
+        "signature_version": 0,
+        "timestamp": 1700000000
+    },
+    "files": [
+        {
+            "name": "config",
+            "data_hex": "7b22766572223a312c226b6579223a2274657374227d"
+        },
+        {
+            "name": "wifi.conf",
+            "data_hex": "737369643d4a6574486f6d650a7073773d73656372657431323334"
+        },
+        {
+            "name": "serial",
+            "data_hex": "534e2d323032342d303031"
+        }
+    ]
+}
