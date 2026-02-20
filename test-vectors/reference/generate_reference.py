@@ -104,12 +104,13 @@ def main() -> None:
     spec = json.loads(JSON_PATH.read_text())
     header_size = spec["header"]["header_size"]
     offset = header_size
+    eeprom_size = spec["eeprom_size"]
     for f in spec["files"]:
-        data = bytes.fromhex(f["data_hex"])
+        file_data = bytes.fromhex(f["data_hex"])
         print(f"  [{offset:4d}-{offset+23:4d}] FileHeader: {f['name']!r}")
-        print(f"  [{offset+24:4d}-{offset+23+len(data):4d}] Data: {len(data)} bytes")
-        offset += 24 + len(data)
-    print(f"  [{offset:4d}-{len(data)-1:4d}] Free space")
+        print(f"  [{offset+24:4d}-{offset+23+len(file_data):4d}] Data: {len(file_data)} bytes")
+        offset += 24 + len(file_data)
+    print(f"  [{offset:4d}-{eeprom_size-1:4d}] Free space")
 
 
 if __name__ == "__main__":
