@@ -1,6 +1,6 @@
 # JEEFS Header — C++ Library
 
-C++17 header-only wrapper over the C `jeefs_header` API. Provides `HeaderView` (non-owning, read-only) and `HeaderBuffer` (owning, mutable) classes.
+C++17 wrapper (header-only C++ layer over the compiled C `jeefs_header` library). Provides `HeaderView` (non-owning, read-only) and `HeaderBuffer` (owning, mutable) classes.
 
 ## Integration
 
@@ -60,7 +60,9 @@ Methods:
 | `usid()` | `std::string_view` | USID |
 | `cpuid()` | `std::string_view` | CPU ID |
 | `mac()` | `const uint8_t*` | 6-byte MAC pointer (or `nullptr`) |
-| `as_v1()` / `as_v2()` / `as_v3()` | `const JEEPROMHeadervN&` | Direct struct access |
+| `as_v1()` / `as_v2()` / `as_v3()` | `const JEEPROMHeadervN&` | Direct struct access (see safety note) |
+
+**Safety note:** Before calling `as_v1()` / `as_v2()` / `as_v3()`, ensure the buffer is at least `header_size()` bytes for the detected version. These accessors perform `reinterpret_cast` on the internal pointer — calling them on a truncated buffer causes out-of-bounds reads.
 
 ### `jeefs::HeaderBuffer` — owning, mutable
 

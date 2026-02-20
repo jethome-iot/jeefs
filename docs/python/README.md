@@ -1,6 +1,6 @@
 # JEEFS Header — Python Package
 
-Pure Python library for parsing and generating JEEFS EEPROM headers (v3). No native dependencies.
+Pure Python library for parsing and generating JEEFS EEPROM headers. The main API class `EEPROMHeaderV3` handles v3 headers; constants and field offsets for all versions (v1/v2/v3) are available via `jeefs.constants`. No native dependencies.
 
 ## Installation
 

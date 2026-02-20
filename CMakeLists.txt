@@ -59,7 +59,12 @@ include_directories(include)
 add_subdirectory(src)
 add_subdirectory(srcpp)
 
-option(JEEFS_BUILD_EXAMPLES "Build examples" ON)
+# Enable examples by default only when this is the top-level project
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    option(JEEFS_BUILD_EXAMPLES "Build examples" ON)
+else ()
+    option(JEEFS_BUILD_EXAMPLES "Build examples" OFF)
+endif ()
 
 if (JEEFS_BUILD_TESTS)
     enable_testing()

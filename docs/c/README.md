@@ -85,15 +85,23 @@ Zeros the buffer, sets magic + version, computes CRC. Returns 0 on success.
 
 ### Struct access
 
-Cast the byte buffer to the appropriate struct after checking the version:
+Cast the byte buffer to the appropriate struct after checking the version **and verifying the buffer is large enough**:
 
 ```c
+int version = jeefs_header_detect_version(buf, buf_len);
+int hdr_size = jeefs_header_size(version);
+if (hdr_size < 0 || (int)buf_len < hdr_size) {
+    /* buffer too short for this version */
+    return -1;
+}
 const JEEPROMHeaderv3 *hdr = (const JEEPROMHeaderv3 *)buf;
 printf("Board: %s\n", hdr->boardname);
 printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
        hdr->mac[0], hdr->mac[1], hdr->mac[2],
        hdr->mac[3], hdr->mac[4], hdr->mac[5]);
 ```
+
+**Important:** Always verify `buf_len >= jeefs_header_size(version)` before casting to a struct pointer. Version detection only needs 12 bytes, but struct access reads up to 512 bytes (v1) or 256 bytes (v2/v3).
 
 ## Usage example
 

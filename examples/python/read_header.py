@@ -5,6 +5,7 @@
 Usage: python read_header.py <eeprom.bin>
 """
 
+import binascii
 import struct
 import sys
 from pathlib import Path
@@ -53,8 +54,6 @@ def main() -> int:
     if len(data) < header_size:
         print("Error: file too short for detected version", file=sys.stderr)
         return 1
-
-    import binascii
 
     stored_crc = struct.unpack_from("<I", data, crc_coverage)[0]
     calc_crc = binascii.crc32(data[:crc_coverage]) & 0xFFFFFFFF
