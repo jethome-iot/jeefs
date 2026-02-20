@@ -58,7 +58,7 @@ int jeefs_header_verify_crc(const uint8_t *data, size_t len) {
     memcpy(&stored_crc, data + crc_offset, sizeof(uint32_t));
 
     uint32_t calc_crc = header_crc32(data, crc_offset);
-    if (stored_crc == 0 || calc_crc != stored_crc)
+    if (calc_crc != stored_crc)
         return -1;
 
     return 0;
