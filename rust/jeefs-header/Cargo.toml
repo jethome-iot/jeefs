@@ -16,3 +16,7 @@ path = "src/bin/verify_rs.rs"
 [[bin]]
 name = "verify_golden_rs"
 path = "src/bin/verify_golden_rs.rs"
+
+[[bin]]
+name = "generate_rs"
+path = "src/bin/generate_rs.rs"

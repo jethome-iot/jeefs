@@ -67,6 +67,17 @@ pub fn verify_crc(data: &[u8]) -> bool {
     calc == stored
 }
 
+/// Create an initialized header buffer for the given version.
+/// Sets magic, version byte, zeros all other fields, computes CRC.
+pub fn initialize_header(version: u8) -> Option<Vec<u8>> {
+    let size = header_size(version)?;
+    let mut buf = vec![0u8; size];
+    buf[0..8].copy_from_slice(MAGIC);
+    buf[8] = version;
+    update_crc(&mut buf);
+    Some(buf)
+}
+
 /// Update the CRC32 field in a mutable header buffer. Returns `true` on success.
 pub fn update_crc(data: &mut [u8]) -> bool {
     let ver = match detect_version(data) {
@@ -304,6 +315,18 @@ mod tests {
         assert_eq!(core::mem::size_of::<JeepromHeaderV2>(), 256);
         assert_eq!(core::mem::size_of::<JeepromHeaderV3>(), 256);
         assert_eq!(core::mem::size_of::<JeefsFileHeaderV1>(), 24);
+    }
+
+    #[test]
+    fn test_initialize_header() {
+        for ver in [1u8, 2, 3] {
+            let buf = initialize_header(ver).unwrap();
+            assert_eq!(buf.len(), header_size(ver).unwrap());
+            assert_eq!(detect_version(&buf), Some(ver));
+            assert!(verify_crc(&buf));
+        }
+        assert!(initialize_header(0).is_none());
+        assert!(initialize_header(4).is_none());
     }
 
     #[test]
