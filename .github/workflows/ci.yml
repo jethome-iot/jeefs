@@ -1,15 +1,17 @@
-name: CI – Cross-language tests
+name: CI
 
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
   # ── C / C++ build + ctest (includes C, C++, Python, Rust verifiers) ──
   build-and-test:
-    runs-on: self-hosted
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -43,9 +45,14 @@ jobs:
       - name: Run all ctest (C / C++ / Python / Rust cross-language)
         run: cd build && ctest --verbose --output-on-failure
 
+      - name: Show test results
+        if: always()
+        run: cat build/Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
+
   # ── Rust unit tests ──
   rust-tests:
-    runs-on: self-hosted
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -67,7 +74,8 @@ jobs:
 
   # ── Python tests ──
   python-tests:
-    runs-on: self-hosted
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -84,7 +92,8 @@ jobs:
 
   # ── Code generation validation ──
   codegen-check:
-    runs-on: self-hosted
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
