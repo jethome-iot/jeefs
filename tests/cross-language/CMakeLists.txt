@@ -27,7 +27,7 @@ if(CARGO)
 
     add_custom_command(
         OUTPUT ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS}
-        COMMAND ${CARGO} build --release --manifest-path ${RUST_CRATE_DIR}/Cargo.toml
+        COMMAND ${CARGO} build --release --features bins --manifest-path ${RUST_CRATE_DIR}/Cargo.toml
         DEPENDS
             ${RUST_CRATE_DIR}/src/lib.rs
             ${RUST_CRATE_DIR}/src/generated.rs

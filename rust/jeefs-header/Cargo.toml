@@ -1,22 +1,35 @@
 [package]
 name = "jeefs-header"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "GPL-2.0+ OR MIT"
 description = "JEEFS EEPROM header parsing library"
 
 [dependencies]
-crc32fast = "1"
-serde_json = "1"
+crc32fast = { version = "1", default-features = false }
+serde_json = { version = "1", optional = true }
+
+[features]
+default = ["std"]
+std = ["crc32fast/std"]
+bins = ["std", "serde_json"]
 
 [[bin]]
 name = "verify_rs"
 path = "src/bin/verify_rs.rs"
+required-features = ["bins"]
 
 [[bin]]
 name = "verify_golden_rs"
 path = "src/bin/verify_golden_rs.rs"
+required-features = ["bins"]
 
 [[bin]]
 name = "generate_rs"
 path = "src/bin/generate_rs.rs"
+required-features = ["bins"]
+
+[[example]]
+name = "read_header"
+path = "../../examples/rust/read_header.rs"
+required-features = ["std"]

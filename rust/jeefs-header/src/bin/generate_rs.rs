@@ -50,10 +50,15 @@ fn main() {
 
     let version = json["version"].as_u64().unwrap_or(0) as u8;
 
-    let mut buf = initialize_header(version).unwrap_or_else(|| {
+    let size = header_size(version).unwrap_or_else(|| {
         eprintln!("Unsupported version: {}", version);
         process::exit(1);
     });
+    let mut buf = vec![0u8; size];
+    if !initialize_header(&mut buf, version) {
+        eprintln!("Failed to initialize header v{}", version);
+        process::exit(1);
+    }
 
     let fields = &json["fields"];
 
