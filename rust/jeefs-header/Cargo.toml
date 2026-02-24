@@ -11,22 +11,23 @@ serde_json = { version = "1", optional = true }
 
 [features]
 default = ["std"]
-std = ["crc32fast/std", "serde_json"]
+std = ["crc32fast/std"]
+bins = ["std", "serde_json"]
 
 [[bin]]
 name = "verify_rs"
 path = "src/bin/verify_rs.rs"
-required-features = ["std"]
+required-features = ["bins"]
 
 [[bin]]
 name = "verify_golden_rs"
 path = "src/bin/verify_golden_rs.rs"
-required-features = ["std"]
+required-features = ["bins"]
 
 [[bin]]
 name = "generate_rs"
 path = "src/bin/generate_rs.rs"
-required-features = ["std"]
+required-features = ["bins"]
 
 [[example]]
 name = "read_header"
