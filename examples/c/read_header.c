@@ -67,11 +67,11 @@ int main(int argc, char *argv[]) {
         printf("CRC32: OK\n");
     }
 
-    /* Access fields — safe now that buffer size is validated */
-    const JEEPROMHeaderv2 *hdr = (const JEEPROMHeaderv2 *)buf;
-    printf("Board name: %.*s\n", 32, hdr->boardname);
-    printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->mac[0], hdr->mac[1], hdr->mac[2],
-           hdr->mac[3], hdr->mac[4], hdr->mac[5]);
+    /* Access fields via union — safe now that buffer size is validated */
+    const union JEEPROMHeader *hdr = (const union JEEPROMHeader *)buf;
+    printf("Board name: %.*s\n", 32, hdr->v2.boardname);
+    printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->v2.mac[0], hdr->v2.mac[1],
+           hdr->v2.mac[2], hdr->v2.mac[3], hdr->v2.mac[4], hdr->v2.mac[5]);
 
     free(buf);
     return 0;

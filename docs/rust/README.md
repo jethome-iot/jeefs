@@ -106,7 +106,7 @@ use jeefs_header::header::{initialize_header, header_size, update_crc, verify_cr
 
 let size = header_size(3).unwrap(); // 256
 let mut buf = [0u8; 256];
-initialize_header(&mut buf, 3);
+assert!(initialize_header(&mut buf, 3));
 
 // Modify fields via raw bytes (boardname at offset 12)
 let name = b"MyBoard\0";

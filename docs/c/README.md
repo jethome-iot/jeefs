@@ -94,11 +94,11 @@ if (hdr_size < 0 || (int)buf_len < hdr_size) {
     /* buffer too short for this version */
     return -1;
 }
-const JEEPROMHeaderv3 *hdr = (const JEEPROMHeaderv3 *)buf;
-printf("Board: %s\n", hdr->boardname);
+const union JEEPROMHeader *hdr = (const union JEEPROMHeader *)buf;
+printf("Board: %s\n", hdr->v2.boardname);
 printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
-       hdr->mac[0], hdr->mac[1], hdr->mac[2],
-       hdr->mac[3], hdr->mac[4], hdr->mac[5]);
+       hdr->v2.mac[0], hdr->v2.mac[1], hdr->v2.mac[2],
+       hdr->v2.mac[3], hdr->v2.mac[4], hdr->v2.mac[5]);
 ```
 
 **Important:** Always verify `buf_len >= jeefs_header_size(version)` before casting to a struct pointer. Version detection only needs 12 bytes, but struct access reads up to 512 bytes (v1) or 256 bytes (v2/v3).

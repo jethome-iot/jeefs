@@ -3,7 +3,7 @@
 //!
 //! Usage: cargo run --example read_header -- <eeprom.bin>
 
-use jeefs_header::header::{detect_version, verify_crc};
+use jeefs_header::header::{detect_version, header_size, verify_crc};
 use jeefs_header::generated::{JeepromHeaderV1, JeepromHeaderV2, JeepromHeaderV3};
 use std::env;
 use std::fs;
@@ -31,6 +31,18 @@ fn main() {
         }
     };
     println!("Header version: {}", version);
+
+    // Check buffer is large enough for this version's struct
+    let expected = header_size(version).unwrap();
+    if data.len() < expected {
+        eprintln!(
+            "Error: file too short for v{} header ({} < {} bytes)",
+            version,
+            data.len(),
+            expected
+        );
+        process::exit(1);
+    }
 
     // Verify CRC
     if verify_crc(&data) {
