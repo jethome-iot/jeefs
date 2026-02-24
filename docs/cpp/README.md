@@ -8,9 +8,11 @@ C++17 wrapper (header-only C++ layer over the compiled C `jeefs_header` library)
 
 ```cmake
 add_subdirectory(path/to/jeefs)
-target_link_libraries(your_target jeefs_header)
+target_link_libraries(your_target jeefs_headerpp)
 target_compile_features(your_target PRIVATE cxx_std_17)
 ```
+
+`jeefs_headerpp` is an INTERFACE library that bundles `jeefs_header` and `ZLIB::ZLIB` — no need to link them manually.
 
 ### Header
 

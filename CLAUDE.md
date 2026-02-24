@@ -39,7 +39,7 @@ cd build && ctest -R test_02    # read file test
 cd build && ctest --verbose
 ```
 
-**Dependencies:** zlib (for CRC32), CMake 3.14+, C11, C++17.
+**Dependencies:** zlib (for CRC32), CMake 3.19+, C11, C++17.
 
 ### Python
 

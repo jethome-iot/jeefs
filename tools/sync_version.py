@@ -39,7 +39,13 @@ def parse_semver(version: str) -> tuple[int, int, int]:
 
 
 def _toml_expected(path: Path, version: str) -> str:
-    """Return TOML content with version replaced."""
+    """Return TOML content with version replaced.
+
+    NOTE: replaces the *first* ``version = "..."`` line
+    (count=1).  This assumes the package version appears
+    in [project] or [package] before any dependency
+    sections — which is the standard TOML convention.
+    """
     text = path.read_text()
     return re.sub(
         r'^(version\s*=\s*")[^"]*(")',
