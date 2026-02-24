@@ -52,6 +52,14 @@ int main(int argc, char *argv[]) {
     }
     printf("Header version: %d\n", version);
 
+    /* Check buffer is large enough for this version's struct */
+    int hdr_size = jeefs_header_size(version);
+    if (hdr_size < 0 || fsize < hdr_size) {
+        fprintf(stderr, "Error: file too short for v%d header (%ld < %d bytes)\n", version, fsize, hdr_size);
+        free(buf);
+        return 1;
+    }
+
     /* Verify CRC */
     if (jeefs_header_verify_crc(buf, (size_t)fsize) != 0) {
         fprintf(stderr, "Warning: CRC32 mismatch\n");
@@ -59,7 +67,7 @@ int main(int argc, char *argv[]) {
         printf("CRC32: OK\n");
     }
 
-    /* Access fields via union — MAC is at the same offset for all versions */
+    /* Access fields — safe now that buffer size is validated */
     const JEEPROMHeaderv2 *hdr = (const JEEPROMHeaderv2 *)buf;
     printf("Board name: %.*s\n", 32, hdr->boardname);
     printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->mac[0], hdr->mac[1], hdr->mac[2],
