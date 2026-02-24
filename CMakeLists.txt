@@ -1,6 +1,10 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.19)
 
-project(jeefs C CXX)
+# --- Read version from version.json ---
+file(READ "${CMAKE_SOURCE_DIR}/version.json" _version_json)
+string(JSON JEEFS_VERSION GET "${_version_json}" "stable")
+
+project(jeefs VERSION ${JEEFS_VERSION} LANGUAGES C CXX)
 
 # --- Options ---
 option(JEEFS_BUILD_TESTS "Build tests" ON)

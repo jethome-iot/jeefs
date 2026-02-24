@@ -41,6 +41,15 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "Header version: " << *version << std::endl;
 
+    // Check buffer is large enough for this version's struct
+    int expected = jeefs_header_size(*version);
+    if (expected < 0 || buf.size() < static_cast<size_t>(expected)) {
+        std::cerr << "Error: file too short for v" << *version
+                  << " header (" << buf.size() << " < " << expected
+                  << " bytes)" << std::endl;
+        return 1;
+    }
+
     // Verify CRC
     if (view.verify_crc()) {
         std::cout << "CRC32: OK" << std::endl;

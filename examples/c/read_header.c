@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     /* Access fields via union — safe now that buffer size is validated */
     const union JEEPROMHeader *hdr = (const union JEEPROMHeader *)buf;
-    printf("Board name: %.*s\n", 32, hdr->v2.boardname);
+    printf("Board name: %s\n", hdr->v2.boardname);
     printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->v2.mac[0], hdr->v2.mac[1],
            hdr->v2.mac[2], hdr->v2.mac[3], hdr->v2.mac[4], hdr->v2.mac[5]);
 
