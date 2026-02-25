@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """EEPROM header constants and signature algorithm definitions.
 
 Re-exports all constants from the auto-generated constants_generated module.

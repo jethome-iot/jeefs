@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: (GPL-2.0+ or MIT)
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Synchronize version from version.json to all packages.
 
 Usage:
@@ -76,7 +76,7 @@ def _c_version_header_content(version: str) -> str:
     major, minor, patch = parse_semver(version)
     return f"""\
 // DO NOT EDIT — maintained by tools/sync_version.py from version.json
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 
 #ifndef JEEFS_VERSION_H
 #define JEEFS_VERSION_H

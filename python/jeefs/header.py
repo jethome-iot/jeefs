@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """EEPROM Header V3 class -- generation, parsing, and validation.
 
 Implements JEEPROMHeaderv3 (256-byte, v2-based layout with signature).

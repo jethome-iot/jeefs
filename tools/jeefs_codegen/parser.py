@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Parse markdown format specification files into structured data models."""
 
 from __future__ import annotations

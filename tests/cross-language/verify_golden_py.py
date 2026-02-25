@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 #!/usr/bin/env python3
 """Golden reference EEPROM binary verification (Python).
 

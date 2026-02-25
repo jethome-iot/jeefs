@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: (GPL-2.0+ or MIT)
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Cross-language header generator (Python): create a .bin header from .json spec.
 
 Usage: generate_py.py <json_file> <output_bin>

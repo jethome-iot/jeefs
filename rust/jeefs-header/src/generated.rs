@@ -1,5 +1,5 @@
 // DO NOT EDIT — auto-generated from docs/format/*.md by tools/jeefs_codegen
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 //
 // Regenerate with:
 //   python -m jeefs_codegen --specs docs/format/*.md --rs-output rust/jeefs-header/src/generated.rs

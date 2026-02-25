@@ -1,5 +1,5 @@
 // DO NOT EDIT — maintained by tools/sync_version.py from version.json
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 
 #ifndef JEEFS_VERSION_H
 #define JEEFS_VERSION_H

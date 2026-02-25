@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 //! Cross-language verification using Rust API.
 //! Usage: verify_rs <bin_file> <json_file>
 

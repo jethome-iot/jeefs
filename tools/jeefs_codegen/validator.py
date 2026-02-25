@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Validate parsed format specifications for consistency."""
 
 from __future__ import annotations

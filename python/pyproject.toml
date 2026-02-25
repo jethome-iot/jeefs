@@ -3,11 +3,30 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jeefs-header"
+name = "jeefs"
 version = "0.1.2"
 description = "JEEFS EEPROM header parser (JetHome EEPROM File System)"
-license = "MIT OR GPL-2.0-or-later"
+license = "GPL-2.0-or-later OR Apache-2.0"
 requires-python = ">=3.10"
+readme = {file = "README.md", content-type = "text/markdown"}
+authors = [{name = "Viacheslav Bocharov", email = "vb@jethome.com"}]
+keywords = ["eeprom", "jethome", "jeefs", "embedded", "header"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: System :: Hardware",
+]
+
+[project.urls]
+Homepage = "https://github.com/jethome-iot/jeefs"
+Repository = "https://github.com/jethome-iot/jeefs"
+Documentation = "https://github.com/jethome-iot/jeefs/tree/master/docs/python"
+Issues = "https://github.com/jethome-iot/jeefs/issues"
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
