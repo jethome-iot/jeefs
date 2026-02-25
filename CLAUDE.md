@@ -153,7 +153,7 @@ srcpp/               # C++ wrapper
 python/
   jeefs/             # Python package: constants.py, header.py
   tests/             # pytest suite (58 tests)
-  pyproject.toml     # Package config (jeefs-header)
+  pyproject.toml     # Package config (jeefs)
 tests/               # C test suite (ctest)
 EEPROM_FORMAT.md     # Canonical binary format specification
 ```

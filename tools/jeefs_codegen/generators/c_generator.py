@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Generate C header file from parsed format specification."""
 
 from __future__ import annotations

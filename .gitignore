@@ -68,6 +68,7 @@ rust/*/target/
 __pycache__/
 *.pyc
 *.egg-info/
+dist/
 python/.venv/
 
 # Test artifacts (generated eeprom images)
