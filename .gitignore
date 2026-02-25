@@ -51,9 +51,15 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# cmake
-cmake-build-**
-build/**
+# CMake build artifacts
+cmake-build-**/
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+Testing/
 
 # Rust
 rust/*/target/
@@ -64,4 +70,9 @@ __pycache__/
 *.egg-info/
 python/.venv/
 
+# Test artifacts (generated eeprom images)
+**/eeprom.bin
+rust/jeefs-header/tests/
+
+# IDE
 .idea/**

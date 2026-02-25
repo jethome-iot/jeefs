@@ -1,6 +1,6 @@
 [package]
 name = "jeefs-header"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "GPL-2.0+ OR MIT"
 description = "JEEFS EEPROM header parsing library"
