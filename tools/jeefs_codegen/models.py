@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Data models for parsed format specifications."""
 
 from __future__ import annotations

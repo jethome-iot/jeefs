@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 //! Cross-language header generator (Rust): create a .bin header from .json spec.
 //! Usage: generate_rs <json_file> <output_bin>
 

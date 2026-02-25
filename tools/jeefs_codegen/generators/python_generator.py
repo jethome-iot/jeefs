@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Generate Python constants module from parsed format specification."""
 
 from __future__ import annotations
@@ -7,6 +8,7 @@ from ..models import ConstantDef, EnumDef, FormatSpec, StructDef
 
 def _generate_banner() -> str:
     return '''\
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """EEPROM format constants — auto-generated from docs/format/*.md.
 
 DO NOT EDIT — regenerate with:

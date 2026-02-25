@@ -113,7 +113,7 @@ from jeefs.constants import (
 
 ## Usage example
 
-See [examples/python/read_header.py](../../examples/python/read_header.py) — reads an EEPROM binary, prints version, CRC status, board name, MAC address, and full v3 fields.
+See [examples/python/read_header.py](https://github.com/jethome-iot/jeefs/blob/master/examples/python/read_header.py) — reads an EEPROM binary, prints version, CRC status, board name, MAC address, and full v3 fields.
 
 ## Testing
 
@@ -124,6 +124,6 @@ python -m pytest tests/ -v   # 58 tests
 
 ## Format specification
 
-- [Header common properties](../format/header-common.md)
-- [Header v3](../format/header-v3.md)
-- [Full format spec](../../EEPROM_FORMAT.md)
+- [Header common properties](https://github.com/jethome-iot/jeefs/blob/master/docs/format/header-common.md)
+- [Header v3](https://github.com/jethome-iot/jeefs/blob/master/docs/format/header-v3.md)
+- [Full format spec](https://github.com/jethome-iot/jeefs/blob/master/EEPROM_FORMAT.md)

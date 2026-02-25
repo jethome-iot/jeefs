@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: (GPL-2.0+ or MIT)
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Example: Read EEPROM header, print version and MAC address.
 
 Usage: python read_header.py <eeprom.bin>

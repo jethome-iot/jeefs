@@ -8,7 +8,7 @@ from ..models import ConstantDef, EnumDef, FormatSpec, StructDef, UnionDef
 def _generate_banner() -> str:
     return """\
 // DO NOT EDIT — auto-generated from docs/format/*.md by tools/jeefs_codegen
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 //
 // Regenerate with:
 //   python -m jeefs_codegen --specs docs/format/*.md --c-output include/jeefs_generated.h

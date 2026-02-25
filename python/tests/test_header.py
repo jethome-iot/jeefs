@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Tests for EEPROM header library (EEPROMHeaderV3).
 
 Tests cover:

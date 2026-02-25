@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 //! Header parsing, CRC verification, and field access utilities.
 
 use crate::generated::*;

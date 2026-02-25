@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-JEEFS (JetHome EEPROM File System) — a library for working with a simple linked-list filesystem on small EEPROMs (target: 64Kbit / 8KB). Dual-licensed GPL-2.0+ / MIT.
+JEEFS (JetHome EEPROM File System) — a library for working with a simple linked-list filesystem on small EEPROMs (target: 64Kbit / 8KB). Dual-licensed GPL-2.0+ / Apache-2.0.
 
 The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/Go/TypeScript) with two areas:
 

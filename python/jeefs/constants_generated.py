@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """EEPROM format constants — auto-generated from docs/format/*.md.
 
 DO NOT EDIT — regenerate with:

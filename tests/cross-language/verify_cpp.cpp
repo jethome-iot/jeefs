@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 /*
  * Cross-language verification using C++ API.
  * Usage: verify_cpp <bin_file> <json_file>
