@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Generate reference .bin files from .json test vector descriptions.
 
 Each .json in vectors/ describes a header; this script produces the

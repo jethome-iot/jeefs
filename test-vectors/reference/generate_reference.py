@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Generate the golden reference EEPROM binary from eeprom_full.json.
 
 Creates an 8192-byte EEPROM image with:
