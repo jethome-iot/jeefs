@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 #!/usr/bin/env python3
+# SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 """Cross-language verification: read a .bin header, verify fields match JSON.
 
 Usage: verify_py.py <bin_file> <json_file>
