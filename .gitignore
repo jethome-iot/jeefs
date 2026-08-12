@@ -77,3 +77,7 @@ rust/jeefs-header/tests/
 
 # IDE
 .idea/**
+
+# pr-auto-review working files
+.claude/state/
+.claude/backlog/
