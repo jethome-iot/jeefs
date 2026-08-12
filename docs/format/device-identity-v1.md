@@ -60,10 +60,13 @@ publishes EEPROM identity into the device tree).
 3. **Uniqueness**: exactly one `device.id` per device. Conflict resolution:
    mainboard wins, then the record with the newer timestamp; conflicts are logged.
 4. **First-file invariant**: `device.id` is written as the **first** file of the
-   filesystem, so the record body sits at fixed offset 256 + 24 = 280.
-   Bootloaders read it with a single fixed-offset access after verifying the
-   record magic; a full chain walk is the fallback. FS operations (delete,
-   rewrite, compaction) must not move the first file.
+   filesystem, so the record body sits at offset `header_size + 24`
+   ([filesystem-v1.md](filesystem-v1.md): the first file header starts at
+   `header_size`). That is **280** for the 256-byte v2/v3 headers and **536**
+   for the 512-byte v1 header. Anchor boards are provisioned with v3 headers,
+   so bootloaders probe offset 280 first (verify the record magic), then 536,
+   then fall back to a full chain walk. FS operations (delete, rewrite,
+   compaction) must not move the first file.
 5. **Board role** (SOM = 1, MAINBOARD = 2, PERIPHERAL = 3): documented now,
    materialized as a header field only in a future header v4. For new v3 batches
    the role MAY be written into `header_reserved[0]` before signing
