@@ -41,4 +41,5 @@ Go and TypeScript header implementations are scheduled for v0.4.0 (see
 [#17](https://github.com/jethome-iot/jeefs/issues/17). Sizing estimates:
 Go ~600-800 LOC (`crypto/crc32` + `encoding/binary`), TypeScript ~700-900 LOC
 (DataView + pure-JS CRC32); both need generators added to
-`tools/jeefs_codegen/` and grow the cross-language matrix to 5x5 / 6x6.
+`tools/jeefs_codegen/` and grow the cross-language matrix from today's 4×4
+to 6×6 (5×5 with Go alone).

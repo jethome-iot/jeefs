@@ -9,9 +9,11 @@ tracked in GitHub milestones and the audit tracking issue
 
 - **Header formats v1–v3 are wire-stable forever**: every implementation must keep
   parsing all released header versions. New fields only via a new header version.
-- **The FS layer carries no legacy constraints before v1.0**: the on-EEPROM file
-  layout follows [format/filesystem-v1.md](format/filesystem-v1.md), but the C API,
-  ABI and internal behavior may change freely between 0.x releases.
+- **The FS layer carries no legacy constraints before v1.0**: the C API, ABI,
+  behavior — and the on-EEPROM file layout itself — may change between 0.x
+  releases. The layout in force is whatever the current filesystem spec
+  revision defines ([format/filesystem-v1.md](format/filesystem-v1.md) today);
+  no migration support for images written by older 0.x releases.
 - Known consumers (jethome-iot/testsuite\*) are non-critical and migrate with the API.
 
 ## v0.2.0 — Trustworthy FS core

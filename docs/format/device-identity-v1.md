@@ -45,8 +45,10 @@ block on the SoM, extra blocks on the carrier).
 | 188-191 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-187                       |
 
 - CRC32: IEEE 802.3 polynomial, same convention as headers.
-- Signature: same ECDSA infrastructure and coverage convention as header v3
-  (signature field zeroed during signing; exact coverage to be fixed in the RFC).
+- Signature: same ECDSA infrastructure (algorithms, keys, signature service) as
+  the header. The signing coverage and the signature-field zeroing procedure
+  are not defined by the header specs either — fixing them for this record is
+  an open question for RFC #26.
 - String semantics follow the outcome of the raw-vs-string RFC
   ([#13](https://github.com/jethome-iot/jeefs/issues/13)); the draft assumes
   null-terminated UTF-8, zero-padded.
