@@ -60,7 +60,8 @@ ABI break happens under a green regression net.
    current asymmetries (Python v1/v2 + `detect_version`, #16).
 3. Device identity: finalize and implement `device.id`
    ([format/device-identity-v1.md](format/device-identity-v1.md), RFC #26) once
-   agreed — parsers in C/Python/Rust, codegen metadata, test vectors.
+   agreed — parsers in every supported language (C/Python/Rust, plus Go and
+   TypeScript as they land in this milestone), codegen metadata, test vectors.
 4. Header v4 draft only if concrete field requirements have accumulated
    (board role field, etc.) — RFC process through docs/format.
 
