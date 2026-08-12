@@ -22,26 +22,27 @@ filesystem of the **anchor board**.
 Prior art: IPMI FRU (Chassis Area "present in exactly one FRU device of a
 system"), NVIDIA Jetson (system part/serial fields populated only in the carrier
 EEPROM), ONIE TlvInfo (MAC pool as base + count), Raspberry Pi HAT (bootloader
-publishes EEPROM identity into the device tree).
+publishes EEPROM identity into the device tree), Toradex config block (anchor
+block on the SoM, extra blocks on the carrier).
 
 ## Record layout
 
-| Offset  | Size | Field             | Type        | Endianness    | Description                              |
-|---------|------|-------------------|-------------|---------------|------------------------------------------|
-| 0-7     | 8    | magic             | char[8]     | -             | "JHDEVID\0" (null-terminated string)     |
-| 8       | 1    | record_version    | uint8_t     | -             | Record version = 1                       |
-| 9       | 1    | signature_version | uint8_t     | -             | Signature algorithm (same enum as header) |
-| 10-11   | 2    | reserved1         | uint8_t[2]  | -             | Reserved (zeros)                         |
-| 12-43   | 32   | device_model      | char[32]    | -             | Device model name, null-terminated       |
-| 44-75   | 32   | device_serial     | char[32]    | -             | Device serial number, null-terminated    |
-| 76-91   | 16   | hw_revision       | char[16]    | -             | Device hardware revision, null-terminated |
-| 92-97   | 6    | mac_pool_base     | uint8_t[6]  | -             | First MAC address of the device pool     |
-| 98-99   | 2    | mac_pool_count    | uint16_t    | little-endian | Number of MACs in the pool (0 = none)    |
-| 100-101 | 2    | flags             | uint16_t    | little-endian | Reserved flags (zeros)                   |
-| 102-115 | 14   | reserved2         | uint8_t[14] | -             | Reserved for future use (zeros)          |
-| 116-179 | 64   | signature         | uint8_t[64] | -             | ECDSA signature (r‖s, zero-padded)      |
-| 180-187 | 8    | timestamp         | int64_t     | little-endian | Unix timestamp (seconds)                 |
-| 188-191 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-187                     |
+| Offset  | Size | Field             | Type        | Endianness    | Description                                |
+|---------|------|-------------------|-------------|---------------|--------------------------------------------|
+| 0-7     | 8    | magic             | char[8]     | -             | "JHDEVID\0" (null-terminated string)       |
+| 8       | 1    | record_version    | uint8_t     | -             | Record version = 1                         |
+| 9       | 1    | signature_version | uint8_t     | -             | Signature algorithm (same enum as header)  |
+| 10-11   | 2    | reserved1         | uint8_t[2]  | -             | Reserved (zeros)                           |
+| 12-43   | 32   | device_model      | char[32]    | -             | Device model name, null-terminated         |
+| 44-75   | 32   | device_serial     | char[32]    | -             | Device serial number, null-terminated      |
+| 76-91   | 16   | hw_revision       | char[16]    | -             | Device hardware revision, null-terminated  |
+| 92-97   | 6    | mac_pool_base     | uint8_t[6]  | -             | First MAC address of the device pool       |
+| 98-99   | 2    | mac_pool_count    | uint16_t    | little-endian | Number of MACs in the pool (0 = none)      |
+| 100-101 | 2    | flags             | uint16_t    | little-endian | Reserved flags (zeros)                     |
+| 102-115 | 14   | reserved2         | uint8_t[14] | -             | Reserved for future use (zeros)            |
+| 116-179 | 64   | signature         | uint8_t[64] | -             | ECDSA signature (r‖s, zero-padded)         |
+| 180-187 | 8    | timestamp         | int64_t     | little-endian | Unix timestamp (seconds)                   |
+| 188-191 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-187                       |
 
 - CRC32: IEEE 802.3 polynomial, same convention as headers.
 - Signature: same ECDSA infrastructure and coverage convention as header v3
@@ -68,10 +69,10 @@ publishes EEPROM identity into the device tree).
    then fall back to a full chain walk. FS operations (delete, rewrite,
    compaction) must not move the first file.
 5. **Board role** (SOM = 1, MAINBOARD = 2, PERIPHERAL = 3): documented now,
-   materialized as a header field only in a future header v4. For new v3 batches
-   the role MAY be written into `header_reserved[0]` before signing
-   (0 = legacy, semantics of existing devices unchanged). Anchor detection
-   remains based on the presence of `device.id`; the role byte is a hint.
+   materialized as a header field only in a future header v4 —
+   [header-v3.md](header-v3.md) keeps bytes 10-11 "Reserved (zeros)", and the
+   compatibility policy allows new fields only via a new header version.
+   Anchor detection is based on the presence of `device.id`.
 
 ## Boot and OS access
 
@@ -100,5 +101,8 @@ publishes EEPROM identity into the device tree).
 - Whether `mac_pool_base`/`mac_pool_count` should also cover per-board MACs or
   strictly device-level pools.
 - Whether `flags` should encode "identity locked" / provisioning state.
+- Whether a board-role hint may be carried in a v3 reserved byte before v4
+  exists — deferred: it would relax header-v3.md's "reserved = zeros" rule and
+  contradict the "new fields only via a new header version" policy.
 - Interaction with the `0xFF is empty` rule
   ([#14](https://github.com/jethome-iot/jeefs/issues/14)) for unwritten records.
