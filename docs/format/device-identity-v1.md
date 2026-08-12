@@ -18,10 +18,13 @@ during repair and be available to the bootloader.
 Header v3 stays unchanged and strictly board-scoped. Device identity is stored
 as a separate signed fixed-size record: a **self-contained 192-byte blob**
 (own magic, version, CRC32, signature) that is parsed by a pure function over
-a byte buffer, exactly like the headers. The container is a per-product
-detail: the file `device.id` in the JEEFS filesystem of a board EEPROM, or a
-raw record in a dedicated region of alternative storage (eMMC RPMB, SPI-flash
-partition) on products that have no EEPROM at all.
+a byte buffer, exactly like the headers. The record always lives as the file
+`device.id` in a JEEFS filesystem; the *medium* underneath is a per-product
+detail. JEEFS is medium-agnostic by design — the eepromops backend works over
+any byte-addressed region, an EEPROM or a plain 8 KiB area — so products
+without EEPROM host the same JEEFS image in a dedicated region of alternative
+storage (eMMC RPMB, SPI-flash partition), and every placement rule below
+applies there unchanged.
 
 Prior art: IPMI FRU (Chassis Area "present in exactly one FRU device of a
 system"), NVIDIA Jetson (system part/serial fields populated only in the carrier
@@ -89,16 +92,22 @@ block on the SoM, extra blocks on the carrier).
    [header-v3.md](header-v3.md) keeps bytes 10-11 "Reserved (zeros)", and the
    compatibility policy allows new fields only via a new header version.
    Anchor detection is based on the presence of the identity record.
-6. **Alternative storages** (products without a usable EEPROM):
-   - **eMMC RPMB**: the record at offset 0 of a dedicated RPMB region. RPMB
+6. **Alternative storages** (products without a usable EEPROM) host a
+   **standard JEEFS image** (header + filesystem) in a dedicated region —
+   JEEFS does not care what is underneath, and rules 1-4 apply unchanged,
+   including the first-file offsets:
+   - **eMMC RPMB**: a dedicated region carrying the JEEFS image; RPMB
      authenticated writes and replay protection complement the record
      signature (anti-rollback for identity).
-   - **SPI-flash**: the record at offset 0 of a dedicated partition
-     (canonical partition name — open question, e.g. `devid`).
-   - **eFuse**: 192 bytes generally do not fit (e.g. 32-byte user blocks on
-     ESP32). A compact subset profile is an open question; until it is
-     defined, eFuse-only products keep their existing scheme and are out of
-     scope for record v1.
+   - **SPI-flash**: a dedicated partition carrying the JEEFS image
+     (canonical partition name — open question).
+   - **eFuse**: neither a JEEFS image nor the 192-byte record fits typical
+     user blocks (32 B on ESP32). A compact subset profile is an open
+     question; until it is defined, eFuse-only products keep their existing
+     scheme and are out of scope for record v1.
+   A bare-record placement (the blob at offset 0 of a region, without the
+   JEEFS container) is possible thanks to the record's self-containment but
+   is deliberately not specified in v1 — one container, uniform tooling.
 
 ## Boot and OS access
 
@@ -118,8 +127,8 @@ block on the SoM, extra blocks on the carrier).
   an empty FS + signature from the signature service); provisioning any other
   file before `device.id` violates placement rule 4, since `EEPROM_AddFile`
   appends to the end of the chain and a late `device.id` would not land at the
-  fixed offset. For raw placements — the record is written at offset 0 of the
-  dedicated RPMB region / flash partition.
+  fixed offset. On alternative storages the region is formatted as a JEEFS
+  image first and `device.id` is written the same way.
 - Repair: replacing a board that does not carry the identity storage does not
   touch device identity. Replacing the identity-bearing board (typically the
   cpuboard) re-provisions the single 192-byte record together with the
@@ -144,10 +153,17 @@ ever needed, arrives as a new `signature_version` value, not a layout change.
 
 - Exact signature coverage bytes and signing procedure for the record.
 - Whether `flags` should encode "identity locked" / provisioning state.
-- Canonical identifiers for the alternative storages: RPMB region selector and
-  SPI-flash partition name (e.g. `devid`).
-- A compact eFuse profile (subset of fields) for products where 192 bytes do
-  not fit — or declaring eFuse permanently out of scope.
+- Canonical identifiers for the alternative storages: RPMB region selector,
+  SPI-flash partition name, and the region size convention (8 KiB like the
+  target EEPROMs, or product-defined).
+- Board-header semantics of the JEEFS image on alternative storages: which
+  board's identity the region's v3 header carries on products whose board
+  data otherwise lives in eFuse.
+- A compact eFuse profile (subset of fields) for products where neither the
+  image nor the 192-byte record fits — or declaring eFuse permanently out of
+  scope.
+- Whether a bare-record placement (blob at offset 0, no JEEFS container) is
+  ever needed; v1 deliberately specifies the JEEFS container only.
 - Whether a board-role hint may be carried in a v3 reserved byte before v4
   exists — deferred: it would relax header-v3.md's "reserved = zeros" rule and
   contradict the "new fields only via a new header version" policy.
