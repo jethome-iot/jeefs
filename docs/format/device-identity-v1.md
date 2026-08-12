@@ -10,21 +10,18 @@
 
 A device may contain several boards with their own EEPROM (SoM/CPU module and a
 mainboard/carrier). Each board carries a board-scoped JEEFS header
-([header-v3.md](header-v3.md)): board name, board version, board serial, MAC.
+([header-v3.md](header-v3.md)): boardname, boardversion, serial, MAC.
 The **device** as a product has its own identity — device serial number, model
-name, hardware revision, a MAC pool — which must survive board replacement
-during repair and be available to the bootloader.
+name, hardware revision — which must survive board replacement during repair
+and be available to the bootloader.
 
 Header v3 stays unchanged and strictly board-scoped. Device identity is stored
 as a separate signed fixed-size record: a **self-contained 192-byte blob**
 (own magic, version, CRC32, signature) that is parsed by a pure function over
-a byte buffer, exactly like the headers. The record always lives as the file
-`device.id` in a JEEFS filesystem; the *medium* underneath is a per-product
-detail. JEEFS is medium-agnostic by design — the eepromops backend works over
-any byte-addressed region, an EEPROM or a plain 8 KiB area — so products
-without EEPROM host the same JEEFS image in a dedicated region of alternative
-storage (eMMC RPMB, SPI-flash partition), and every placement rule below
-applies there unchanged.
+a byte buffer, exactly like the headers. The record lives as the file
+`device.id` in the JEEFS filesystem of the anchor board's EEPROM. What
+physically backs that EEPROM is a product detail outside the scope of this
+spec — JEEFS abstracts the medium via the eepromops backend.
 
 Prior art: IPMI FRU (Chassis Area "present in exactly one FRU device of a
 system"), NVIDIA Jetson (system part/serial fields populated only in the carrier
@@ -63,22 +60,21 @@ block on the SoM, extra blocks on the carrier).
   ([#13](https://github.com/jethome-iot/jeefs/issues/13)); the draft assumes
   null-terminated UTF-8, zero-padded.
 
-## Placement and storage
+## Placement rules
 
-1. **Reserved file name** (EEPROM placement): `device.id` (fits the
-   15-character limit). To be added to [header-common.md](header-common.md) as
-   a named constant after approval.
-2. **Storage priority**: the identity storage is declared by the product
-   configuration (board config / device tree). Default probe order for generic
-   tools: **cpuboard EEPROM → motherboard EEPROM → the product's alternative
-   storage** (rule 6). Rationale for cpuboard-first: the device MAC already
-   comes from the cpuboard header, so replacing the cpuboard re-provisions
-   identity-bearing data anyway, and the bootloader runs on the CPU board —
-   its storage is available earliest at boot. Not every product has an EEPROM
-   on the cpuboard, and some have no EEPROM at all — hence the fallback chain.
-3. **Uniqueness**: exactly one identity record per device **across all
-   storages**. Conflict resolution follows the probe order (cpuboard storage
-   wins), then the newer timestamp; conflicts are logged.
+1. **Reserved file name**: `device.id` (fits the 15-character limit). To be
+   added to [header-common.md](header-common.md) as a named constant after
+   approval.
+2. **Anchor board and probe order**: the anchor board is the board whose
+   EEPROM carries the identity record. Probe order: **cpuboard EEPROM →
+   motherboard EEPROM**; if the cpuboard has no EEPROM, the motherboard is the
+   anchor. Rationale for cpuboard-first: the device MAC already comes from the
+   cpuboard header, so replacing the cpuboard re-provisions identity-bearing
+   data anyway, and the bootloader runs on the CPU board — its EEPROM is
+   available earliest at boot.
+3. **Uniqueness**: exactly one identity record per device across all of its
+   EEPROMs. Conflict resolution follows the probe order (cpuboard wins), then
+   the newer timestamp; conflicts are logged.
 4. **First-file invariant**: `device.id` is written as the **first** file of the
    filesystem, so the record body sits at offset `header_size + 24`
    ([filesystem-v1.md](filesystem-v1.md): the first file header starts at
@@ -92,28 +88,12 @@ block on the SoM, extra blocks on the carrier).
    [header-v3.md](header-v3.md) keeps bytes 10-11 "Reserved (zeros)", and the
    compatibility policy allows new fields only via a new header version.
    Anchor detection is based on the presence of the identity record.
-6. **Alternative storages** (products without a usable EEPROM) host a
-   **standard JEEFS image** (header + filesystem) in a dedicated region —
-   JEEFS does not care what is underneath, and rules 1-4 apply unchanged,
-   including the first-file offsets:
-   - **eMMC RPMB**: a dedicated region carrying the JEEFS image; RPMB
-     authenticated writes and replay protection complement the record
-     signature (anti-rollback for identity).
-   - **SPI-flash**: a dedicated partition carrying the JEEFS image
-     (canonical partition name — open question).
-   - **eFuse**: neither a JEEFS image nor the 192-byte record fits typical
-     user blocks (32 B on ESP32). A compact subset profile is an open
-     question; until it is defined, eFuse-only products keep their existing
-     scheme and are out of scope for record v1.
-   A bare-record placement (the blob at offset 0 of a region, without the
-   JEEFS container) is possible thanks to the record's self-containment but
-   is deliberately not specified in v1 — one container, uniform tooling.
 
 ## Boot and OS access
 
-- The identity storage is the only source of truth. U-Boot reads the board
-  headers and the identity record (per the probe order of the product
-  configuration), selects the device tree / overlays by the boardname pair, and
+- The EEPROM is the only source of truth. U-Boot reads the board headers and
+  the identity record (per the probe order),
+  selects the device tree / overlays by the boardname pair, and
   publishes device identity into the DT (e.g. a `/firmware/jethome` node, the
   way RPi HAT publishes `/hat`) and into environment variables as a cache.
 - The U-Boot environment is never a storage of identity.
@@ -122,13 +102,11 @@ block on the SoM, extra blocks on the carrier).
 ## Production and repair
 
 - Board test stage writes and signs the board header (unchanged workflow).
-- Final assembly writes the identity record: for EEPROM placement — as the
-  **first file created** on the anchor board's filesystem (`EEPROM_AddFile` on
-  an empty FS + signature from the signature service); provisioning any other
-  file before `device.id` violates placement rule 4, since `EEPROM_AddFile`
-  appends to the end of the chain and a late `device.id` would not land at the
-  fixed offset. On alternative storages the region is formatted as a JEEFS
-  image first and `device.id` is written the same way.
+- Final assembly writes the identity record as the **first file created** on
+  the anchor board's filesystem (`EEPROM_AddFile` on an empty FS + signature
+  from the signature service); provisioning any other file before `device.id`
+  violates placement rule 4, since `EEPROM_AddFile` appends to the end of the
+  chain and a late `device.id` would not land at the fixed offset.
 - Repair: replacing a board that does not carry the identity storage does not
   touch device identity. Replacing the identity-bearing board (typically the
   cpuboard) re-provisions the single 192-byte record together with the
@@ -153,17 +131,9 @@ ever needed, arrives as a new `signature_version` value, not a layout change.
 
 - Exact signature coverage bytes and signing procedure for the record.
 - Whether `flags` should encode "identity locked" / provisioning state.
-- Canonical identifiers for the alternative storages: RPMB region selector,
-  SPI-flash partition name, and the region size convention (8 KiB like the
-  target EEPROMs, or product-defined).
-- Board-header semantics of the JEEFS image on alternative storages: which
-  board's identity the region's v3 header carries on products whose board
-  data otherwise lives in eFuse.
-- A compact eFuse profile (subset of fields) for products where neither the
-  image nor the 192-byte record fits — or declaring eFuse permanently out of
-  scope.
-- Whether a bare-record placement (blob at offset 0, no JEEFS container) is
-  ever needed; v1 deliberately specifies the JEEFS container only.
+- Terminology: [header-v3.md](header-v3.md) describes the `serial` field as
+  "Device serial number", while in multi-board products it is board-scoped —
+  the header specs' field descriptions need aligning once this RFC settles.
 - Whether a board-role hint may be carried in a v3 reserved byte before v4
   exists — deferred: it would relax header-v3.md's "reserved = zeros" rule and
   contradict the "new fields only via a new header version" policy.
