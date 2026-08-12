@@ -59,36 +59,33 @@ block on the SoM, extra blocks on the carrier).
   the cpuboard header. No duplication — nothing to fall out of sync. A real
   MAC pool, if ever needed, arrives with a new `record_version`.
 - Signature: same ECDSA infrastructure (algorithms, keys, signature service) as
-  the header. The signing coverage and the signature-field zeroing procedure
-  are not defined by the header specs either — fixing them for this record is
-  an open question for RFC #26.
+  the header. What data is signed, how it is verified and by whom is outside
+  the scope of this spec — a firmware/production concern. The spec defines
+  only the field layout and the `signature_version` algorithm enum.
 - String semantics follow the outcome of the raw-vs-string RFC
   ([#13](https://github.com/jethome-iot/jeefs/issues/13)); the draft assumes
   null-terminated UTF-8, zero-padded.
+- Versioning: a parser encountering an unknown `record_version` returns an
+  error. No forward-compatibility guessing.
 
 ## Placement rules
 
 1. **Reserved file name**: `device.id` (fits the 15-character limit). To be
    added to [header-common.md](header-common.md) as a named constant after
    approval.
-2. **Anchor board and probe order**: the anchor board is the board whose
-   EEPROM carries the identity record. Probe order: **cpuboard EEPROM →
-   motherboard EEPROM**; if the cpuboard has no EEPROM, the motherboard is the
-   anchor. Rationale for cpuboard-first: the device MAC already comes from the
-   cpuboard header, so replacing the cpuboard re-provisions identity-bearing
-   data anyway, and the bootloader runs on the CPU board — its EEPROM is
-   available earliest at boot.
-3. **Uniqueness**: exactly one identity record per device across all of its
-   EEPROMs. Conflict resolution follows the probe order (cpuboard wins), then
-   the newer timestamp; conflicts are logged.
+2. **Anchor board** (provisioning convention): production writes the record on
+   the cpuboard's EEPROM; if the cpuboard has no EEPROM — on the motherboard's
+   (decision from RFC #26). Which EEPROM a reader opens and in what order is
+   the caller's business, not this spec's: the library sees 8 KiB of data and
+   read/write requests.
+3. **Uniqueness** (provisioning convention): production writes exactly one
+   identity record per device.
 4. **First-file invariant**: `device.id` is written as the **first** file of the
    filesystem, so the record body sits at offset `header_size + 24`
    ([filesystem-v1.md](filesystem-v1.md): the first file header starts at
-   `header_size`). That is **280** for the 256-byte v2/v3 headers and **536**
-   for the 512-byte v1 header. Anchor boards are provisioned with v3 headers,
-   so bootloaders probe offset 280 first (verify the record magic), then 536,
-   then fall back to a full chain walk. FS operations (delete, rewrite,
-   compaction) must not move the first file.
+   `header_size`): **280** for the 256-byte v2/v3 headers, **536** for the
+   512-byte v1 header. Anchor boards are provisioned with v3 headers. FS
+   operations (delete, rewrite, compaction) must not move the first file.
 5. **Board role** (SOM = 1, MAINBOARD = 2, PERIPHERAL = 3): documented now,
    materialized as a header field only in a future header v4 —
    [header-v3.md](header-v3.md) keeps bytes 10-11 "Reserved (zeros)", and the
@@ -98,8 +95,7 @@ block on the SoM, extra blocks on the carrier).
 ## Boot and OS access
 
 - The EEPROM is the only source of truth. U-Boot reads the board headers and
-  the identity record (per the probe order),
-  selects the device tree / overlays by the boardname pair, and
+  the identity record, selects the device tree / overlays by the boardname pair, and
   publishes device identity into the DT (e.g. a `/firmware/jethome` node, the
   way RPi HAT publishes `/hat`) and into environment variables as a cache.
 - The U-Boot environment is never a storage of identity.
@@ -135,7 +131,6 @@ ever needed, arrives as a new `signature_version` value, not a layout change.
 
 ## Open questions (for RFC #26)
 
-- Exact signature coverage bytes and signing procedure for the record.
 - Whether `flags` should encode "identity locked" / provisioning state.
 - Terminology: [header-v3.md](header-v3.md) describes the `serial` field as
   "Device serial number", while in multi-board products it is board-scoped —
