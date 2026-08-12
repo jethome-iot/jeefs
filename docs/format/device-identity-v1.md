@@ -88,8 +88,11 @@ block on the SoM, extra blocks on the carrier).
 ## Production and repair
 
 - Board test stage writes and signs the board header (unchanged workflow).
-- Final assembly writes `device.id` (a normal `EEPROM_AddFile` + signature from
-  the signature service).
+- Final assembly writes `device.id` as the **first file created** on the anchor
+  board's filesystem (`EEPROM_AddFile` on an empty FS + signature from the
+  signature service). Provisioning any other file before `device.id` violates
+  placement rule 4 — `EEPROM_AddFile` appends to the end of the chain, so a
+  late `device.id` would not land at the fixed offset.
 - Repair: replacing the SoM does not touch device identity; replacing the
   mainboard re-provisions a single 192-byte record (signature service needs an
   API to re-sign a record for an existing device serial).
@@ -108,3 +111,9 @@ block on the SoM, extra blocks on the carrier).
   contradict the "new fields only via a new header version" policy.
 - Interaction with the `0xFF is empty` rule
   ([#14](https://github.com/jethome-iot/jeefs/issues/14)) for unwritten records.
+- How the FS layer enforces the first-file invariant: reject a non-first
+  `device.id`, reserve the first slot on anchor boards, or rely on production
+  ordering discipline alone.
+- Whether `signature_version = 0` (NONE) is permitted for device identity —
+  i.e. whether unsigned records are acceptable outside development. The layout
+  reuses the header enum, which allows NONE unless this spec forbids it.
