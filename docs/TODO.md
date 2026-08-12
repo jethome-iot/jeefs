@@ -1,83 +1,44 @@
-# JEEFS — Roadmap / TODO
+# JEEFS — Tactical TODO
 
-## v0.1.3 — Code quality
+Strategic release themes and freeze criteria live in [ROADMAP.md](ROADMAP.md);
+work is tracked in GitHub issues and milestones (audit tracking:
+[#30](https://github.com/jethome-iot/jeefs/issues/30)). This file keeps only
+small tactical items and points to their tracking issues.
 
-### Proper error codes — low complexity, ~30 LOC
+## Carried over (planned for v0.1.3, not shipped with it)
 
-Add `EEPROMWRITEERROR = -12` to `eepromerr.h`. Replace ~10 bare `-1`
-returns in `jeefs.c` with specific `EEPROMError` values (there are 6
-occurrences marked `@TODO: errno`). Do this first — other tasks depend
-on having proper error codes.
+The v0.1.3 release ended up being license migration + PyPI publishing; the
+code-quality items below did not land and are now tracked as part of the
+v0.2.0 FS-core work:
 
-Files: `include/eepromerr.h`, `src/jeefs.c`
+- **Proper error codes** (`EEPROMWRITEERROR`, replace bare `-1` returns) —
+  folded into the FS-core rewrite,
+  [#9](https://github.com/jethome-iot/jeefs/issues/9).
+- **Write error propagation** in `eepromops-memory.c` —
+  [#29](https://github.com/jethome-iot/jeefs/issues/29) (backlog).
+- **CRC32 validation on file read** — checklist item of
+  [#9](https://github.com/jethome-iot/jeefs/issues/9).
+- **Extract `defragEEPROM()`** — superseded by the rewrite: compaction is
+  redesigned inside [#9](https://github.com/jethome-iot/jeefs/issues/9)
+  ("implement or drop the public `defragEEPROM`").
+- **Expanded test vectors** (max-length fields, all-zero/all-FF MAC,
+  v3+SECP192R1, v1/v2 with non-trivial USID/CPUID) — blocked on the
+  raw-vs-string decision [#13](https://github.com/jethome-iot/jeefs/issues/13);
+  wiring committed vectors into CI is
+  [#19](https://github.com/jethome-iot/jeefs/issues/19).
 
-### Write error propagation — low complexity, ~5 LOC
+## Package publishing
 
-In `eepromops-memory.c`, check `eeprom_save()` return value for `-1`
-and propagate the error instead of silently continuing. Currently a
-failed save-on-write leaves the caller unaware of data loss.
+- **PyPI** — shipped in v0.1.3 (`jeefs` on PyPI, tag-gated CI job).
+- **crates.io** — tracked in
+  [#21](https://github.com/jethome-iot/jeefs/issues/21) (milestone v0.2.0),
+  together with GitHub Releases.
 
-Files: `eepromops-memory/eepromops-memory.c`
+## Future — new language implementations
 
-### CRC32 validation on file read — low complexity, ~10 LOC
-
-After reading file data in `EEPROM_ReadFile()`, compute CRC32 and
-compare against the value stored in the file header. Return
-`EEPROMCORRUPTED` on mismatch. Depends on the error codes task.
-
-Files: `src/jeefs.c`
-
-### Extract defragEEPROM() — medium complexity, ~80-100 LOC
-
-`EEPROM_DeleteFile()` currently performs inline defragmentation
-(shifts all subsequent files after unlinking). Extract the compaction
-logic into a standalone `defragEEPROM()` function declared in
-`jeefs.h`. `EEPROM_DeleteFile()` calls `defragEEPROM()` at the end —
-existing behavior is preserved, but the function becomes available
-for standalone use.
-
-Files: `src/jeefs.c`, `include/jeefs.h`
-
-### Expanded test vectors — low complexity
-
-Add ~6 new vectors to `test-vectors/vectors/`. The CMake cross-language
-matrix auto-discovers new vectors — no code changes required.
-
-Candidates:
-
-- Maximum-length field values (31-char boardname, 32-char serial, etc.)
-- All-zero and all-FF MAC addresses
-- v3 with SECP192R1 signature
-- v1/v2 with non-trivial USID/CPUID content
-
-## v0.2.0 — Package publishing
-
-### PyPI (`jeefs-header`) — low complexity
-
-Add metadata to `python/pyproject.toml`: authors, repository, homepage,
-keywords, classifiers. Build with `python -m build`, upload with
-`twine upload`.
-
-### crates.io (`jeefs-header`) — low complexity
-
-Add metadata to `rust/jeefs-header/Cargo.toml`: repository,
-documentation, homepage, keywords, categories. Publish with
-`cargo publish`.
-
-## Future — New language implementations
-
-Not prioritized yet. Planned when C quality and publishing are done.
-
-### Go
-
-Native header parsing library (~600-800 LOC). Uses `crypto/crc32`
-from stdlib and `encoding/binary` for little-endian parsing. Add Go
-generator to `tools/jeefs_codegen/`. Cross-language matrix grows from
-4x4 to 5x5.
-
-### TypeScript
-
-Native header parsing library (~700-900 LOC). Uses DataView API for
-binary parsing. Requires pure-JS IEEE CRC32 implementation or npm
-dependency (no built-in CRC32 in JavaScript). Add TypeScript generator
-to `tools/jeefs_codegen/`. Cross-language matrix grows to 6x6.
+Go and TypeScript header implementations are scheduled for v0.4.0 (see
+[ROADMAP.md](ROADMAP.md)); gated on the language conformance contract
+[#17](https://github.com/jethome-iot/jeefs/issues/17). Sizing estimates:
+Go ~600-800 LOC (`crypto/crc32` + `encoding/binary`), TypeScript ~700-900 LOC
+(DataView + pure-JS CRC32); both need generators added to
+`tools/jeefs_codegen/` and grow the cross-language matrix to 5x5 / 6x6.
