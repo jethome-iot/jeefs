@@ -12,22 +12,23 @@ A device may contain several boards with their own EEPROM (SoM/CPU module and a
 mainboard/carrier). Each board carries a board-scoped JEEFS header
 ([header-v3.md](header-v3.md)): boardname, boardversion, serial, MAC.
 The **device** as a product has its own identity — device serial number, model
-name, hardware revision — which must survive board replacement during repair
-and be available to the bootloader.
+name, hardware revision — which must survive board replacement during repair.
 
 Header v3 stays unchanged and strictly board-scoped. Device identity is stored
 as a separate signed fixed-size record: a **self-contained 256-byte blob**
 (own magic, version, CRC32, signature) that is parsed by a pure function over
 a byte buffer, exactly like the headers. The record lives as the file
-`device.id` in the JEEFS filesystem of the anchor board's EEPROM. What
-physically backs that EEPROM is a product detail outside the scope of this
-spec — JEEFS abstracts the medium via the eepromops backend.
+`device.id` in a JEEFS filesystem.
+
+This spec defines the record format and the reserved file name — nothing else.
+Which board's EEPROM carries the file, in what order files are written, who
+reads or verifies the record and when — production and firmware concerns,
+outside the scope of this document and of the library (which sees 8 KiB of
+data and read/write requests).
 
 Prior art: IPMI FRU (Chassis Area "present in exactly one FRU device of a
 system"), NVIDIA Jetson (system part/serial fields populated only in the carrier
-EEPROM), ONIE TlvInfo (MAC pool as base + count), Raspberry Pi HAT (bootloader
-publishes EEPROM identity into the device tree), Toradex config block (anchor
-block on the SoM, extra blocks on the carrier).
+EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 
 ## Record layout
 
@@ -55,9 +56,8 @@ block on the SoM, extra blocks on the carrier).
   new `record_version`) without another size change.
 - The record deliberately carries **no MAC fields**: board MACs are provisioned
   independently and are not contiguous, so a base+count pool cannot describe
-  them. The device MAC is defined by a lookup rule instead: the `mac` field of
-  the cpuboard header. No duplication — nothing to fall out of sync. A real
-  MAC pool, if ever needed, arrives with a new `record_version`.
+  them; the device MAC is taken from the cpuboard header. A real MAC pool, if
+  ever needed, arrives with a new `record_version`.
 - Signature: same ECDSA infrastructure (algorithms, keys, signature service) as
   the header. What data is signed, how it is verified and by whom is outside
   the scope of this spec — a firmware/production concern. The spec defines
@@ -68,56 +68,10 @@ block on the SoM, extra blocks on the carrier).
 - Versioning: a parser encountering an unknown `record_version` returns an
   error. No forward-compatibility guessing.
 
-## Placement rules
+## Reserved file name
 
-1. **Reserved file name**: `device.id` (fits the 15-character limit). To be
-   added to [header-common.md](header-common.md) as a named constant after
-   approval.
-2. **Anchor board** (provisioning convention): production writes the record on
-   the cpuboard's EEPROM; if the cpuboard has no EEPROM — on the motherboard's
-   (decision from RFC #26). Which EEPROM a reader opens and in what order is
-   the caller's business, not this spec's: the library sees 8 KiB of data and
-   read/write requests.
-3. **Uniqueness** (provisioning convention): production writes exactly one
-   identity record per device.
-4. **First-file invariant**: `device.id` is written as the **first** file of the
-   filesystem, so the record body sits at offset `header_size + 24`
-   ([filesystem-v1.md](filesystem-v1.md): the first file header starts at
-   `header_size`): **280** for the 256-byte v2/v3 headers, **536** for the
-   512-byte v1 header. Anchor boards are provisioned with v3 headers. FS
-   operations (delete, rewrite, compaction) must not move the first file.
-5. **Board role** (SOM = 1, MAINBOARD = 2, PERIPHERAL = 3): documented now,
-   materialized as a header field only in a future header v4 —
-   [header-v3.md](header-v3.md) keeps bytes 10-11 "Reserved (zeros)", and the
-   compatibility policy allows new fields only via a new header version.
-   Anchor detection is based on the presence of the identity record.
-
-## Boot and OS access
-
-- The EEPROM is the only source of truth. U-Boot reads the board headers and
-  the identity record, selects the device tree / overlays by the boardname pair, and
-  publishes device identity into the DT (e.g. a `/firmware/jethome` node, the
-  way RPi HAT publishes `/hat`) and into environment variables as a cache.
-- The U-Boot environment is never a storage of identity.
-- No kernel parser is required: userspace reads `/proc/device-tree`.
-
-## Production and repair
-
-- Board test stage writes and signs the board header (unchanged workflow).
-- Final assembly writes the identity record as the **first file created** on
-  the anchor board's filesystem (`EEPROM_AddFile` on an empty FS + signature
-  from the signature service); provisioning any other file before `device.id`
-  violates placement rule 4, since `EEPROM_AddFile` appends to the end of the
-  chain and a late `device.id` would not land at the fixed offset.
-- Repair: replacing a board that does not carry the identity storage does not
-  touch device identity. Replacing the identity-bearing board (typically the
-  cpuboard) re-provisions the single 256-byte record together with the
-  board's own provisioning — MAC and header signing already require a factory
-  step there (signature service needs an API to re-sign a record for an
-  existing device serial).
-- **Legacy fallback** (documented, not stored): for devices without an identity
-  record, device serial = cpuboard serial (from its header) until the record
-  is provisioned. The fleet migrates without header reflashes.
+`device.id` (fits the 15-character limit). To be added to
+[header-common.md](header-common.md) as a named constant after approval.
 
 ## Signature algorithm rationale
 
@@ -135,14 +89,5 @@ ever needed, arrives as a new `signature_version` value, not a layout change.
 - Terminology: [header-v3.md](header-v3.md) describes the `serial` field as
   "Device serial number", while in multi-board products it is board-scoped —
   the header specs' field descriptions need aligning once this RFC settles.
-- Whether a board-role hint may be carried in a v3 reserved byte before v4
-  exists — deferred: it would relax header-v3.md's "reserved = zeros" rule and
-  contradict the "new fields only via a new header version" policy.
 - Interaction with the `0xFF is empty` rule
   ([#14](https://github.com/jethome-iot/jeefs/issues/14)) for unwritten records.
-- How the FS layer enforces the first-file invariant: reject a non-first
-  `device.id`, reserve the first slot on anchor boards, or rely on production
-  ordering discipline alone.
-- Whether `signature_version = 0` (NONE) is permitted for device identity —
-  i.e. whether unsigned records are acceptable outside development. The layout
-  reuses the header enum, which allows NONE unless this spec forbids it.
