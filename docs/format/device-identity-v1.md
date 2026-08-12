@@ -1,4 +1,4 @@
-# DeviceIdentityV1 (192 bytes) — DRAFT
+# DeviceIdentityV1 (256 bytes) — DRAFT
 
 > **Status: DRAFT — under discussion in RFC
 > [#26](https://github.com/jethome-iot/jeefs/issues/26). Do not implement.**
@@ -16,7 +16,7 @@ name, hardware revision — which must survive board replacement during repair
 and be available to the bootloader.
 
 Header v3 stays unchanged and strictly board-scoped. Device identity is stored
-as a separate signed fixed-size record: a **self-contained 192-byte blob**
+as a separate signed fixed-size record: a **self-contained 256-byte blob**
 (own magic, version, CRC32, signature) that is parsed by a pure function over
 a byte buffer, exactly like the headers. The record lives as the file
 `device.id` in the JEEFS filesystem of the anchor board's EEPROM. What
@@ -41,12 +41,18 @@ block on the SoM, extra blocks on the carrier).
 | 44-75   | 32   | device_serial     | char[32]    | -             | Device serial number, null-terminated      |
 | 76-91   | 16   | hw_revision       | char[16]    | -             | Device hardware revision, null-terminated  |
 | 92-93   | 2    | flags             | uint16_t    | little-endian | Reserved flags (zeros)                     |
-| 94-115  | 22   | reserved2         | uint8_t[22] | -             | Reserved for future use (zeros)            |
-| 116-179 | 64   | signature         | uint8_t[64] | -             | ECDSA signature (r‖s, zero-padded)         |
-| 180-187 | 8    | timestamp         | int64_t     | little-endian | Unix timestamp (seconds)                   |
-| 188-191 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-187                       |
+| 94-179  | 86   | reserved2         | uint8_t[86] | -             | Reserved for future use (zeros)            |
+| 180-243 | 64   | signature         | uint8_t[64] | -             | ECDSA signature (r‖s, zero-padded)         |
+| 244-251 | 8    | timestamp         | int64_t     | little-endian | Unix timestamp (seconds)                   |
+| 252-255 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-251                       |
 
 - CRC32: IEEE 802.3 polynomial, same convention as headers.
+- The record size matches the v2/v3 header size (256 bytes), and the tail
+  layout is **byte-identical to header v3**: `signature` at offset 180,
+  `timestamp` at 244, `crc32` at 252, CRC coverage 0-251. Header-v3 signature
+  and CRC handling code applies to the record without offset changes; the
+  86-byte reserve leaves room for future fields (or a longer signature via a
+  new `record_version`) without another size change.
 - The record deliberately carries **no MAC fields**: board MACs are provisioned
   independently and are not contiguous, so a base+count pool cannot describe
   them. The device MAC is defined by a lookup rule instead: the `mac` field of
@@ -109,7 +115,7 @@ block on the SoM, extra blocks on the carrier).
   chain and a late `device.id` would not land at the fixed offset.
 - Repair: replacing a board that does not carry the identity storage does not
   touch device identity. Replacing the identity-bearing board (typically the
-  cpuboard) re-provisions the single 192-byte record together with the
+  cpuboard) re-provisions the single 256-byte record together with the
   board's own provisioning — MAC and header signing already require a factory
   step there (signature service needs an API to re-sign a record for an
   existing device serial).
