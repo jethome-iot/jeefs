@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <memory.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include "../include/eepromops.h"
