@@ -123,8 +123,6 @@ Negative return values are errors defined in `EEPROMError` enum: `FILEEXISTS`, `
 
 ### Known Issues / TODOs in Code
 
-- `defragEEPROM()` is declared in the header but not implemented in jeefs.c
-- Several `// TODO` markers for CRC validation of file data on read and write error checking
 - Binary test vectors (`test-vectors/`) not yet generated — planned for cross-language CI
 - Additional language implementations (Rust, Go, TypeScript) planned but not yet started
 

@@ -67,7 +67,7 @@ The `nextFileAddress` must equal `A + sizeof(JEEFSFileHeaderv1) + dataSize` for 
 - **Coverage:** CRC32 is calculated over **file data only** (not the file header).
 - **Algorithm:** Same IEEE 802.3 / zlib `crc32()` as the EEPROM header.
 - **Written on:** file creation (`EEPROM_AddFile`) and file overwrite (`EEPROM_WriteFile`).
-- **Validation:** Not currently verified on read (TODO in implementation).
+- **Validation:** Verified on every `EEPROM_ReadFile()`; a mismatch returns `EEPROMCORRUPTED`.
 
 ## File Operations
 
@@ -99,7 +99,7 @@ Traverse linked list from header end, collecting file names until `nextFileAddre
 ## Constraints
 
 - **Max filename:** 15 characters (+ null terminator = 16 bytes).
-- **Max file size:** Limited by `uint16_t dataSize` = 65535 bytes (theoretical), practically limited by available EEPROM space.
+- **Max file size:** 32767 bytes (INT16_MAX): the int16_t API returns carry byte counts, so larger payloads are rejected with `BUFFERNOTVALID`.
 - **Zero-size files:** Not allowed (`dataSize = 0` returns `BUFFERNOTVALID`).
 - **File fragmentation:** Not supported — each file is contiguous.
 - **Addressing:** `uint16_t` offsets — max EEPROM size 65535 bytes.
@@ -111,10 +111,12 @@ Both `0x00` and `0xFF` are treated as "empty":
 - `EEPROM_ByteIsEmpty(b)`: `b == 0x00 || b == 0xFF`
 - `EEPROM_WordIsEmpty(w)`: `w == 0x0000 || w == 0xFFFF`
 
-A slot is empty if:
-
-- First byte of filename is empty, OR
-- `dataSize` is empty (0x0000 or 0xFFFF)
+A slot is empty if the first byte of the filename is empty. A header with
+a written name but an empty `dataSize` (0x0000 or 0xFFFF) is treated as
+**corruption**, not as an empty slot: file headers carry no CRC of their
+own, and silently reusing such a slot would destroy whatever wrote the
+name. An erased `nextFileAddress` (0xFFFF) in an otherwise valid header
+terminates the chain exactly like 0.
 
 The two values come from different domains: bytes inside written
 structures are zero-padded (`0x00`), while unwritten space of an erased

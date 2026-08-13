@@ -141,9 +141,9 @@ parse the header bytes returned by `readHeader()`.
 | `addFile(name, data)` | `int16_t` | Written bytes, `<=0` on error |
 | `writeFile(name, data)` | `int16_t` | Written bytes, `FILENOTFOUND` if missing |
 | `deleteFile(name)` | `int16_t` | 1 deleted, `FILENOTFOUND` if missing |
-| `checkConsistency()` | `int16_t` | C-layer passthrough (see note) |
+| `checkConsistency()` | `int16_t` | 1 consistent, 0 inconsistent |
 | `readHeader()` | `std::optional<std::vector<uint8_t>>` | Header bytes, exactly header-sized |
-| `setHeader(ptr)` | `int` | C-layer passthrough (see note) |
+| `setHeader(ptr)` | `int` | 0 on success |
 | `lastError()` | `int` | Last non-positive C return code |
 | `descriptor()` | `EEPROMDescriptor` | Escape hatch to the C API |
 
@@ -151,12 +151,9 @@ Error codes are `EEPROMError` values from `eepromerr.h`.
 
 ### Notes
 
-- The wrapper passes C return values through unchanged. Two known
-  C-layer contract quirks are tracked for the FS-core rewrite
-  ([#9](https://github.com/jethome-iot/jeefs/issues/9)):
-  `EEPROM_HeaderCheckConsistency` returns 0 (not the documented 1) for a
-  consistent image, and `EEPROM_SetHeader` has an inverted return
-  ([#6](https://github.com/jethome-iot/jeefs/issues/6)).
+- The wrapper passes C return values through unchanged; contracts match
+  jeefs.h since the FS-core rewrite
+  ([#9](https://github.com/jethome-iot/jeefs/issues/9)).
 - Header parsing is not duplicated here: feed `readHeader()` bytes to
   `jeefs::HeaderView`.
 

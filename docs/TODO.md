@@ -8,8 +8,8 @@ small tactical items and points to their tracking issues.
 ## Carried over (planned for v0.1.3, not shipped with it)
 
 The v0.1.3 release ended up being license migration + PyPI publishing; the
-code-quality items below did not land and are now tracked as part of the
-v0.2.0 FS-core work:
+code-quality items below were closed by the v0.2.0 FS-core rewrite
+([#9](https://github.com/jethome-iot/jeefs/issues/9)):
 
 - **Proper error codes** (`EEPROMWRITEERROR`, replace bare `-1` returns) —
   folded into the FS-core rewrite,

@@ -160,10 +160,10 @@ public:
             last_error_ = EEPROMREADERROR;
             return std::nullopt;
         }
-        // EEPROM_GetHeader reads the full caller-supplied size, so probe the
-        // known header sizes instead of over-reading past a 256-byte header:
-        // it rejects a buffer smaller than the detected header. A failed
-        // probe reaches last_error_ only if every probe fails.
+        // EEPROM_GetHeader fills exactly the detected header size and
+        // rejects a smaller buffer; probing the known sizes yields an
+        // exactly-sized result without parsing here. A failed probe
+        // reaches last_error_ only if every probe fails.
         int ret = EEPROMREADERROR;
         for (size_t size : {size_t{256}, size_t{512}}) {
             if (size > desc_.eeprom_size)
