@@ -59,7 +59,7 @@ uv venv .venv && uv pip install -e ".[test]"
 ┌───────────────────────────────────────────────┐
 │  Python package (python/jeefs/)               │  Native header parsing
 ├───────────────────────────────────────────────┤
-│  C++ wrapper (srcpp/jeefspp)                  │  std::vector-based API
+│  C++ wrappers (jeefspp, jeefs_headerpp)       │  header-only, std::vector-based
 ├───────────────────────────────────────────────┤
 │  Pure header API (jeefs_header.h/c)           │  Byte-buffer ops, no I/O
 ├───────────────────────────────────────────────┤
@@ -149,7 +149,6 @@ src/
   jeefs.c            # FS implementation + header management (uses eepromops)
   jeefs_header.c     # Pure header functions (uses zlib only)
 eepromops-memory/    # In-memory EEPROM backend
-srcpp/               # C++ wrapper
 python/
   jeefs/             # Python package: constants.py, header.py
   tests/             # pytest suite (58 tests)
