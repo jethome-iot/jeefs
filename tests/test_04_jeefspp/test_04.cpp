@@ -49,6 +49,8 @@ int main() {
     // two C++ layers, no parsing duplicated inside FileSystem.
     auto hdr = fs.readHeader();
     assert(hdr.has_value());
+    // exactly the header, not the header region: v3 header is 256 bytes
+    assert(hdr->size() == 256);
     jeefs::HeaderView view(*hdr);
     assert(view.detect_version().value_or(-1) == 3);
     assert(view.verify_crc());
