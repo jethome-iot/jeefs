@@ -108,8 +108,8 @@ Traverse linked list from header end, collecting file names until `nextFileAddre
 
 Both `0x00` and `0xFF` are treated as "empty":
 
-- `EEPROM_ByteIsEmpty(b)`: `b == 0x00 || b == 0xFF`
-- `EEPROM_WordIsEmpty(w)`: `w == 0x0000 || w == 0xFFFF`
+- a byte is empty when `b == 0x00 || b == 0xFF`
+- a 16-bit field is empty when `w == 0x0000 || w == 0xFFFF`
 
 A slot is empty if the first byte of the filename is empty. A header with
 a written name but an empty `dataSize` (0x0000 or 0xFFFF) is treated as

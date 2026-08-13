@@ -256,6 +256,26 @@ static void test_oversized_datasize_rejected(void) {
     printf("  oversized dataSize rejected: OK\n");
 }
 
+// A non-terminal link must point where a file header can actually fit: a
+// link to the exact EEPROM end passes naive contiguity but has no room for
+// a successor — corrupted, and must not send DeleteFile into a relink loop.
+static void test_link_to_eeprom_end_rejected(void) {
+    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern(ep, "a", 10, 1) == 10);
+
+    // dataSize of "a" -> spans to EEPROM end; next -> exactly eeprom_size
+    uint16_t span = IMG_SIZE - HDR_V3 - 24;
+    uint16_t end = IMG_SIZE;
+    poke(ep, HDR_V3 + 16, &span, 2);
+    poke(ep, HDR_V3 + 22, &end, 2);
+
+    char names[8][FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
+    assert(EEPROM_DeleteFile(ep, "a") == EEPROMCORRUPTED);
+    EEPROM_CloseEEPROM(ep);
+    printf("  link to EEPROM end rejected: OK\n");
+}
+
 static void test_data_crc_checked_on_read(void) {
     EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
     assert(add_pattern(ep, "a", 32, 1) == 32);
@@ -389,6 +409,7 @@ int main(void) {
     test_delete_last_and_only();
     test_corrupted_chain_terminates();
     test_oversized_datasize_rejected();
+    test_link_to_eeprom_end_rejected();
     test_data_crc_checked_on_read();
     test_erased_next_is_terminal();
     test_erased_free_space_0xff();
