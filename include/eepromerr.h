@@ -26,7 +26,8 @@ typedef enum {
   // buffer not valid
   BUFFERNOTVALID = -8,
   EEPROMCORRUPTED = -10,
-  EEPROMREADERROR = -11
+  EEPROMREADERROR = -11,
+  EEPROMWRITEERROR = -12
 } EEPROMError;
 
 #ifdef __cplusplus
