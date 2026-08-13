@@ -114,6 +114,11 @@ static void test_add_list_read(void) {
     assert(EEPROM_ListFiles(ep, names, 8) == 4);
     assert(strcmp(names[3], "abcdefghijklmno") == 0);
 
+    // maxFiles above INT16_MAX must not be misread as negative
+    char big_list[4][FILE_NAME_LENGTH + 1];
+    (void)big_list;
+    assert(EEPROM_ListFiles(ep, big_list, 65535) == 4);
+
     // invalid names
     uint8_t d[4] = {1, 2, 3, 4};
     assert(EEPROM_AddFile(ep, NULL, d, 4) == FILENAMENOTVALID);
@@ -265,6 +270,29 @@ static void test_data_crc_checked_on_read(void) {
     printf("  data CRC on read: OK\n");
 }
 
+// RFC #14: an erased (0xFFFF) nextFileAddress terminates the chain like 0.
+static void test_erased_next_is_terminal(void) {
+    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern(ep, "a", 10, 1) == 10);
+    assert(add_pattern(ep, "b", 20, 2) == 20);
+
+    // erase the link of "b" (the last file): 0xFFFF instead of 0
+    uint16_t b_addr = HDR_V3 + 24 + 10;
+    uint16_t erased = 0xFFFF;
+    poke(ep, b_addr + 22, &erased, 2);
+
+    char names[8][FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(ep, names, 8) == 2);
+    assert_file(ep, "b", 20, 2);
+    // adding after an erased terminal keeps the chain intact
+    assert(add_pattern(ep, "c", 8, 3) == 8);
+    assert(EEPROM_ListFiles(ep, names, 8) == 3);
+    assert_file(ep, "b", 20, 2);
+    assert_file(ep, "c", 8, 3);
+    EEPROM_CloseEEPROM(ep);
+    printf("  erased next is terminal: OK\n");
+}
+
 static void test_erased_free_space_0xff(void) {
     // Erased medium: everything after the formatted header reads 0xFF.
     make_image(IMG, IMG_SIZE, 0xFF);
@@ -362,6 +390,7 @@ int main(void) {
     test_corrupted_chain_terminates();
     test_oversized_datasize_rejected();
     test_data_crc_checked_on_read();
+    test_erased_next_is_terminal();
     test_erased_free_space_0xff();
     test_nospace_is_atomic();
     test_set_header_roundtrip();
