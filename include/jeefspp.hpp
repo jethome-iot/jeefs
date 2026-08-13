@@ -77,8 +77,9 @@ public:
             last_error_ = EEPROMREADERROR;
             return std::nullopt;
         }
-        std::vector<char> flat(static_cast<size_t>(max_files) * FILE_NAME_LENGTH);
-        auto *table = reinterpret_cast<char(*)[FILE_NAME_LENGTH]>(flat.data());
+        std::vector<char> flat(static_cast<size_t>(max_files) *
+                               (FILE_NAME_LENGTH + 1));
+        auto *table = reinterpret_cast<char(*)[FILE_NAME_LENGTH + 1]>(flat.data());
         int16_t count = EEPROM_ListFiles(desc_, table, max_files);
         if (count < 0) {
             last_error_ = count;
@@ -113,7 +114,7 @@ public:
 
     /// Create a new file. Returns written byte count; 0 if the file already
     /// exists; negative EEPROMError (FILENAMENOTVALID, NOTENOUGHSPACE, ...)
-    /// on error. Code unification is tracked in issue #9.
+    /// on error.
     int16_t addFile(const std::string &filename, const std::vector<uint8_t> &data) {
         if (!valid())
             return remember(EEPROMREADERROR);
@@ -126,8 +127,8 @@ public:
     }
 
     /// Overwrite an existing file. Returns written byte count; FILENOTFOUND
-    /// if the file does not exist (jeefs.h documents 0 — issue #9); other
-    /// negative codes on error.
+    /// if the file does not exist; NOTENOUGHSPACE leaves the old content
+    /// intact; other negative codes on error.
     int16_t writeFile(const std::string &filename, const std::vector<uint8_t> &data) {
         if (!valid())
             return remember(EEPROMREADERROR);
@@ -138,16 +139,14 @@ public:
     }
 
     /// Delete a file. Returns 1 on success; FILENOTFOUND if the file does
-    /// not exist (jeefs.h documents 0 — issue #9); other negative on error.
+    /// not exist; other negative on error.
     int16_t deleteFile(const std::string &filename) {
         if (!valid())
             return remember(EEPROMREADERROR);
         return remember(EEPROM_DeleteFile(desc_, filename.c_str()));
     }
 
-    /// C-layer passthrough: currently 0 for a consistent image (jeefs.h
-    /// documents 1 — contract unification tracked in issue #9), negative
-    /// on error.
+    /// 1 if the header is consistent, 0 if not, negative on read error.
     int16_t checkConsistency() {
         if (!valid())
             return remember(EEPROMREADERROR);
@@ -179,14 +178,15 @@ public:
     }
 
     /// Write a header image (must be a valid packed header of 256/512
-    /// bytes). Passes the EEPROM_SetHeader return through unchanged; its
-    /// return convention is currently inverted upstream (issue #6), which is
-    /// also why this method deliberately does not touch lastError() — the
-    /// inverted code would record every successful write as an error.
+    /// bytes); the CRC32 is recalculated by the C layer. 0 on success,
+    /// negative EEPROMError otherwise.
     int setHeader(void *header) {
         if (!valid())
             return remember(EEPROMREADERROR);
-        return EEPROM_SetHeader(desc_, header);
+        int ret = EEPROM_SetHeader(desc_, header);
+        if (ret < 0)
+            last_error_ = ret;
+        return ret;
     }
 
     /// Last non-positive code returned by the C layer.
