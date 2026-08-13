@@ -1,6 +1,9 @@
-# JEEFS Header — C++ Library
+# JEEFS — C++ Libraries
 
-C++17 wrapper (header-only C++ layer over the compiled C `jeefs_header` library). Provides `HeaderView` (non-owning, read-only) and `HeaderBuffer` (owning, mutable) classes.
+Two header-only C++17 wrappers over the compiled C libraries:
+
+- **`jeefs_headerpp.hpp`** — header parsing: `HeaderView` (non-owning, read-only) and `HeaderBuffer` (owning, mutable) over `jeefs_header`. No I/O.
+- **`jeefspp.hpp`** — file system operations: `jeefs::FileSystem` (RAII) over the `jeefs` FS library. See the section at the end.
 
 ## Integration
 
@@ -109,3 +112,66 @@ See [examples/cpp/read_header.cpp](../../examples/cpp/read_header.cpp) — reads
 - [Header common properties](../format/header-common.md)
 - [Header v1](../format/header-v1.md) / [v2](../format/header-v2.md) / [v3](../format/header-v3.md)
 - [Full format spec](../../EEPROM_FORMAT.md)
+
+## `jeefs::FileSystem` — file system operations (jeefspp.hpp)
+
+Header-only RAII wrapper over the C FS API (`jeefs.h`). Non-copyable,
+movable; the EEPROM is closed by the destructor.
+
+### Integration
+
+```cmake
+target_link_libraries(your_target jeefspp)
+target_compile_features(your_target PRIVATE cxx_std_17)
+```
+
+`jeefspp` is an INTERFACE library that bundles the compiled `jeefs` FS
+library (and its eepromops backend). Combine with `jeefs_headerpp` to
+parse the header bytes returned by `readHeader()`.
+
+### API
+
+| Method | Return type | Description |
+|--------|-------------|-------------|
+| `FileSystem(path, size)` | — | Open the EEPROM (RAII) |
+| `valid()` | `bool` | Open succeeded |
+| `format(version)` | `int` | 0 on success |
+| `listFiles(max = 64)` | `std::optional<std::vector<std::string>>` | File names |
+| `readFile(name)` | `std::optional<std::vector<uint8_t>>` | File contents |
+| `addFile(name, data)` | `int16_t` | Written bytes, `<=0` on error |
+| `writeFile(name, data)` | `int16_t` | Written bytes, 0 if missing |
+| `deleteFile(name)` | `int16_t` | 1 deleted, 0 not found |
+| `checkConsistency()` | `int16_t` | C-layer passthrough (see note) |
+| `readHeader()` | `std::optional<std::vector<uint8_t>>` | Raw header bytes |
+| `setHeader(ptr)` | `int` | C-layer passthrough (see note) |
+| `lastError()` | `int` | Last non-positive C return code |
+| `descriptor()` | `EEPROMDescriptor` | Escape hatch to the C API |
+
+Error codes are `EEPROMError` values from `eepromerr.h`.
+
+### Notes
+
+- The wrapper passes C return values through unchanged. Two known
+  C-layer contract quirks are tracked for the FS-core rewrite
+  ([#9](https://github.com/jethome-iot/jeefs/issues/9)):
+  `EEPROM_HeaderCheckConsistency` returns 0 (not the documented 1) for a
+  consistent image, and `EEPROM_SetHeader` has an inverted return
+  ([#6](https://github.com/jethome-iot/jeefs/issues/6)).
+- Header parsing is not duplicated here: feed `readHeader()` bytes to
+  `jeefs::HeaderView`.
+
+```cpp
+#include "jeefspp.hpp"
+#include "jeefs_headerpp.hpp"
+
+jeefs::FileSystem fs("/dev/eeprom.bin", 8192);
+if (!fs.valid())
+    return 1;
+if (auto hdr = fs.readHeader()) {
+    jeefs::HeaderView view(*hdr);
+    printf("board: %.*s\n", (int)view.boardname().size(), view.boardname().data());
+}
+if (auto data = fs.readFile("config")) {
+    // use *data
+}
+```
