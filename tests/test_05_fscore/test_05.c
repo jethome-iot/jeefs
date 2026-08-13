@@ -387,6 +387,17 @@ static void test_consistency_detects_bad_crc(void) {
     printf("  consistency detects bad CRC: OK\n");
 }
 
+static void test_consistency_read_error(void) {
+    // an image too small to even hold the version block: read failure, not
+    // "inconsistent"
+    make_image(IMG, 8, 0x00);
+    EEPROMDescriptor ep = EEPROM_OpenEEPROM(IMG, 8);
+    assert(ep.eeprom_fid != -1);
+    assert(EEPROM_HeaderCheckConsistency(ep) == EEPROMREADERROR);
+    EEPROM_CloseEEPROM(ep);
+    printf("  consistency read error: OK\n");
+}
+
 static void test_oversized_payload_rejected(void) {
     EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
     uint8_t *big = malloc(40000);
@@ -416,6 +427,7 @@ int main(void) {
     test_nospace_is_atomic();
     test_set_header_roundtrip();
     test_consistency_detects_bad_crc();
+    test_consistency_read_error();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");
     return 0;
