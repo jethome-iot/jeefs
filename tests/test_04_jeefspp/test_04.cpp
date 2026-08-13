@@ -87,6 +87,15 @@ int main() {
     assert(!missing.has_value());
     assert(fs.lastError() <= 0);
 
+    // payload larger than the C API's uint16_t size must be rejected, not
+    // silently truncated by the size cast (65544 would wrap to 8 bytes)
+    const std::vector<uint8_t> huge(65544, 0xAA);
+    assert(fs.addFile("huge", huge) < 0);
+    assert(fs.writeFile("config", huge) < 0);
+    rd = fs.readFile("config");
+    assert(rd.has_value());
+    assert(*rd == data2);
+
     // consistency check on a healthy image: the C layer currently returns
     // 0 for "consistent" although jeefs.h documents 1 — the wrapper passes
     // the value through; contract unification is part of issue #9.
@@ -99,6 +108,18 @@ int main() {
     auto rd2 = fs2.readFile("config");
     assert(rd2.has_value());
     assert(*rd2 == data2);
+
+    // v1 header (512 B): readHeader must return the full v1 size and a
+    // successful probe sequence must not leave a stale lastError from the
+    // failed 256-byte attempt
+    make_blank_image();
+    jeefs::FileSystem fs3(kPath, kSize);
+    assert(fs3.valid());
+    assert(fs3.format(1) == 0);
+    auto hdr1 = fs3.readHeader();
+    assert(hdr1.has_value());
+    assert(hdr1->size() == 512);
+    assert(fs3.lastError() == 0);
 
     printf("test_04: OK\n");
     return 0;
