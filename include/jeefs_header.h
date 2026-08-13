@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 /*
  * Copyright (c) 2023 JetHome. All rights reserved.
- * Author: Viacheslav Bocharov <adeep@lexina.in>
+ * Author: Viacheslav Bocharov <v@baodeep.com>
  *
  * Pure header parsing API — operates on byte buffers, no I/O dependency.
  * This header does NOT depend on eepromops.h.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 /*
  * Copyright (c) 2023 JetHome. All rights reserved.
- * Author: Viacheslav Bocharov <adeep@lexina.in>
+ * Author: Viacheslav Bocharov <v@baodeep.com>
  *
  * C++17 header parsing API — wraps C jeefs_header.h functions.
  * Non-owning HeaderView + owning HeaderBuffer.
