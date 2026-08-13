@@ -116,6 +116,11 @@ int main() {
     assert(!bad.readFile("config").has_value());
     assert(!bad.listFiles().has_value());
     assert(!bad.readHeader().has_value());
+    assert(bad.format(3) < 0);
+    assert(bad.addFile("x", data) < 0);
+    assert(bad.writeFile("x", data) < 0);
+    assert(bad.deleteFile("x") < 0);
+    assert(bad.checkConsistency() < 0);
     assert(bad.lastError() < 0);
 
     // v1 header (512 B): readHeader must return the full v1 size and a

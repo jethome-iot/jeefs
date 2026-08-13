@@ -59,7 +59,12 @@ public:
     bool valid() const { return desc_.eeprom_fid != -1; }
 
     /// Format the EEPROM with a header of the given version. 0 on success.
+    /// All methods short-circuit with EEPROMREADERROR on an invalid
+    /// descriptor: a failed open leaves eeprom_size uninitialized, and the
+    /// C layer sizes buffers from it.
     int format(int version) {
+        if (!valid())
+            return remember(EEPROMREADERROR);
         int ret = EEPROM_FormatEEPROM(desc_, version);
         if (ret != 0)
             last_error_ = ret;
@@ -110,6 +115,8 @@ public:
     /// exists; negative EEPROMError (FILENAMENOTVALID, NOTENOUGHSPACE, ...)
     /// on error. Code unification is tracked in issue #9.
     int16_t addFile(const std::string &filename, const std::vector<uint8_t> &data) {
+        if (!valid())
+            return remember(EEPROMREADERROR);
         if (data.size() > UINT16_MAX)
             return remember(BUFFERNOTVALID);
         return remember(EEPROM_AddFile(desc_, filename.c_str(), data.data(),
@@ -120,6 +127,8 @@ public:
     /// if the file does not exist (jeefs.h documents 0 — issue #9); other
     /// negative codes on error.
     int16_t writeFile(const std::string &filename, const std::vector<uint8_t> &data) {
+        if (!valid())
+            return remember(EEPROMREADERROR);
         if (data.size() > UINT16_MAX)
             return remember(BUFFERNOTVALID);
         return remember(EEPROM_WriteFile(desc_, filename.c_str(), data.data(),
@@ -129,13 +138,19 @@ public:
     /// Delete a file. Returns 1 on success; FILENOTFOUND if the file does
     /// not exist (jeefs.h documents 0 — issue #9); other negative on error.
     int16_t deleteFile(const std::string &filename) {
+        if (!valid())
+            return remember(EEPROMREADERROR);
         return remember(EEPROM_DeleteFile(desc_, filename.c_str()));
     }
 
     /// C-layer passthrough: currently 0 for a consistent image (jeefs.h
     /// documents 1 — contract unification tracked in issue #9), negative
     /// on error.
-    int16_t checkConsistency() { return remember(EEPROM_HeaderCheckConsistency(desc_)); }
+    int16_t checkConsistency() {
+        if (!valid())
+            return remember(EEPROMREADERROR);
+        return remember(EEPROM_HeaderCheckConsistency(desc_));
+    }
 
     /// Header bytes, exactly sized for the detected header version (parse
     /// with jeefs::HeaderView from jeefs_headerpp.hpp), or nullopt on error.
@@ -166,7 +181,11 @@ public:
     /// return convention is currently inverted upstream (issue #6), which is
     /// also why this method deliberately does not touch lastError() — the
     /// inverted code would record every successful write as an error.
-    int setHeader(void *header) { return EEPROM_SetHeader(desc_, header); }
+    int setHeader(void *header) {
+        if (!valid())
+            return remember(EEPROMREADERROR);
+        return EEPROM_SetHeader(desc_, header);
+    }
 
     /// Last non-positive code returned by the C layer.
     int lastError() const { return last_error_; }
