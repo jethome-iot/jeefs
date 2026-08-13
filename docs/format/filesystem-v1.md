@@ -115,3 +115,9 @@ A slot is empty if:
 
 - First byte of filename is empty, OR
 - `dataSize` is empty (0x0000 or 0xFFFF)
+
+The two values come from different domains: bytes inside written
+structures are zero-padded (`0x00`), while unwritten space of an erased
+medium reads `0xFF`. Readers accept both as "empty"; the validity of a
+written record is established by CRC and bounds checks, never by content
+heuristics alone.
