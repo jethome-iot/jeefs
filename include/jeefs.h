@@ -24,13 +24,15 @@ extern "C" {
  *
  * API:
  * EEPROM_ListFiles() - Returns the number of files found. Populates fileList
- * with the names of the files. EEPROM_ReadFile() - Reads the data of the file
- * with the given filename into the buffer. EEPROM_WriteFile() - Overwrites the
- * data of an existing file with the given filename. EEPROM_AddFile() - Creates
- * a new file with the given filename and data. EEPROM_DeleteFile() - Deletes
- * the file with the given filename. defragEEPROM() - Compacts the EEPROM by
- * removing gaps caused by deleted files or fragmentation.
- * EEPROM_HeaderCheckConsistency() - Checks the integrity of the file system.
+ * with the NUL-terminated names of the files. EEPROM_ReadFile() - Reads the
+ * data of the file with the given filename into the buffer and verifies its
+ * CRC32. EEPROM_WriteFile() - Overwrites the data of an existing file.
+ * EEPROM_AddFile() - Creates a new file with the given filename and data.
+ * EEPROM_DeleteFile() - Deletes the file and compacts the chain.
+ * EEPROM_HeaderCheckConsistency() - Checks the integrity of the header.
+ *
+ * Errors are negative EEPROMError values (eepromerr.h). Payloads are
+ * limited to INT16_MAX bytes: the int16_t return type carries byte counts.
  *
  * Base principles:
  * - EEPROM is divided into files (partitions). Each partition has a name,
@@ -45,45 +47,54 @@ extern "C" {
 
 // File system functions
 
-// Returns the number of files found. Populates fileList with the names of the
-// files.
+// Returns the number of files found (>= 0) or a negative EEPROMError.
+// Populates fileList with the NUL-terminated names of the files.
 int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor,
-                         char fileList[][FILE_NAME_LENGTH], uint16_t maxFiles);
+                         char fileList[][FILE_NAME_LENGTH + 1],
+                         uint16_t maxFiles);
 
-// Reads the data of the file with the given filename into the buffer.
-// Return: read bytes count, 0 if file not found, <0 if error.
+// Reads the data of the file with the given filename into the buffer and
+// verifies the stored CRC32.
+// Return: read bytes count, FILENOTFOUND, BUFFERNOTVALID (too small),
+// EEPROMCORRUPTED (bad chain or CRC mismatch), EEPROMREADERROR.
 int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor,
                         const char *filename, uint8_t *buffer,
                         uint16_t bufferSize);
 
-// Overwrites the data of an existing file with the given filename.
-// Return: written bytes count, 0 if file not found, <0 if error.
+// Overwrites the data of an existing file. Same size overwrites in place;
+// a different size re-creates the file (it moves to the end of the chain).
+// Free space is checked before the old content is destroyed.
+// Return: written bytes count, FILENOTFOUND, NOTENOUGHSPACE (old file
+// intact), BUFFERNOTVALID, EEPROMCORRUPTED, EEPROMWRITEERROR.
 int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor,
                          const char *filename, const uint8_t *data,
                          uint16_t dataSize);
 
 // Creates a new file with the given filename and data.
-// Return: written bytes count, 0 if file already exists, <0 if error.
+// Return: written bytes count, 0 if the file already exists,
+// FILENAMENOTVALID, BUFFERNOTVALID, NOTENOUGHSPACE, EEPROMCORRUPTED,
+// EEPROMWRITEERROR.
 int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
                        const uint8_t *data, uint16_t dataSize);
 
-// Deletes the file with the given filename.
-// Return: 1 if file deleted, 0 if file not found, <0 if error.
+// Deletes the file with the given filename and compacts the chain (the
+// following files shift down; their links are rewritten).
+// Return: 1 if deleted, FILENOTFOUND, EEPROMCORRUPTED, EEPROMWRITEERROR.
 int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename);
 
-// Compacts the EEPROM by removing gaps caused by deleted files or
-// fragmentation. Return: 1 if EEPROM compacted, 0 if no compaction is needed,
-// <0 if error.
-int16_t defragEEPROM(EEPROMDescriptor eeprom_descriptor);
-
-// Checks the integrity of the file system.
-// Return: 1 if the filesystem is consistent, 0 if the filesystem is
-// inconsistent, <0 if error.
+// Checks the integrity of the EEPROM header.
+// Return: 1 if consistent, 0 if inconsistent (bad magic/version/CRC),
+// EEPROMREADERROR.
 int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor);
 
-// Set EEPROM_Header
+// Recalculates the CRC32 inside the caller's header image and writes it to
+// the EEPROM. Return: 0 on success, BUFFERNOTVALID, EEPROMCORRUPTED (bad
+// magic/version), EEPROMWRITEERROR.
 int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, void *header);
 
+// Reads exactly the detected header (256/512 bytes) into the buffer.
+// Return: 0 on success, BUFFERNOTVALID (buffer smaller than the header),
+// EEPROMCORRUPTED, EEPROMREADERROR.
 int EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor, void *header,
                      int size);
 
