@@ -81,3 +81,6 @@ rust/jeefs-header/tests/
 # pr-auto-review working files
 .claude/state/
 .claude/backlog/
+
+# local tooling artifacts
+graphify-out/
