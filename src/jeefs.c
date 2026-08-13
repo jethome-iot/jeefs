@@ -258,9 +258,12 @@ int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, void *header) {
 }
 
 int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
-  int header_size = EEPROM_GetHeaderSize_read(eeprom_descriptor);
+  JEEPROMHeaderversion vh;
+  if (eeprom_read(eeprom_descriptor, &vh, sizeof(vh), 0) != sizeof(vh))
+    return EEPROMREADERROR; // an I/O failure is not "inconsistent"
+  int header_size = EEPROM_GetHeaderSize(&vh);
   if (header_size < 0)
-    return 0; // bad magic/version: inconsistent, not a read failure
+    return 0; // bad magic/version: inconsistent
 
   union JEEPROMHeader header;
   if (eeprom_read(eeprom_descriptor, &header, (uint16_t)header_size, 0) !=
