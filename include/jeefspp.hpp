@@ -117,7 +117,9 @@ public:
     int16_t addFile(const std::string &filename, const std::vector<uint8_t> &data) {
         if (!valid())
             return remember(EEPROMREADERROR);
-        if (data.size() > UINT16_MAX)
+        // int16_t returns cannot represent byte counts above INT16_MAX, and
+        // the C layer would report a wrapped count (issue #9)
+        if (data.size() > INT16_MAX)
             return remember(BUFFERNOTVALID);
         return remember(EEPROM_AddFile(desc_, filename.c_str(), data.data(),
                                        static_cast<uint16_t>(data.size())));
@@ -129,7 +131,7 @@ public:
     int16_t writeFile(const std::string &filename, const std::vector<uint8_t> &data) {
         if (!valid())
             return remember(EEPROMREADERROR);
-        if (data.size() > UINT16_MAX)
+        if (data.size() > INT16_MAX)
             return remember(BUFFERNOTVALID);
         return remember(EEPROM_WriteFile(desc_, filename.c_str(), data.data(),
                                          static_cast<uint16_t>(data.size())));

@@ -25,10 +25,10 @@
 static const char *kPath = TEST_DIR "/test_04_eeprom.bin";
 static const uint16_t kSize = 8192;
 
-static void make_blank_image() {
-    FILE *f = fopen(kPath, "wb");
+static void make_blank_image(const char *path = kPath, uint16_t size = kSize) {
+    FILE *f = fopen(path, "wb");
     assert(f != nullptr);
-    std::vector<uint8_t> zeros(kSize, 0);
+    std::vector<uint8_t> zeros(size, 0);
     size_t written = fwrite(zeros.data(), 1, zeros.size(), f);
     assert(written == zeros.size());
     fclose(f);
@@ -121,7 +121,20 @@ int main() {
     assert(bad.writeFile("x", data) < 0);
     assert(bad.deleteFile("x") < 0);
     assert(bad.checkConsistency() < 0);
+    std::vector<uint8_t> hdrbuf(256, 0);
+    assert(bad.setHeader(hdrbuf.data()) < 0);
     assert(bad.lastError() < 0);
+
+    // payloads the int16_t C return cannot represent (> INT16_MAX) must be
+    // rejected even when they fit the EEPROM: on a 64K image AddFile would
+    // write 40000 bytes and report 40000 % 32768 = 7232 (issue #9)
+    static const char *kBigPath = TEST_DIR "/test_04_eeprom_big.bin";
+    make_blank_image(kBigPath, 65535);
+    jeefs::FileSystem fsBig(kBigPath, 65535);
+    assert(fsBig.valid());
+    assert(fsBig.format(3) == 0);
+    const std::vector<uint8_t> wide(40000, 1);
+    assert(fsBig.addFile("big", wide) < 0);
 
     // v1 header (512 B): readHeader must return the full v1 size and a
     // successful probe sequence must not leave a stale lastError from the
