@@ -84,9 +84,12 @@ static int16_t iter_step(EEPROMDescriptor ep, JEEFSIter *it) {
   if (hdr.nextFileAddress == 0xFFFF)
     hdr.nextFileAddress = 0;
 
-  // Contiguity: the link either terminates or names exactly the next slot.
-  // This also makes cycles impossible — addresses strictly increase.
-  if (hdr.nextFileAddress != 0 && hdr.nextFileAddress != end)
+  // Contiguity: the link either terminates or names exactly the next slot,
+  // and a claimed successor must have room for its own header. This also
+  // makes cycles impossible — addresses strictly increase.
+  if (hdr.nextFileAddress != 0 &&
+      (hdr.nextFileAddress != end ||
+       end + sizeof(JEEFSFileHeaderv1) > ep.eeprom_size))
     return EEPROMCORRUPTED;
 
   it->prev = it->addr;
