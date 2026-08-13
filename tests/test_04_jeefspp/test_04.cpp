@@ -4,9 +4,8 @@
  *
  * Tests for the header-only C++ FS wrapper (jeefs::FileSystem).
  *
- * Delete/compaction scenarios are intentionally absent until the FS core
- * rewrite lands (issue #9); setHeader() return value is not asserted while
- * EEPROM_SetHeader keeps its inverted return (issue #6).
+ * FS behavior itself is covered by the C suite (test_05); this test focuses
+ * on the wrapper: RAII, buffers, error propagation, header round-trips.
  */
 
 #include <cassert>
@@ -96,10 +95,15 @@ int main() {
     assert(rd.has_value());
     assert(*rd == data2);
 
-    // consistency check on a healthy image: the C layer currently returns
-    // 0 for "consistent" although jeefs.h documents 1 — the wrapper passes
-    // the value through; contract unification is part of issue #9.
-    assert(fs.checkConsistency() == 0);
+    // consistency check on a healthy image
+    assert(fs.checkConsistency() == 1);
+
+    // header write round-trip through the wrapper
+    assert(fs.setHeader(hdr->data()) == 0);
+    assert(fs.checkConsistency() == 1);
+
+    // deletion via the wrapper
+    assert(fs.deleteFile("nope") < 0);
 
     // move semantics: source becomes invalid, target keeps working
     jeefs::FileSystem fs2 = std::move(fs);
