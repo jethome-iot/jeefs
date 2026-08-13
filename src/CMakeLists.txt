@@ -38,3 +38,15 @@ endif()
 
 target_link_libraries(jeefs ZLIB::ZLIB)
 target_link_libraries(jeefsstatic ZLIB::ZLIB)
+
+# --- Header-only C++ wrappers ---
+
+# Pure header parsing (HeaderView/HeaderBuffer over jeefs_header)
+add_library(jeefs_headerpp INTERFACE)
+target_include_directories(jeefs_headerpp INTERFACE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(jeefs_headerpp INTERFACE jeefs_header ZLIB::ZLIB)
+
+# File system operations (jeefs::FileSystem over the C FS API)
+add_library(jeefspp INTERFACE)
+target_include_directories(jeefspp INTERFACE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(jeefspp INTERFACE jeefs)

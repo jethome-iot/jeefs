@@ -1,38 +1,153 @@
 // SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
 /*
- * Copyright (c) 2023 JetHome. All rights reserved.
- * Author: Viacheslav Bocharov <adeep@lexina.in>
+ * Copyright (c) 2026 JetHome. All rights reserved.
+ *
+ * C++17 file system API — header-only wrapper over the C jeefs.h FS
+ * functions. Header parsing lives in jeefs_headerpp.hpp (HeaderView /
+ * HeaderBuffer); this wrapper returns raw header bytes and does not
+ * duplicate any parsing.
  */
 
-#ifndef JEEFS_JEEFS_H
-#define JEEFS_JEEFS_H
+#ifndef JEEFS_JEEFSPP_HPP
+#define JEEFS_JEEFSPP_HPP
 
-#include <stdint.h>
+#include <cstdint>
+#include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "eepromops.h"
-#include "jeefs.h" // Include the original C header file
+extern "C" {
+#include "jeefs.h"
+}
 
-class EEPROMFileSystem {
+namespace jeefs {
+
+/// RAII wrapper around an open EEPROM and the C file system API.
+/// Non-copyable, movable. Error codes are EEPROMError values from
+/// eepromerr.h, retained by lastError() for optional-returning calls.
+class FileSystem {
 public:
-    explicit EEPROMFileSystem(const std::string& pathname, uint16_t eeprom_size);
-    ~EEPROMFileSystem();
+    FileSystem(const std::string &pathname, uint16_t eeprom_size)
+        : desc_(EEPROM_OpenEEPROM(pathname.c_str(), eeprom_size)) {}
 
-    std::vector<std::string> ListFiles();
-    std::vector<uint8_t> ReadFile(const std::string& filename);
-    int16_t WriteFile(const std::string& filename, const std::vector<uint8_t>& data);
-    int16_t AddFile(const std::string& filename, const std::vector<uint8_t>& data);
-    int16_t DeleteFile(const std::string& filename);
-    int16_t Defrag();
-    int16_t CheckConsistency();
+    ~FileSystem() {
+        if (valid())
+            EEPROM_CloseEEPROM(desc_);
+    }
 
-    // Additional methods as needed
+    FileSystem(const FileSystem &) = delete;
+    FileSystem &operator=(const FileSystem &) = delete;
+
+    FileSystem(FileSystem &&other) noexcept : desc_(other.desc_), last_error_(other.last_error_) {
+        other.desc_.eeprom_fid = -1;
+    }
+
+    FileSystem &operator=(FileSystem &&other) noexcept {
+        if (this != &other) {
+            if (valid())
+                EEPROM_CloseEEPROM(desc_);
+            desc_ = other.desc_;
+            last_error_ = other.last_error_;
+            other.desc_.eeprom_fid = -1;
+        }
+        return *this;
+    }
+
+    /// True if the underlying EEPROM was opened successfully.
+    bool valid() const { return desc_.eeprom_fid != -1; }
+
+    /// Format the EEPROM with a header of the given version. 0 on success.
+    int format(int version) { return EEPROM_FormatEEPROM(desc_, version); }
+
+    /// File names present on the EEPROM, or nullopt on error.
+    std::optional<std::vector<std::string>> listFiles(uint16_t max_files = 64) {
+        std::vector<char> flat(static_cast<size_t>(max_files) * FILE_NAME_LENGTH);
+        auto *table = reinterpret_cast<char(*)[FILE_NAME_LENGTH]>(flat.data());
+        int16_t count = EEPROM_ListFiles(desc_, table, max_files);
+        if (count < 0) {
+            last_error_ = count;
+            return std::nullopt;
+        }
+        std::vector<std::string> names;
+        names.reserve(static_cast<size_t>(count));
+        for (int16_t i = 0; i < count; ++i) {
+            const char *p = table[i];
+            names.emplace_back(p, strnlen(p, FILE_NAME_LENGTH));
+        }
+        return names;
+    }
+
+    /// File contents, or nullopt if missing / on error (see lastError()).
+    std::optional<std::vector<uint8_t>> readFile(const std::string &filename) {
+        std::vector<uint8_t> buf(desc_.eeprom_size);
+        int16_t n = EEPROM_ReadFile(desc_, filename.c_str(), buf.data(),
+                                    static_cast<uint16_t>(buf.size()));
+        if (n <= 0) {
+            last_error_ = n;
+            return std::nullopt;
+        }
+        buf.resize(static_cast<size_t>(n));
+        return buf;
+    }
+
+    /// Create a new file. Returns written byte count, 0/negative on error
+    /// (FILEEXISTS, FILENAMETOOLONG, NOTENOUGHSPACE, ...).
+    int16_t addFile(const std::string &filename, const std::vector<uint8_t> &data) {
+        return remember(EEPROM_AddFile(desc_, filename.c_str(), data.data(),
+                                       static_cast<uint16_t>(data.size())));
+    }
+
+    /// Overwrite an existing file. Returns written byte count, 0 if the
+    /// file does not exist, negative on error.
+    int16_t writeFile(const std::string &filename, const std::vector<uint8_t> &data) {
+        return remember(EEPROM_WriteFile(desc_, filename.c_str(), data.data(),
+                                         static_cast<uint16_t>(data.size())));
+    }
+
+    /// Delete a file. Returns 1 on success, 0 if not found, negative on error.
+    int16_t deleteFile(const std::string &filename) {
+        return remember(EEPROM_DeleteFile(desc_, filename.c_str()));
+    }
+
+    /// 1 if the file system is consistent, 0 if not, negative on error.
+    int16_t checkConsistency() { return remember(EEPROM_HeaderCheckConsistency(desc_)); }
+
+    /// Raw header bytes (parse with jeefs::HeaderView from
+    /// jeefs_headerpp.hpp), or nullopt on read error.
+    std::optional<std::vector<uint8_t>> readHeader() {
+        size_t size = desc_.eeprom_size < 512 ? desc_.eeprom_size : 512;
+        std::vector<uint8_t> buf(size);
+        int ret = EEPROM_GetHeader(desc_, buf.data(), static_cast<int>(buf.size()));
+        if (ret != 0) {
+            last_error_ = ret;
+            return std::nullopt;
+        }
+        return buf;
+    }
+
+    /// Write a header image (must be a valid packed header of 256/512
+    /// bytes). Passes the EEPROM_SetHeader return through unchanged; its
+    /// return convention is currently inverted upstream (issue #6).
+    int setHeader(void *header) { return EEPROM_SetHeader(desc_, header); }
+
+    /// Last non-positive code returned by the C layer.
+    int lastError() const { return last_error_; }
+
+    /// Underlying descriptor for direct C API calls.
+    EEPROMDescriptor descriptor() const { return desc_; }
 
 private:
-    EEPROMDescriptor descriptor;
-    static constexpr uint16_t MAX_FILES = 100;   // Adjust as needed
-    static constexpr uint16_t MAX_FILE_SIZE = 1024;  // Adjust as needed
+    EEPROMDescriptor desc_;
+    int last_error_ = 0;
+
+    int16_t remember(int16_t code) {
+        if (code <= 0)
+            last_error_ = code;
+        return code;
+    }
 };
 
-#endif //JEEFS_JEEFS_H
+} // namespace jeefs
+
+#endif // JEEFS_JEEFSPP_HPP
