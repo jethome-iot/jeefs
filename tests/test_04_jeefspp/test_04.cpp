@@ -109,6 +109,15 @@ int main() {
     assert(rd2.has_value());
     assert(*rd2 == data2);
 
+    // invalid descriptor: optional-returning methods must fail cleanly, not
+    // size buffers from an uninitialized descriptor
+    jeefs::FileSystem bad("/nonexistent-dir/eeprom.bin", kSize);
+    assert(!bad.valid());
+    assert(!bad.readFile("config").has_value());
+    assert(!bad.listFiles().has_value());
+    assert(!bad.readHeader().has_value());
+    assert(bad.lastError() < 0);
+
     // v1 header (512 B): readHeader must return the full v1 size and a
     // successful probe sequence must not leave a stale lastError from the
     // failed 256-byte attempt
