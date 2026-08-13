@@ -71,18 +71,18 @@ void test1() {
         err = EEPROM_AddFile(ep, filename, filedata, strlen(test_files[i])+1);
         printf("EEPROM_AddFile: %i\n", err);
         fflush(stdout);
-        if (err <= 0) {
-            i = i - 1;
-            break;
-        }
+        if (err == NOTENOUGHSPACE)
+            break; // EEPROM full: expected once ~10 files are in
+        assert("Check EEPROM_AddFile wrote the file" && err == (int)filesize);
 
         printf("File %d: %s size:%i\n", i, filename, filesize);
         memset(filedata, 0, sizeof(filedata));
     }
     printf("Files count:%i\n", i);
-    printf("\n\n\n\n");
-    //assert("Check EEPROM_AddFile failed" && i == 11);
-    //assert("Check EEPROM_AddFile return error" && err == NOTENOUGHSPACE);
+    assert("Check adds stopped on NOTENOUGHSPACE" && err == NOTENOUGHSPACE);
+    assert("Check the expected number of files fit" && i == 10);
+    int consistency = EEPROM_HeaderCheckConsistency(ep);
+    assert("Check EEPROM_header consistency after adds" && consistency == 1);
     EEPROM_CloseEEPROM(ep);
 
 }
