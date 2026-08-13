@@ -77,14 +77,14 @@ void test0(int version, int expected_header_size) {
     int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
 
-    assert("Check EEPROM_header non consistency on empty file" && EEPROM_consistency != 0);
+    assert("Check EEPROM_header non consistency on empty file" && EEPROM_consistency == 0);
     EEPROM_FormatEEPROM(ep, version);
     EEPROM_CloseEEPROM(ep);
 
     ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
     EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
     printf("test00: Check EEPROM_header (v%d): %i\n", version, EEPROM_consistency);
-    assert("\nCheck EEPROM_header consistency failed" && EEPROM_consistency == 0);
+    assert("\nCheck EEPROM_header consistency failed" && EEPROM_consistency == 1);
 
     int8_t buf[ep.eeprom_size], buf2[ep.eeprom_size];
     memset(buf, EEPROM_EMPTYBYTE, ep.eeprom_size);

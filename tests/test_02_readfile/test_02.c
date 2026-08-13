@@ -40,7 +40,7 @@ void test2 (){
 
     int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
-    assert("Check EEPROM_header consistency" && EEPROM_consistency == 0);
+    assert("Check EEPROM_header consistency" && EEPROM_consistency == 1);
 
     char filename[100];
     uint8_t filedata[8192];
