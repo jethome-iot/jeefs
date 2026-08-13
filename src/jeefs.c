@@ -79,6 +79,11 @@ static int16_t iter_step(EEPROMDescriptor ep, JEEFSIter *it) {
   if (end > ep.eeprom_size)
     return EEPROMCORRUPTED;
 
+  // An erased link (0xFFFF) terminates the chain like 0 — RFC #14: the
+  // file may have been written onto erased media without a link update.
+  if (hdr.nextFileAddress == 0xFFFF)
+    hdr.nextFileAddress = 0;
+
   // Contiguity: the link either terminates or names exactly the next slot.
   // This also makes cycles impossible — addresses strictly increase.
   if (hdr.nextFileAddress != 0 && hdr.nextFileAddress != end)
@@ -291,7 +296,7 @@ int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor,
 
   int16_t count = 0;
   while ((ret = iter_step(eeprom_descriptor, &it)) == 1) {
-    if (count >= (int16_t)maxFiles)
+    if ((uint16_t)count >= maxFiles)
       return count; // list full; the rest is still a valid chain
     memcpy(fileList[count], it.hdr.name, FILE_NAME_LENGTH);
     fileList[count][FILE_NAME_LENGTH] = '\0';
@@ -435,8 +440,8 @@ int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
     JEEFSFileHeaderv1 hdr;
     if (eeprom_read(descriptor, &hdr, sizeof(hdr), addr) != sizeof(hdr))
       return EEPROMREADERROR;
-    if (hdr.nextFileAddress == 0) {
-      break;
+    if (hdr.nextFileAddress == 0 || hdr.nextFileAddress == 0xFFFF) {
+      break; // terminal link (0 or erased) needs no rewrite
     }
     hdr.nextFileAddress = (uint16_t)(hdr.nextFileAddress - shift);
     if (eeprom_write(descriptor, &hdr, sizeof(hdr), addr) != sizeof(hdr))
