@@ -8,8 +8,9 @@
 
 ## Motivation
 
-A device may contain several boards with their own EEPROM (SoM/CPU module and a
-mainboard/carrier). Each board carries a board-scoped JEEFS header
+A device may contain several boards with their own EEPROM (the CPU module —
+"cpuboard" below — and a mainboard/carrier). Each board carries a board-scoped
+JEEFS header
 ([header-v3.md](header-v3.md)): boardname, boardversion, serial, MAC.
 The **device** as a product has its own identity — device serial number, model
 name, hardware revision — which must survive board replacement during repair.
@@ -50,10 +51,13 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 - CRC32: IEEE 802.3 polynomial, same convention as headers.
 - The record size matches the v2/v3 header size (256 bytes), and the tail
   layout is **byte-identical to header v3**: `signature` at offset 180,
-  `timestamp` at 244, `crc32` at 252, CRC coverage 0-251. Header-v3 signature
-  and CRC handling code applies to the record without offset changes; the
-  86-byte reserve leaves room for future fields (or a longer signature via a
-  new `record_version`) without another size change.
+  `timestamp` at 244, `crc32` at 252, CRC coverage 0-251. The offset
+  arithmetic and CRC/signature conventions are shared with header v3, so the
+  header handling code is reusable for the record — with a record-aware
+  dispatch (the existing functions gate on the "JETHOME\0" magic and the
+  header version table, so they do not accept the record as-is). The 86-byte
+  reserve leaves room for future fields (or a longer signature via a new
+  `record_version`) without another size change.
 - The record deliberately carries **no MAC fields**: board MACs are provisioned
   independently and are not contiguous, so a base+count pool cannot describe
   them; the device MAC is taken from the cpuboard header. A real MAC pool, if
