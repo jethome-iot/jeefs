@@ -42,8 +42,10 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 | 12-43   | 32   | device_model      | char[32]    | -             | Device model name, null-terminated         |
 | 44-75   | 32   | device_serial     | char[32]    | -             | Device serial number, null-terminated      |
 | 76-91   | 16   | hw_revision       | char[16]    | -             | Device hardware revision, null-terminated  |
-| 92-93   | 2    | flags             | uint16_t    | little-endian | Reserved flags (zeros)                     |
-| 94-179  | 86   | reserved2         | uint8_t[86] | -             | Reserved for future use (zeros)            |
+| 92-93   | 2    | product_id        | uint16_t    | little-endian | Numeric product/model ID (0 = unset)       |
+| 94-95   | 2    | sku               | uint16_t    | little-endian | Reserved: variant code (zeros for now)     |
+| 96-97   | 2    | flags             | uint16_t    | little-endian | Reserved flags (zeros)                     |
+| 98-179  | 82   | reserved2         | uint8_t[82] | -             | Reserved for future use (zeros)            |
 | 180-243 | 64   | signature         | uint8_t[64] | -             | ECDSA signature (r‖s, zero-padded)         |
 | 244-251 | 8    | timestamp         | int64_t     | little-endian | Unix timestamp (seconds)                   |
 | 252-255 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-251                       |
@@ -66,6 +68,18 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
   the header. What data is signed, how it is verified and by whom is outside
   the scope of this spec — a firmware/production concern. The spec defines
   only the field layout and the `signature_version` algorithm enum.
+- `product_id` is the machine-readable model identifier: firmware selects its
+  configuration by a u16 comparison instead of parsing the `device_model`
+  string. The value registry is maintained outside this spec. 0 = unset.
+- `sku` is a named reserve for a configuration-variant code: it MUST be
+  written as zeros in `record_version` 1; semantics will be assigned by a
+  future revision. Device variants are currently encoded as the letter suffix
+  of `hw_revision`.
+- `hw_revision` format: dot-separated numbers with an optional trailing
+  letter suffix encoding the device variant (e.g. `1.2`, `1.2a`).
+- Fields derivable from the database by `device_serial`/board `usid` (batch,
+  part number, manufacture date, vendor) are deliberately NOT stored: the
+  record carries only what the device itself needs without database access.
 - String semantics follow the outcome of the raw-vs-string RFC
   ([#13](https://github.com/jethome-iot/jeefs/issues/13)); the draft assumes
   null-terminated UTF-8, zero-padded.
