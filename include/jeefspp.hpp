@@ -18,6 +18,7 @@
 #include <vector>
 
 extern "C" {
+#include "eepromerr.h"
 #include "jeefs.h"
 }
 
@@ -100,6 +101,8 @@ public:
     /// exists; negative EEPROMError (FILENAMENOTVALID, NOTENOUGHSPACE, ...)
     /// on error. Code unification is tracked in issue #9.
     int16_t addFile(const std::string &filename, const std::vector<uint8_t> &data) {
+        if (data.size() > UINT16_MAX)
+            return remember(BUFFERNOTVALID);
         return remember(EEPROM_AddFile(desc_, filename.c_str(), data.data(),
                                        static_cast<uint16_t>(data.size())));
     }
@@ -108,6 +111,8 @@ public:
     /// if the file does not exist (jeefs.h documents 0 — issue #9); other
     /// negative codes on error.
     int16_t writeFile(const std::string &filename, const std::vector<uint8_t> &data) {
+        if (data.size() > UINT16_MAX)
+            return remember(BUFFERNOTVALID);
         return remember(EEPROM_WriteFile(desc_, filename.c_str(), data.data(),
                                          static_cast<uint16_t>(data.size())));
     }
@@ -128,16 +133,18 @@ public:
     std::optional<std::vector<uint8_t>> readHeader() {
         // EEPROM_GetHeader reads the full caller-supplied size, so probe the
         // known header sizes instead of over-reading past a 256-byte header:
-        // it rejects a buffer smaller than the detected header.
+        // it rejects a buffer smaller than the detected header. A failed
+        // probe reaches last_error_ only if every probe fails.
+        int ret = EEPROMREADERROR;
         for (size_t size : {size_t{256}, size_t{512}}) {
             if (size > desc_.eeprom_size)
                 break;
             std::vector<uint8_t> buf(size);
-            int ret = EEPROM_GetHeader(desc_, buf.data(), static_cast<int>(buf.size()));
+            ret = EEPROM_GetHeader(desc_, buf.data(), static_cast<int>(buf.size()));
             if (ret == 0)
                 return buf;
-            last_error_ = ret;
         }
+        last_error_ = ret;
         return std::nullopt;
     }
 
