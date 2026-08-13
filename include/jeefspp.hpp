@@ -68,6 +68,10 @@ public:
 
     /// File names present on the EEPROM, or nullopt on error.
     std::optional<std::vector<std::string>> listFiles(uint16_t max_files = 64) {
+        if (!valid()) {
+            last_error_ = EEPROMREADERROR;
+            return std::nullopt;
+        }
         std::vector<char> flat(static_cast<size_t>(max_files) * FILE_NAME_LENGTH);
         auto *table = reinterpret_cast<char(*)[FILE_NAME_LENGTH]>(flat.data());
         int16_t count = EEPROM_ListFiles(desc_, table, max_files);
@@ -86,6 +90,11 @@ public:
 
     /// File contents, or nullopt if missing / on error (see lastError()).
     std::optional<std::vector<uint8_t>> readFile(const std::string &filename) {
+        if (!valid()) {
+            last_error_ = EEPROMREADERROR;
+            return std::nullopt;
+        }
+        // eeprom_size is not initialized by a failed open — guarded above
         std::vector<uint8_t> buf(desc_.eeprom_size);
         int16_t n = EEPROM_ReadFile(desc_, filename.c_str(), buf.data(),
                                     static_cast<uint16_t>(buf.size()));
@@ -131,6 +140,10 @@ public:
     /// Header bytes, exactly sized for the detected header version (parse
     /// with jeefs::HeaderView from jeefs_headerpp.hpp), or nullopt on error.
     std::optional<std::vector<uint8_t>> readHeader() {
+        if (!valid()) {
+            last_error_ = EEPROMREADERROR;
+            return std::nullopt;
+        }
         // EEPROM_GetHeader reads the full caller-supplied size, so probe the
         // known header sizes instead of over-reading past a 256-byte header:
         // it rejects a buffer smaller than the detected header. A failed
@@ -150,7 +163,9 @@ public:
 
     /// Write a header image (must be a valid packed header of 256/512
     /// bytes). Passes the EEPROM_SetHeader return through unchanged; its
-    /// return convention is currently inverted upstream (issue #6).
+    /// return convention is currently inverted upstream (issue #6), which is
+    /// also why this method deliberately does not touch lastError() — the
+    /// inverted code would record every successful write as an error.
     int setHeader(void *header) { return EEPROM_SetHeader(desc_, header); }
 
     /// Last non-positive code returned by the C layer.
