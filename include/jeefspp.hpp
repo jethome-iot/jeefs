@@ -58,7 +58,12 @@ public:
     bool valid() const { return desc_.eeprom_fid != -1; }
 
     /// Format the EEPROM with a header of the given version. 0 on success.
-    int format(int version) { return EEPROM_FormatEEPROM(desc_, version); }
+    int format(int version) {
+        int ret = EEPROM_FormatEEPROM(desc_, version);
+        if (ret != 0)
+            last_error_ = ret;
+        return ret;
+    }
 
     /// File names present on the EEPROM, or nullopt on error.
     std::optional<std::vector<std::string>> listFiles(uint16_t max_files = 64) {
@@ -91,39 +96,49 @@ public:
         return buf;
     }
 
-    /// Create a new file. Returns written byte count, 0/negative on error
-    /// (FILEEXISTS, FILENAMETOOLONG, NOTENOUGHSPACE, ...).
+    /// Create a new file. Returns written byte count; 0 if the file already
+    /// exists; negative EEPROMError (FILENAMENOTVALID, NOTENOUGHSPACE, ...)
+    /// on error. Code unification is tracked in issue #9.
     int16_t addFile(const std::string &filename, const std::vector<uint8_t> &data) {
         return remember(EEPROM_AddFile(desc_, filename.c_str(), data.data(),
                                        static_cast<uint16_t>(data.size())));
     }
 
-    /// Overwrite an existing file. Returns written byte count, 0 if the
-    /// file does not exist, negative on error.
+    /// Overwrite an existing file. Returns written byte count; FILENOTFOUND
+    /// if the file does not exist (jeefs.h documents 0 — issue #9); other
+    /// negative codes on error.
     int16_t writeFile(const std::string &filename, const std::vector<uint8_t> &data) {
         return remember(EEPROM_WriteFile(desc_, filename.c_str(), data.data(),
                                          static_cast<uint16_t>(data.size())));
     }
 
-    /// Delete a file. Returns 1 on success, 0 if not found, negative on error.
+    /// Delete a file. Returns 1 on success; FILENOTFOUND if the file does
+    /// not exist (jeefs.h documents 0 — issue #9); other negative on error.
     int16_t deleteFile(const std::string &filename) {
         return remember(EEPROM_DeleteFile(desc_, filename.c_str()));
     }
 
-    /// 1 if the file system is consistent, 0 if not, negative on error.
+    /// C-layer passthrough: currently 0 for a consistent image (jeefs.h
+    /// documents 1 — contract unification tracked in issue #9), negative
+    /// on error.
     int16_t checkConsistency() { return remember(EEPROM_HeaderCheckConsistency(desc_)); }
 
-    /// Raw header bytes (parse with jeefs::HeaderView from
-    /// jeefs_headerpp.hpp), or nullopt on read error.
+    /// Header bytes, exactly sized for the detected header version (parse
+    /// with jeefs::HeaderView from jeefs_headerpp.hpp), or nullopt on error.
     std::optional<std::vector<uint8_t>> readHeader() {
-        size_t size = desc_.eeprom_size < 512 ? desc_.eeprom_size : 512;
-        std::vector<uint8_t> buf(size);
-        int ret = EEPROM_GetHeader(desc_, buf.data(), static_cast<int>(buf.size()));
-        if (ret != 0) {
+        // EEPROM_GetHeader reads the full caller-supplied size, so probe the
+        // known header sizes instead of over-reading past a 256-byte header:
+        // it rejects a buffer smaller than the detected header.
+        for (size_t size : {size_t{256}, size_t{512}}) {
+            if (size > desc_.eeprom_size)
+                break;
+            std::vector<uint8_t> buf(size);
+            int ret = EEPROM_GetHeader(desc_, buf.data(), static_cast<int>(buf.size()));
+            if (ret == 0)
+                return buf;
             last_error_ = ret;
-            return std::nullopt;
         }
-        return buf;
+        return std::nullopt;
     }
 
     /// Write a header image (must be a valid packed header of 256/512

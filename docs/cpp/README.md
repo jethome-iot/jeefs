@@ -139,10 +139,10 @@ parse the header bytes returned by `readHeader()`.
 | `listFiles(max = 64)` | `std::optional<std::vector<std::string>>` | File names |
 | `readFile(name)` | `std::optional<std::vector<uint8_t>>` | File contents |
 | `addFile(name, data)` | `int16_t` | Written bytes, `<=0` on error |
-| `writeFile(name, data)` | `int16_t` | Written bytes, 0 if missing |
-| `deleteFile(name)` | `int16_t` | 1 deleted, 0 not found |
+| `writeFile(name, data)` | `int16_t` | Written bytes, `FILENOTFOUND` if missing |
+| `deleteFile(name)` | `int16_t` | 1 deleted, `FILENOTFOUND` if missing |
 | `checkConsistency()` | `int16_t` | C-layer passthrough (see note) |
-| `readHeader()` | `std::optional<std::vector<uint8_t>>` | Raw header bytes |
+| `readHeader()` | `std::optional<std::vector<uint8_t>>` | Header bytes, exactly header-sized |
 | `setHeader(ptr)` | `int` | C-layer passthrough (see note) |
 | `lastError()` | `int` | Last non-positive C return code |
 | `descriptor()` | `EEPROMDescriptor` | Escape hatch to the C API |
