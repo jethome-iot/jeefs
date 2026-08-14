@@ -117,6 +117,7 @@ jobs:
                     ../docs/format/header-v2.md \
                     ../docs/format/header-v3.md \
                     ../docs/format/header-v4.md \
+                    ../docs/format/device-identity-v1.md \
                     ../docs/format/filesystem-v1.md \
             --validate-only
 
@@ -129,6 +130,7 @@ jobs:
                     ../docs/format/header-v2.md \
                     ../docs/format/header-v3.md \
                     ../docs/format/header-v4.md \
+                    ../docs/format/device-identity-v1.md \
                     ../docs/format/filesystem-v1.md \
             --c-output /tmp/jeefs_generated.h
           diff -u ../include/jeefs_generated.h /tmp/jeefs_generated.h
@@ -142,6 +144,7 @@ jobs:
                     ../docs/format/header-v2.md \
                     ../docs/format/header-v3.md \
                     ../docs/format/header-v4.md \
+                    ../docs/format/device-identity-v1.md \
                     ../docs/format/filesystem-v1.md \
             --py-output /tmp/constants_generated.py
           diff -u ../python/jeefs/constants_generated.py /tmp/constants_generated.py
@@ -155,6 +158,7 @@ jobs:
                     ../docs/format/header-v2.md \
                     ../docs/format/header-v3.md \
                     ../docs/format/header-v4.md \
+                    ../docs/format/device-identity-v1.md \
                     ../docs/format/filesystem-v1.md \
             --rs-output /tmp/generated.rs
           diff -u ../rust/jeefs-header/src/generated.rs /tmp/generated.rs

@@ -85,8 +85,9 @@ def _generate_constants(constants: list[ConstantDef]) -> str:
     for c in constants:
         val = c.value.strip('"').strip("'")
         if c.type == "string":
-            # Magic as byte string with explicit null terminator
-            if c.name == "MAGIC":
+            # Magic values as byte strings with explicit null terminator —
+            # they are compared against wire bytes, not displayed
+            if c.name.endswith("MAGIC"):
                 lines.append(f'pub const {c.name}: &[u8; {len(val) + 1}] = b"{val}\\0";')
             else:
                 lines.append(f'pub const {c.name}: &str = "{val}";')
