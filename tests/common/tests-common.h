@@ -54,7 +54,8 @@ int generate_files(const char *path, const char *basename, int num_files, int ma
  */
 int delete_files(const char *path, const char *basename, int num_files);
 
-static char *test_files[] = {
+/* Each includer gets its own copy; not every one uses it (gcc -Wunused-variable). */
+static char *test_files[] __attribute__((unused)) = {
         "Hello, file "
         "0!"
         "wrbqhdrokyidsdrmwrsylbfacyedgxplrlnppfkokcqnnuwsmbucjismktxxvrbjtsfzfmfdrsfbnvhfsqwqaeczfklojpprxizxchkccedofd"
