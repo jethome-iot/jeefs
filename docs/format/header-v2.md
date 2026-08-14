@@ -13,7 +13,7 @@
 | 9-11    | 3    | reserved1    | uint8_t[3]   | -             | Reserved (zeros)            |
 | 12-43   | 32   | boardname    | char[32]     | -             | Board name, null-terminated |
 | 44-75   | 32   | boardversion | char[32]     | -             | Board version, null-term.   |
-| 76-107  | 32   | serial       | uint8_t[32]  | -             | Device serial number        |
+| 76-107  | 32   | serial       | uint8_t[32]  | -             | Board serial (bounded str.) |
 | 108-139 | 32   | usid         | uint8_t[32]  | -             | CPU eFuse USID              |
 | 140-171 | 32   | cpuid        | uint8_t[32]  | -             | CPU ID                      |
 | 172-177 | 6    | mac          | uint8_t[6]   | -             | MAC address (6 raw bytes)   |

@@ -14,9 +14,9 @@
 | 10-11   | 2    | header_reserved   | uint8_t[2]   | -             | Reserved (zeros)                     |
 | 12-43   | 32   | boardname         | char[32]     | -             | Board name, null-terminated          |
 | 44-75   | 32   | boardversion      | char[32]     | -             | Board version, null-terminated       |
-| 76-107  | 32   | serial            | uint8_t[32]  | -             | Device serial number                 |
-| 108-139 | 32   | usid              | uint8_t[32]  | -             | CPU eFuse USID                       |
-| 140-171 | 32   | cpuid             | uint8_t[32]  | -             | CPU ID / factory MAC                 |
+| 76-107  | 32   | serial            | uint8_t[32]  | -             | Board serial number (bounded string) |
+| 108-139 | 32   | usid              | uint8_t[32]  | -             | CPU eFuse USID (bounded string)      |
+| 140-171 | 32   | cpuid             | uint8_t[32]  | -             | CPU ID / factory MAC (bounded string)|
 | 172-177 | 6    | mac               | uint8_t[6]   | -             | MAC address (6 raw bytes)            |
 | 178-179 | 2    | reserved2         | uint8_t[2]   | -             | Reserved for extended MAC            |
 | 180-243 | 64   | signature         | uint8_t[64]  | -             | ECDSA signature (r‖s, zero-padded)  |
@@ -30,4 +30,10 @@
 - `header_reserved[2]` at offset 10-11 replaces remaining `reserved1` bytes.
 - CRC32 covers bytes 0-251 (includes signature and timestamp).
 - String fields (`boardname`, `boardversion`) are UTF-8, null-terminated, zero-padded to field size.
-- `serial`, `usid`, `cpuid` are raw byte arrays (not null-terminated strings).
+- `serial`, `usid`, `cpuid` are **bounded strings** (RFC #13): printable
+  ASCII (0x20-0x7E, punctuation included), zero-padded; the NUL terminator
+  is optional and appears only when the value is shorter than the field, so
+  all 32 bytes are usable. Content validation is the producer's concern,
+  not the library's. `serial` is board-scoped: it identifies this board,
+  not the device (device identity is RFC #26); renaming the field itself
+  to `board_serial` is a header-v4 candidate.
