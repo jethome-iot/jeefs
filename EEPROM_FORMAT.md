@@ -22,7 +22,7 @@ CPU board EEPROM uses a structured header followed by optional file system data.
 - **Magic:** `"JETHOME\0"` = bytes `4A 45 54 48 4F 4D 45 00` (8 bytes, null-terminated)
 - **CRC32:** IEEE 802.3 polynomial `0xEDB88320` (same as zlib `crc32()`)
 - **Packing:** No padding — all structs use `#pragma pack(push, 1)` / `__attribute__((packed))`
-- **Empty bytes:** Both `0x00` and `0xFF` are treated as "empty"
+- **Empty bytes:** inside structures empty/reserved is `0x00`; erased medium reads `0xFF` — the unwritten-slot heuristic accepts both (see docs/format/header-common.md)
 - **String fields:** Null-terminated UTF-8, zero-padded to field size
 
 ---

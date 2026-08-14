@@ -8,7 +8,16 @@ This file defines constants, enumerations, and shared properties used across all
 - **Magic:** `"JETHOME\0"` = bytes `4A 45 54 48 4F 4D 45 00` (8 bytes, null-terminated).
 - **CRC32:** IEEE 802.3 polynomial `0xEDB88320` (same as zlib `crc32()`). Covers bytes 0 through `header_size - 4 - 1`.
 - **Packing:** No padding — all structs use `#pragma pack(push, 1)`.
-- **Empty bytes:** Both `0x00` and `0xFF` are treated as "empty/unwritten".
+- **Emptiness (two domains, RFC #14):** *inside structures* (headers, file
+  headers, the device-identity record) empty/reserved bytes are always
+  `0x00`; *unmanaged medium space* past the last written structure reads
+  `0xFF` when erased (`0x00` after an explicit clear is equally legal — the
+  library never rewrites free space). Validity of written data is decided by
+  magic, CRC and bounds checks — never by content heuristics; the one
+  emptiness heuristic (an unwritten file slot) MUST accept both `0x00` and
+  `0xFF`, and an erased 16-bit link (`0xFFFF`) terminates the file chain
+  like `0`. An all-`0x00`/all-`0xFF` buffer where a header or record is
+  expected means "nothing written", not "corrupt".
 - **String fields:** two kinds (RFC #13):
   - *name-like* (`boardname`, `boardversion`): null-terminated, zero-padded
     — at most `size - 1` content bytes;
@@ -64,7 +73,8 @@ Used to detect the header version by reading only the first 12 bytes. The `versi
 | CPUID_LENGTH        | 32        | int    | CPUID field size in bytes               |
 | BOARDNAME_LENGTH    | 31        | int    | Max boardname chars (excluding null)    |
 | BOARDVERSION_LENGTH | 31        | int    | Max boardversion chars (excluding null) |
-| EMPTYBYTE           | 0x00      | byte   | Default empty byte marker               |
+| EMPTYBYTE           | 0x00      | byte   | Empty byte inside structures            |
+| ERASEDBYTE          | 0xFF      | byte   | Erased-medium byte (unmanaged space)    |
 | PARTITION_SIZE      | 4096      | int    | Flash partition image size (4KB)        |
 
 ## Union Type
