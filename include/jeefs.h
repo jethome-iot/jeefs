@@ -49,17 +49,13 @@ extern "C" {
 
 // Returns the number of files found (>= 0) or a negative EEPROMError.
 // Populates fileList with the NUL-terminated names of the files.
-int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor,
-                         char fileList[][FILE_NAME_LENGTH + 1],
-                         uint16_t maxFiles);
+int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH + 1], uint16_t maxFiles);
 
 // Reads the data of the file with the given filename into the buffer and
 // verifies the stored CRC32.
 // Return: read bytes count, FILENOTFOUND, FILENAMENOTVALID, BUFFERNOTVALID
 // (too small), EEPROMCORRUPTED (bad chain or CRC mismatch), EEPROMREADERROR.
-int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor,
-                        const char *filename, uint8_t *buffer,
-                        uint16_t bufferSize);
+int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor, const char *filename, uint8_t *buffer, uint16_t bufferSize);
 
 // Overwrites the data of an existing file. Same size overwrites in place;
 // a different size re-creates the file (it moves to the end of the chain).
@@ -67,16 +63,15 @@ int16_t EEPROM_ReadFile(EEPROMDescriptor eeprom_descriptor,
 // Return: written bytes count, FILENOTFOUND, FILENAMENOTVALID,
 // NOTENOUGHSPACE (old file intact), BUFFERNOTVALID, EEPROMCORRUPTED,
 // EEPROMREADERROR, EEPROMWRITEERROR.
-int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor,
-                         const char *filename, const uint8_t *data,
+int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data,
                          uint16_t dataSize);
 
 // Creates a new file with the given filename and data.
 // Return: written bytes count, 0 if the file already exists,
 // FILENAMENOTVALID, BUFFERNOTVALID, NOTENOUGHSPACE, EEPROMCORRUPTED,
 // EEPROMREADERROR, EEPROMWRITEERROR.
-int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
-                       const uint8_t *data, uint16_t dataSize);
+int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename, const uint8_t *data,
+                       uint16_t dataSize);
 
 // Deletes the file with the given filename and compacts the chain (the
 // following files shift down; their links are rewritten).
@@ -97,8 +92,7 @@ int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, void *header);
 // Reads exactly the detected header (256/512 bytes) into the buffer.
 // Return: 0 on success, BUFFERNOTVALID (buffer smaller than the header),
 // EEPROMCORRUPTED, EEPROMREADERROR.
-int EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor, void *header,
-                     int size);
+int EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor, void *header, int size);
 
 EEPROMDescriptor EEPROM_OpenEEPROM(const char *pathname, uint16_t eeprom_size);
 int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor);

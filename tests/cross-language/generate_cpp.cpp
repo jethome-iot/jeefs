@@ -85,8 +85,8 @@ static void pack_string_u8(uint8_t *dest, size_t field_size, const char *value) 
 
 static int parse_mac(const char *mac_str, uint8_t mac[6]) {
     return sscanf(mac_str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) == 6
-               ? 0
-               : -1;
+                   ? 0
+                   : -1;
 }
 
 static int hex_to_bytes(const char *hex, uint8_t *out, size_t max_len) {

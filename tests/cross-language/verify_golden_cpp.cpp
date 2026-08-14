@@ -25,10 +25,11 @@ static int failures = 0;
 
 static void check_sv(const char *name, std::string_view actual, const char *expected) {
     if (actual != expected) {
-        fprintf(stderr, "  FAIL: %s = \"%.*s\" (expected \"%s\")\n", name, (int)actual.size(), actual.data(), expected);
+        fprintf(stderr, "  FAIL: %s = \"%.*s\" (expected \"%s\")\n", name, (int) actual.size(), actual.data(),
+                expected);
         failures++;
     } else {
-        printf("  OK: %s = \"%.*s\"\n", name, (int)actual.size(), actual.data());
+        printf("  OK: %s = \"%.*s\"\n", name, (int) actual.size(), actual.data());
     }
 }
 

@@ -44,37 +44,34 @@ static EEPROMDescriptor fresh_fs(uint16_t size, int version) {
 
 static void fill_pattern(uint8_t *buf, uint16_t n, uint8_t seed) {
     for (uint16_t i = 0; i < n; i++)
-        buf[i] = (uint8_t)(seed + i);
+        buf[i] = (uint8_t) (seed + i);
 }
 
-static int16_t add_pattern(EEPROMDescriptor ep, const char *name, uint16_t n,
-                           uint8_t seed) {
+static int16_t add_pattern(EEPROMDescriptor ep, const char *name, uint16_t n, uint8_t seed) {
     uint8_t buf[512];
     assert(n <= sizeof(buf));
     fill_pattern(buf, n, seed);
     return EEPROM_AddFile(ep, name, buf, n);
 }
 
-static void assert_file(EEPROMDescriptor ep, const char *name, uint16_t n,
-                        uint8_t seed) {
+static void assert_file(EEPROMDescriptor ep, const char *name, uint16_t n, uint8_t seed) {
     uint8_t expect[512], got[512];
     assert(n <= sizeof(expect));
     fill_pattern(expect, n, seed);
     int16_t r = EEPROM_ReadFile(ep, name, got, sizeof(got));
-    assert(r == (int16_t)n);
+    assert(r == (int16_t) n);
     assert(memcmp(expect, got, n) == 0);
 }
 
 // Raw corruption helper: overwrite bytes at an absolute offset.
-static void poke(EEPROMDescriptor ep, uint16_t off, const void *data,
-                 uint16_t n) {
-    assert(eeprom_write(ep, (void *)data, n, off) == n);
+static void poke(EEPROMDescriptor ep, uint16_t off, const void *data, uint16_t n) {
+    assert(eeprom_write(ep, (void *) data, n, off) == n);
 }
 
 // Wire fields are little-endian: encode explicitly so the corruption
 // scenarios stay identical on a big-endian host.
 static void poke_le16(EEPROMDescriptor ep, uint16_t off, uint16_t v) {
-    uint8_t le[2] = {(uint8_t)(v & 0xFF), (uint8_t)(v >> 8)};
+    uint8_t le[2] = {(uint8_t) (v & 0xFF), (uint8_t) (v >> 8)};
     poke(ep, off, le, 2);
 }
 
@@ -126,7 +123,7 @@ static void test_add_list_read(void) {
 
     // maxFiles above INT16_MAX must not be misread as negative
     char big_list[4][FILE_NAME_LENGTH + 1];
-    (void)big_list;
+    (void) big_list;
     assert(EEPROM_ListFiles(ep, big_list, 65535) == 4);
 
     // invalid names
@@ -406,7 +403,7 @@ static void test_wire_format_is_le(void) {
     uint8_t raw[24];
     assert(eeprom_read(ep, raw, sizeof(raw), HDR_V3) == sizeof(raw));
     assert(raw[16] == 0x03 && raw[17] == 0x00);
-    uint32_t expect_crc = (uint32_t)crc32(0L, data, 3);
+    uint32_t expect_crc = (uint32_t) crc32(0L, data, 3);
     assert(raw[18] == (expect_crc & 0xFF));
     assert(raw[19] == ((expect_crc >> 8) & 0xFF));
     assert(raw[20] == ((expect_crc >> 16) & 0xFF));
@@ -417,7 +414,7 @@ static void test_wire_format_is_le(void) {
     // v3 header CRC field @252 is the LE encoding of crc32(bytes 0..251)
     uint8_t hdr[256];
     assert(EEPROM_GetHeader(ep, hdr, sizeof(hdr)) == 0);
-    uint32_t hdr_crc = (uint32_t)crc32(0L, hdr, 252);
+    uint32_t hdr_crc = (uint32_t) crc32(0L, hdr, 252);
     assert(hdr[252] == (hdr_crc & 0xFF));
     assert(hdr[253] == ((hdr_crc >> 8) & 0xFF));
     assert(hdr[254] == ((hdr_crc >> 16) & 0xFF));

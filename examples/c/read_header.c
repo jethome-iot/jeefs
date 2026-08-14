@@ -28,14 +28,14 @@ int main(int argc, char *argv[]) {
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    uint8_t *buf = malloc((size_t)fsize);
+    uint8_t *buf = malloc((size_t) fsize);
     if (!buf) {
         fprintf(stderr, "malloc failed\n");
         fclose(f);
         return 1;
     }
 
-    if (fread(buf, 1, (size_t)fsize, f) != (size_t)fsize) {
+    if (fread(buf, 1, (size_t) fsize, f) != (size_t) fsize) {
         fprintf(stderr, "fread failed\n");
         free(buf);
         fclose(f);
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     fclose(f);
 
     /* Detect header version */
-    int version = jeefs_header_detect_version(buf, (size_t)fsize);
+    int version = jeefs_header_detect_version(buf, (size_t) fsize);
     if (version < 0) {
         fprintf(stderr, "Error: invalid EEPROM header (bad magic or too short)\n");
         free(buf);
@@ -61,17 +61,17 @@ int main(int argc, char *argv[]) {
     }
 
     /* Verify CRC */
-    if (jeefs_header_verify_crc(buf, (size_t)fsize) != 0) {
+    if (jeefs_header_verify_crc(buf, (size_t) fsize) != 0) {
         fprintf(stderr, "Warning: CRC32 mismatch\n");
     } else {
         printf("CRC32: OK\n");
     }
 
     /* Access fields via union — safe now that buffer size is validated */
-    const union JEEPROMHeader *hdr = (const union JEEPROMHeader *)buf;
+    const union JEEPROMHeader *hdr = (const union JEEPROMHeader *) buf;
     printf("Board name: %s\n", hdr->v2.boardname);
-    printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->v2.mac[0], hdr->v2.mac[1],
-           hdr->v2.mac[2], hdr->v2.mac[3], hdr->v2.mac[4], hdr->v2.mac[5]);
+    printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", hdr->v2.mac[0], hdr->v2.mac[1], hdr->v2.mac[2],
+           hdr->v2.mac[3], hdr->v2.mac[4], hdr->v2.mac[5]);
 
     free(buf);
     return 0;

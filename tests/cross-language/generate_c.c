@@ -33,7 +33,7 @@ static int json_get_string(const char *json, const char *key, char *out, size_t 
     const char *end = strchr(pos, '"');
     if (!end)
         return -1;
-    size_t len = (size_t)(end - pos);
+    size_t len = (size_t) (end - pos);
     if (len >= out_size)
         len = out_size - 1;
     memcpy(out, pos, len);
@@ -77,8 +77,8 @@ static void pack_string(uint8_t *dest, size_t field_size, const char *value) {
 
 static int parse_mac(const char *mac_str, uint8_t mac[6]) {
     return sscanf(mac_str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) == 6
-               ? 0
-               : -1;
+                   ? 0
+                   : -1;
 }
 
 static int hex_to_bytes(const char *hex, uint8_t *out, size_t max_len) {
@@ -89,7 +89,7 @@ static int hex_to_bytes(const char *hex, uint8_t *out, size_t max_len) {
     for (size_t i = 0; i < byte_len; i++) {
         sscanf(hex + i * 2, "%2hhx", &out[i]);
     }
-    return (int)byte_len;
+    return (int) byte_len;
 }
 
 int main(int argc, char *argv[]) {
@@ -155,11 +155,11 @@ int main(int argc, char *argv[]) {
     if (version == 3) {
         int sig_ver = 0;
         if (json_get_int(json, "signature_version", &sig_ver) == 0)
-            buf[9] = (uint8_t)sig_ver;
+            buf[9] = (uint8_t) sig_ver;
 
         long long ts = 0;
         if (json_get_long(json, "timestamp", &ts) == 0) {
-            int64_t timestamp = (int64_t)ts;
+            int64_t timestamp = (int64_t) ts;
             memcpy(buf + 244, &timestamp, 8);
         }
 
@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Finalize CRC */
-    jeefs_header_update_crc(buf, (size_t)hdr_size);
+    jeefs_header_update_crc(buf, (size_t) hdr_size);
 
     /* Write output */
     FILE *of = fopen(argv[2], "wb");
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
         perror(argv[2]);
         return 2;
     }
-    fwrite(buf, 1, (size_t)hdr_size, of);
+    fwrite(buf, 1, (size_t) hdr_size, of);
     fclose(of);
 
     printf("Generated (C): %s (%d bytes, version %d)\n", argv[2], hdr_size, version);
