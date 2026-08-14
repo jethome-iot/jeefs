@@ -128,6 +128,14 @@ if(Python3_FOUND)
             ${CMAKE_CURRENT_SOURCE_DIR}/verify_golden_py.py
             ${GOLDEN_BIN} ${GOLDEN_JSON}
     )
+
+    # The committed test-vectors/vectors/*.bin must match their .json
+    # descriptions — they exist for cross-commit stability (#19).
+    add_test(
+        NAME committed_vectors_check
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/test-vectors/generate_vectors.py --check
+    )
 endif()
 
 if(CARGO)
