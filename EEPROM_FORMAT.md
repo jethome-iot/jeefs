@@ -4,17 +4,19 @@
 > These are used by the code generator (`tools/jeefs_codegen/`) to produce C structs and Python constants.
 > This file is maintained as a human-readable overview.
 >
-> - [Header v3 (256B, current)](docs/format/header-v3.md)
+> - [Header v4 (256B, board-scoped, current)](docs/format/header-v4.md)
+> - [Header v3 (256B, fielded production)](docs/format/header-v3.md)
 > - [Header v2 (256B, legacy)](docs/format/header-v2.md)
 > - [Header v1 (512B, legacy)](docs/format/header-v1.md)
+> - [Device identity record (256B, device.id file)](docs/format/device-identity-v1.md)
 > - [Common properties, constants, enums](docs/format/header-common.md)
 > - [Filesystem v1 (file storage format)](docs/format/filesystem-v1.md)
 
 ## Overview
 
-This is the **canonical specification** for JEEFS EEPROM header formats. All language implementations (C, Python, Rust, Go, TypeScript) must conform to this document.
+Human-readable overview of the JEEFS formats; the machine-parseable specs in `docs/format/` are canonical and feed the code generator.
 
-CPU board EEPROM uses a structured header followed by optional file system data. Three header versions exist; **v3** is the current production format.
+Each board EEPROM carries a structured **board-scoped** header followed by optional file system data. Four header versions exist: **v4** is current (explicitly board-scoped), **v3** is the fielded production format. **Device** identity lives in the `device.id` record, not in headers (RFC #26).
 
 ### Common Properties (All Versions)
 
@@ -23,7 +25,7 @@ CPU board EEPROM uses a structured header followed by optional file system data.
 - **CRC32:** IEEE 802.3 polynomial `0xEDB88320` (same as zlib `crc32()`)
 - **Packing:** No padding — all structs use `#pragma pack(push, 1)` / `__attribute__((packed))`
 - **Empty bytes:** inside structures empty/reserved is `0x00`; erased medium reads `0xFF` — the unwritten-slot heuristic accepts both (see docs/format/header-common.md)
-- **String fields:** Null-terminated UTF-8, zero-padded to field size
+- **String fields:** `boardname`/`boardversion` null-terminated; `serial`/`usid`/`cpuid` bounded (printable ASCII, all 32 bytes usable, NUL optional at full length — RFC #13)
 
 ---
 
@@ -211,10 +213,10 @@ typedef struct __attribute__((packed)) {
 
 ### Python Library
 
-File: `shared/common-lib/testsystem_common/eeprom/header.py`
+Package: `python/jeefs/` in this repository (`pip install jeefs`)
 
 ```python
-from testsystem_common.eeprom import EEPROMHeaderV3, SignatureAlgorithm
+from jeefs import EEPROMHeaderV3, SignatureAlgorithm
 
 header = EEPROMHeaderV3(
     boardname="JXD-CPU-E1ETH",
