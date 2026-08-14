@@ -50,6 +50,8 @@ SIGNATURE_SIZES: dict[SignatureAlgorithm, int] = {
 EEPROM_BOARDNAME_LENGTH = 31
 EEPROM_BOARDVERSION_LENGTH = 31
 EEPROM_CPUID_LENGTH = 32
+EEPROM_DEVICE_ID_FILENAME = b"device.id\x00"
+EEPROM_DEVID_MAGIC = b"JHDEVID\x00"
 EEPROM_EMPTYBYTE = 0x00
 EEPROM_FILE_NAME_LENGTH = 15
 EEPROM_HEADER_VERSION = 4
@@ -137,6 +139,22 @@ EEPROM_FIELDS_V1: dict[str, tuple[int, int]] = {
 }
 EEPROM_V1_HEADER_SIZE = 512
 EEPROM_V1_CRC_COVERAGE = 508
+
+# Field offsets and sizes for DeviceIdentityV1
+EEPROM_FIELDS_DEVICEIDENTITYV1: dict[str, tuple[int, int]] = {
+    "magic": (0, 8),
+    "record_version": (8, 1),
+    "signature_version": (9, 1),
+    "reserved1": (10, 2),
+    "device_model": (12, 32),
+    "device_serial": (44, 32),
+    "hw_revision": (76, 16),
+    "flags": (92, 2),
+    "reserved2": (94, 86),
+    "signature": (180, 64),
+    "timestamp": (244, 8),
+    "crc32": (252, 4),
+}
 
 # Field offsets and sizes for JEEFSFileHeaderv1
 EEPROM_FIELDS_JEEFSFILEHEADERV1: dict[str, tuple[int, int]] = {

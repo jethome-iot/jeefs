@@ -15,6 +15,8 @@
 pub const BOARDNAME_LENGTH: usize = 31;
 pub const BOARDVERSION_LENGTH: usize = 31;
 pub const CPUID_LENGTH: usize = 32;
+pub const DEVICE_ID_FILENAME: &str = "device.id";
+pub const DEVID_MAGIC: &[u8; 8] = b"JHDEVID\0";
 pub const EMPTYBYTE: u8 = 0x00;
 pub const FILE_NAME_LENGTH: usize = 15;
 pub const HEADER_VERSION: usize = 4;
@@ -224,6 +226,45 @@ impl core::fmt::Debug for JeepromHeaderV4 {
             .field("cpuid", &self.cpuid)
             .field("mac", &self.mac)
             .field("reserved2", &self.reserved2)
+            .field("signature", &&self.signature[..])
+            .field("timestamp", &{ self.timestamp })
+            .field("crc32", &{ self.crc32 })
+            .finish()
+    }
+}
+
+/// DeviceIdentityV1 (256 bytes)
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct DeviceIdentityV1 {
+    pub magic: [u8; 8],  // "JHDEVID\0" (null-terminated string)
+    pub record_version: u8,  // Record version = 1
+    pub signature_version: u8,  // Signature algorithm (same enum as header)
+    pub reserved1: [u8; 2],  // Reserved (zeros)
+    pub device_model: [u8; 32],  // Device model name (bounded string)
+    pub device_serial: [u8; 32],  // Device serial number (bounded string)
+    pub hw_revision: [u8; 16],  // Device hardware revision (bounded string)
+    pub flags: u16,  // Flags: all bits reserved (see below)
+    pub reserved2: [u8; 86],  // Reserved for future use (zeros)
+    pub signature: [u8; 64],  // ECDSA signature (r‖s, zero-padded)
+    pub timestamp: i64,  // Record creation/signing time (Unix s)
+    pub crc32: u32,  // CRC32 of bytes 0-251
+}
+
+const _: () = assert!(core::mem::size_of::<DeviceIdentityV1>() == 256);
+
+impl core::fmt::Debug for DeviceIdentityV1 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DeviceIdentityV1")
+            .field("magic", &self.magic)
+            .field("record_version", &{ self.record_version })
+            .field("signature_version", &{ self.signature_version })
+            .field("reserved1", &self.reserved1)
+            .field("device_model", &self.device_model)
+            .field("device_serial", &self.device_serial)
+            .field("hw_revision", &self.hw_revision)
+            .field("flags", &{ self.flags })
+            .field("reserved2", &&self.reserved2[..])
             .field("signature", &&self.signature[..])
             .field("timestamp", &{ self.timestamp })
             .field("crc32", &{ self.crc32 })

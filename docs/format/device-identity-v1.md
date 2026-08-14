@@ -1,10 +1,9 @@
-# DeviceIdentityV1 (256 bytes) — DRAFT
+# DeviceIdentityV1 (256 bytes)
 
-> **Status: DRAFT — under discussion in RFC
-> [#26](https://github.com/jethome-iot/jeefs/issues/26). Do not implement.**
-> Codegen metadata comments (`STRUCT`/`SIZE`/`CRC_*`) are intentionally absent and
-> will be added only after the RFC is agreed, so this draft never reaches
-> generated code by accident.
+> Accepted 2026-08-14 (RFC
+> [#26](https://github.com/jethome-iot/jeefs/issues/26)); the generated
+> structs are the source of truth production tooling writes from. Record
+> parsers across the language ports are tracked in the follow-up issues.
 
 ## Motivation
 
@@ -32,6 +31,11 @@ system"), NVIDIA Jetson (system part/serial fields populated only in the carrier
 EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 
 ## Record layout
+
+<!-- STRUCT: DeviceIdentityV1 -->
+<!-- SIZE: 256 -->
+<!-- CRC_FIELD: crc32 -->
+<!-- CRC_COVERAGE: 0-251 -->
 
 | Offset  | Size | Field             | Type        | Endianness    | Description                                |
 |---------|------|-------------------|-------------|---------------|--------------------------------------------|
@@ -101,8 +105,14 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 
 ## Reserved file name
 
-`device.id` (fits the 15-character limit). To be added to
-[header-common.md](header-common.md) as a named constant after approval.
+`device.id` (fits the 15-character limit).
+
+<!-- CONSTANTS -->
+
+| Name               | Value       | Type   | Description                              |
+|--------------------|-------------|--------|------------------------------------------|
+| DEVID_MAGIC        | "JHDEVID"   | string | Record magic (7 chars, NUL-terminated)   |
+| DEVICE_ID_FILENAME | "device.id" | string | Reserved JEEFS file name for the record  |
 
 ## Signature algorithm rationale
 

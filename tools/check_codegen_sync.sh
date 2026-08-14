@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")"
 SPECS="../docs/format/header-common.md ../docs/format/header-v1.md \
 ../docs/format/header-v2.md ../docs/format/header-v3.md \
-../docs/format/header-v4.md \
+../docs/format/header-v4.md ../docs/format/device-identity-v1.md \
 ../docs/format/filesystem-v1.md"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

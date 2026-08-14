@@ -22,6 +22,8 @@ extern "C" {
 #define JEEFS_BOARDNAME_LENGTH 31
 #define JEEFS_BOARDVERSION_LENGTH 31
 #define JEEFS_CPUID_LENGTH 32
+#define JEEFS_DEVICE_ID_FILENAME "device.id"
+#define JEEFS_DEVID_MAGIC "JHDEVID"
 #define JEEFS_EMPTYBYTE '\x00'
 #define JEEFS_FILE_NAME_LENGTH 15
 #define JEEFS_HEADER_VERSION 4
@@ -118,6 +120,22 @@ typedef struct {
     uint32_t crc32;  // 4B, offset 252, CRC32 of bytes 0-251
 } JEEPROMHeaderv4;
 
+// DeviceIdentityV1 (256 bytes)
+typedef struct {
+    char magic[8];  // 8B, offset 0, "JHDEVID\0" (null-terminated string)
+    uint8_t record_version;  // 1B, offset 8, Record version = 1
+    uint8_t signature_version;  // 1B, offset 9, Signature algorithm (same enum as header)
+    uint8_t reserved1[2];  // 2B, offset 10, Reserved (zeros)
+    char device_model[32];  // 32B, offset 12, Device model name (bounded string)
+    char device_serial[32];  // 32B, offset 44, Device serial number (bounded string)
+    char hw_revision[16];  // 16B, offset 76, Device hardware revision (bounded string)
+    uint16_t flags;  // 2B, offset 92, Flags: all bits reserved (see below)
+    uint8_t reserved2[86];  // 86B, offset 94, Reserved for future use (zeros)
+    uint8_t signature[64];  // 64B, offset 180, ECDSA signature (r‖s, zero-padded)
+    int64_t timestamp;  // 8B, offset 244, Record creation/signing time (Unix s)
+    uint32_t crc32;  // 4B, offset 252, CRC32 of bytes 0-251
+} DeviceIdentityV1;
+
 // JEEFSFileHeaderv1 (24 bytes)
 typedef struct {
     char name[16];  // 16B, offset 0, Filename, null-terminated (max 15 ch.)
@@ -148,6 +166,7 @@ JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv1) == 512, "sizeof(JEEPROMHeaderv1) mus
 JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv2) == 256, "sizeof(JEEPROMHeaderv2) must be 256");
 JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv3) == 256, "sizeof(JEEPROMHeaderv3) must be 256");
 JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv4) == 256, "sizeof(JEEPROMHeaderv4) must be 256");
+JEEFS_STATIC_ASSERT(sizeof(DeviceIdentityV1) == 256, "sizeof(DeviceIdentityV1) must be 256");
 JEEFS_STATIC_ASSERT(sizeof(JEEFSFileHeaderv1) == 24, "sizeof(JEEFSFileHeaderv1) must be 24");
 #undef JEEFS_STATIC_ASSERT
 
