@@ -41,7 +41,8 @@ Used to detect the header version by reading only the first 12 bytes. The `versi
 | 1     | SECP192R1 | 48             | ECDSA secp192r1/NIST P-192, r‖s  |
 | 2     | SECP256R1 | 64             | ECDSA secp256r1/NIST P-256, r‖s  |
 
-- Stored in `signature_version` field at offset 9 (v3 only).
+- Stored in the `signature_version` byte at offset 9 of header v3 and of
+  the DeviceIdentityV1 record ([device-identity-v1.md](device-identity-v1.md)).
 - Signature is raw `r || s` concatenation (not DER-encoded).
 - `secp192r1`: bytes 180-227 used (48B), bytes 228-243 are zeros.
 - `secp256r1`: bytes 180-243 fully used (64B).
