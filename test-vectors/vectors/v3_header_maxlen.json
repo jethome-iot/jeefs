@@ -1,0 +1,16 @@
+{
+    "struct": "JEEPROMHeaderv3",
+    "version": 3,
+    "header_size": 256,
+    "crc_coverage": 252,
+    "fields": {
+        "boardname": "B234567890123456789012345678901",
+        "boardversion": "V234567890123456789012345678901",
+        "serial": "SERIAL-8901234567890123456789012",
+        "usid": "USID-678901234567890123456789012",
+        "cpuid": "CPUID-78901234567890123456789012",
+        "mac": "F0:57:8D:AA:BB:CC",
+        "signature_version": 0,
+        "timestamp": 1755000000
+    }
+}

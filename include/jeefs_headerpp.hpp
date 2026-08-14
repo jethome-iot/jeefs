@@ -50,13 +50,13 @@ namespace jeefs {
         /// Board version (null-terminated string at offset 44).
         std::string_view boardversion() const { return string_at(44, 32); }
 
-        /// Serial number (null-terminated at offset 76).
+        /// Board serial (bounded string at offset 76: all 32 bytes usable, RFC #13).
         std::string_view serial() const { return string_at(76, 32); }
 
-        /// USID (null-terminated at offset 108).
+        /// CPU eFuse USID (bounded string at offset 108, RFC #13).
         std::string_view usid() const { return string_at(108, 32); }
 
-        /// CPU ID (null-terminated at offset 140).
+        /// CPU ID (bounded string at offset 140, RFC #13).
         std::string_view cpuid() const { return string_at(140, 32); }
 
         /// MAC address pointer (6 raw bytes at offset 172). Returns nullptr if buffer too short.
