@@ -157,11 +157,14 @@ def main() -> int:
             status = "updated" if changed else "ok"
             print(f"  {status}: {label}")
 
-    if check_only and errors:
-        print(
-            f"\n{errors} file(s) out of sync. "
-            "Run: python tools/sync_version.py"
-        )
+    if errors:
+        if check_only:
+            print(
+                f"\n{errors} file(s) out of sync. "
+                "Run: python tools/sync_version.py"
+            )
+        else:
+            print(f"\n{errors} target file(s) missing.")
         return 1
 
     return 0

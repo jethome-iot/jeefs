@@ -334,4 +334,18 @@ def parse_files(paths: list[Path]) -> FormatSpec:
     merged.enums.sort(key=lambda e: e.name)
     merged.unions.sort(key=lambda u: u.name)
     merged.constants.sort(key=lambda c: c.name)
+
+    # Duplicate names would still be order-dependent after the sort and
+    # would generate colliding definitions — reject them.
+    for kind, names in (
+        ("struct", [s.name for s in merged.structs]),
+        ("enum", [e.name for e in merged.enums]),
+        ("union", [u.name for u in merged.unions]),
+        ("constant", [c.name for c in merged.constants]),
+    ):
+        seen: set[str] = set()
+        for n in names:
+            if n in seen:
+                raise ValueError(f"Duplicate {kind} name '{n}' across spec files")
+            seen.add(n)
     return merged

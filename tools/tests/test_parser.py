@@ -139,3 +139,18 @@ def test_real_specs_parse():
     struct_names = {s.name for s in spec.structs}
     assert {"JEEPROMHeaderv1", "JEEPROMHeaderv2", "JEEPROMHeaderv3"} <= struct_names
     assert spec.constants, "constants tables must survive parsing"
+
+
+def test_duplicate_constant_name_raises(tmp_path):
+    a = tmp_path / "a.md"
+    b = tmp_path / "b.md"
+    table = (
+        "<!-- CONSTANTS -->\n"
+        "| Name | Value | Type | Description |\n"
+        "|------|-------|------|-------------|\n"
+        "| DUP | 1 | int | first |\n"
+    )
+    a.write_text(table, encoding="utf-8")
+    b.write_text(table.replace("| 1 |", "| 2 |"), encoding="utf-8")
+    with pytest.raises(ValueError, match="Duplicate constant"):
+        parse_files([a, b])
