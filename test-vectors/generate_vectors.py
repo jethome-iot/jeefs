@@ -143,10 +143,12 @@ def main() -> None:
         sys.exit(1)
 
     drifted = []
+    matched = 0
     for json_path in json_files:
         stem = json_path.stem
         if filter_name and stem != filter_name:
             continue
+        matched += 1
 
         with open(json_path) as f:
             spec = json.load(f)
@@ -163,6 +165,10 @@ def main() -> None:
         else:
             bin_path.write_bytes(bin_data)
             print(f"  {stem}: {len(bin_data)} bytes -> {bin_path.name}")
+
+    if filter_name and matched == 0:
+        print(f"No vector named {filter_name!r} in {VECTORS_DIR}")
+        sys.exit(1)
 
     if check_mode and drifted:
         print(f"{len(drifted)} committed vector(s) drifted; regenerate with: python generate_vectors.py")
