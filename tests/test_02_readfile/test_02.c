@@ -34,8 +34,8 @@ int main() {
 
 void test2 (){
     EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    assert(("Check eeprom_open result", ep.eeprom_fid > 0));
-    assert(("Check eeprom_open result size = 8192", ep.eeprom_size == TEST_EEPROM_SIZE));
+    assert("Check eeprom_open result" && ep.eeprom_fid > 0);
+    assert("Check eeprom_open result size = 8192" && ep.eeprom_size == TEST_EEPROM_SIZE);
     printf("EEPROM opened, size: %lu\n", ep.eeprom_size);
 
     int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
@@ -45,10 +45,11 @@ void test2 (){
     char filename[100];
     uint8_t filedata[8192];
     uint16_t filesize;
-    int i, err;
+    int err;
+    size_t i;
     printf("sizeof(test_files) = %lu\n", sizeof(test_files)/sizeof (char *));
-    for (i=0; i < sizeof(test_files)/sizeof (char *); i++) {
-        sprintf(filename, "%s_%d", TEST_FILENAME, i);
+    for (i = 0; i < sizeof(test_files)/sizeof (char *); i++) {
+        sprintf(filename, "%s_%zu", TEST_FILENAME, i);
         printf("!!!!++++ read file %s\n",filename);
         fflush(stdout);
 
@@ -65,7 +66,7 @@ void test2 (){
         if (i < 10)
         {
             assert ("Check file exists" && err > 0);
-            assert ("Check filesize" && strlen(test_files[i])+1 == err);
+            assert("Check filesize" && strlen(test_files[i]) + 1 == (size_t)err);
 
             filesize = strlen(test_files[i])+1;
             debug("readed: %i filesize = %i cmp = %i\n", err, filesize, memcmp(filedata, test_files[i],filesize));
@@ -73,7 +74,7 @@ void test2 (){
             assert("Compare file with original" && memcmp(filedata, test_files[i],filesize) == 0);
         } else
             assert("Check file not exists" && err == FILENOTFOUND);
-        printf("File %d: %s size:%i on eeprom:%i checked ok\n", i, filename, filesize, err);
+        printf("File %zu: %s size:%i on eeprom:%i checked ok\n", i, filename, filesize, err);
     }
     EEPROM_CloseEEPROM(ep);
 
