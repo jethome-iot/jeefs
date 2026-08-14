@@ -31,7 +31,7 @@ int main() {
     printf("sizeof(JEEFSFileHeader) = %lu\n", sizeof(JEEFSFileHeader));
 
     char dir[1000];
-    getcwd(dir, sizeof(dir));
+    assert(getcwd(dir, sizeof(dir)) != NULL);
     debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: "
           "%s\n",
           TEST_DIR, TEST_FILENAME, TEST_EEPROM_PATH, TEST_EEPROM_FILENAME, TEST_EEPROM_SIZE, dir);
