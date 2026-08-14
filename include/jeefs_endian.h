@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 static inline uint16_t jeefs_get_le16(const uint8_t *p) {
-    return (uint16_t)(p[0] | (p[1] << 8));
+    return (uint16_t)(p[0] | ((uint16_t)p[1] << 8));
 }
 
 static inline uint32_t jeefs_get_le32(const uint8_t *p) {
