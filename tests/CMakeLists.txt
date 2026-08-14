@@ -34,4 +34,5 @@ add_subdirectory(test_02_readfile)
 
 add_subdirectory(test_04_jeefspp)
 add_subdirectory(test_05_fscore)
+add_subdirectory(test_06_freestanding)
 add_subdirectory(cross-language)
