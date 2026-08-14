@@ -339,6 +339,18 @@ static void test_erased_free_space_0xff(void) {
     printf("  0xFF erased free space: OK\n");
 }
 
+// A written name with an empty dataSize (0x0000 or 0xFFFF) is corruption,
+// not an empty slot (RFC #14: validity is decided by checks, not content).
+static void test_empty_datasize_is_corruption(void) {
+    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern(ep, "a", 10, 1) == 10);
+    poke_le16(ep, HDR_V3 + 16, 0x0000);
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
+    EEPROM_CloseEEPROM(ep);
+    printf("  empty dataSize is corruption: OK\n");
+}
+
 static void test_nospace_is_atomic(void) {
     // 512-byte image, v2 header (256): room for one ~200-byte file.
     make_image(IMG, 512, 0x00);
@@ -460,6 +472,7 @@ int main(void) {
     test_data_crc_checked_on_read();
     test_erased_next_is_terminal();
     test_erased_free_space_0xff();
+    test_empty_datasize_is_corruption();
     test_nospace_is_atomic();
     test_set_header_roundtrip();
     test_consistency_detects_bad_crc();

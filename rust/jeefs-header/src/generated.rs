@@ -18,6 +18,7 @@ pub const CPUID_LENGTH: usize = 32;
 pub const DEVICE_ID_FILENAME: &str = "device.id";
 pub const DEVID_MAGIC: &[u8; 8] = b"JHDEVID\0";
 pub const EMPTYBYTE: u8 = 0x00;
+pub const ERASEDBYTE: u8 = 0xFF;
 pub const FILE_NAME_LENGTH: usize = 15;
 pub const HEADER_VERSION: usize = 4;
 pub const MAC_LENGTH: usize = 6;
