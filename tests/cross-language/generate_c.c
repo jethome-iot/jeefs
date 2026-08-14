@@ -75,6 +75,15 @@ static void pack_string(uint8_t *dest, size_t field_size, const char *value) {
     memcpy(dest, value, len);
 }
 
+/* Bounded string (RFC #13): all field bytes usable, NUL only when shorter. */
+static void pack_bounded(uint8_t *dest, size_t field_size, const char *value) {
+    memset(dest, 0, field_size);
+    size_t len = strlen(value);
+    if (len > field_size)
+        len = field_size;
+    memcpy(dest, value, len);
+}
+
 static int parse_mac(const char *mac_str, uint8_t mac[6]) {
     return sscanf(mac_str, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) == 6
                    ? 0
@@ -137,13 +146,13 @@ int main(int argc, char *argv[]) {
         pack_string(buf + 44, 32, str_val);
 
     if (json_get_string(json, "serial", str_val, sizeof(str_val)) == 0)
-        pack_string(buf + 76, 32, str_val);
+        pack_bounded(buf + 76, 32, str_val);
 
     if (json_get_string(json, "usid", str_val, sizeof(str_val)) == 0)
-        pack_string(buf + 108, 32, str_val);
+        pack_bounded(buf + 108, 32, str_val);
 
     if (json_get_string(json, "cpuid", str_val, sizeof(str_val)) == 0)
-        pack_string(buf + 140, 32, str_val);
+        pack_bounded(buf + 140, 32, str_val);
 
     if (json_get_string(json, "mac", str_val, sizeof(str_val)) == 0) {
         uint8_t mac[6];

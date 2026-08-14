@@ -32,6 +32,21 @@ static void check_string(const char *name, const char *actual, const char *expec
     }
 }
 
+/* Bounded string (RFC #13): compare against the whole field — value bytes,
+ * then zero padding; no NUL required at full length. */
+static void check_bounded(const char *name, const uint8_t *field, size_t field_size, const char *expected) {
+    size_t elen = strlen(expected);
+    int ok = elen <= field_size && memcmp(field, expected, elen) == 0;
+    for (size_t i = elen; ok && i < field_size; i++)
+        ok = field[i] == 0;
+    if (!ok) {
+        fprintf(stderr, "  FAIL: %s (bounded, expected \"%s\")\n", name, expected);
+        failures++;
+    } else {
+        printf("  OK: %s = \"%s\"\n", name, expected);
+    }
+}
+
 static void check_int(const char *name, int actual, int expected) {
     if (actual != expected) {
         fprintf(stderr, "  FAIL: %s = %d (expected %d)\n", name, actual, expected);
@@ -175,13 +190,13 @@ int main(int argc, char *argv[]) {
         check_string("boardversion", (const char *) (bin_data + 44), expected_str);
     }
     if (json_get_string(json, "serial", expected_str, sizeof(expected_str)) == 0) {
-        check_string("serial", (const char *) (bin_data + 76), expected_str);
+        check_bounded("serial", bin_data + 76, 32, expected_str);
     }
     if (json_get_string(json, "usid", expected_str, sizeof(expected_str)) == 0) {
-        check_string("usid", (const char *) (bin_data + 108), expected_str);
+        check_bounded("usid", bin_data + 108, 32, expected_str);
     }
     if (json_get_string(json, "cpuid", expected_str, sizeof(expected_str)) == 0) {
-        check_string("cpuid", (const char *) (bin_data + 140), expected_str);
+        check_bounded("cpuid", bin_data + 140, 32, expected_str);
     }
     if (json_get_string(json, "mac", expected_str, sizeof(expected_str)) == 0) {
         check_mac("mac", bin_data + 172, expected_str);

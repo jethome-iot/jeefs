@@ -79,6 +79,16 @@ def _pack_string(value: str, size: int) -> bytes:
     return encoded + b"\x00" * (size - len(encoded))
 
 
+def _pack_bounded(value: str, size: int) -> bytes:
+    """Bounded string (RFC #13): all bytes usable, NUL only when shorter."""
+    encoded = value.encode("utf-8")[:size]
+    return encoded + b"\x00" * (size - len(encoded))
+
+# serial/usid/cpuid are bounded strings; boardname/boardversion stay
+# NUL-terminated (RFC #13)
+BOUNDED_FIELDS = {"serial", "usid", "cpuid"}
+
+
 def _parse_mac(mac_str: str) -> bytes:
     return bytes.fromhex(mac_str.replace(":", "").replace("-", ""))
 
@@ -99,9 +109,10 @@ def generate_binary(spec: dict) -> bytes:
     # Fill string fields
     for field_name in ("boardname", "boardversion", "serial", "usid", "cpuid"):
         value = data.get(field_name, "")
+        pack = _pack_bounded if field_name in BOUNDED_FIELDS else _pack_string
         for name, offset, size in fields_layout:
             if name == field_name:
-                buf[offset : offset + size] = _pack_string(value, size)
+                buf[offset : offset + size] = pack(value, size)
                 break
 
     # MAC

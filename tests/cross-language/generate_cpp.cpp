@@ -75,11 +75,13 @@ static void pack_string(char *dest, size_t field_size, const char *value) {
     memcpy(dest, value, len);
 }
 
-static void pack_string_u8(uint8_t *dest, size_t field_size, const char *value) {
+
+/* Bounded string (RFC #13): all field bytes usable, NUL only when shorter. */
+static void pack_bounded(uint8_t *dest, size_t field_size, const char *value) {
     memset(dest, 0, field_size);
     size_t len = strlen(value);
-    if (len >= field_size)
-        len = field_size - 1;
+    if (len > field_size)
+        len = field_size;
     memcpy(dest, value, len);
 }
 
@@ -136,11 +138,11 @@ int main(int argc, char *argv[]) {
         if (json_get_string(json, "boardversion", str_val, sizeof(str_val)) == 0)
             pack_string(hdr.boardversion, sizeof(hdr.boardversion), str_val);
         if (json_get_string(json, "serial", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.serial, sizeof(hdr.serial), str_val);
+            pack_bounded(hdr.serial, sizeof(hdr.serial), str_val);
         if (json_get_string(json, "usid", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.usid, sizeof(hdr.usid), str_val);
+            pack_bounded(hdr.usid, sizeof(hdr.usid), str_val);
         if (json_get_string(json, "cpuid", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.cpuid, sizeof(hdr.cpuid), str_val);
+            pack_bounded(hdr.cpuid, sizeof(hdr.cpuid), str_val);
         if (json_get_string(json, "mac", str_val, sizeof(str_val)) == 0)
             parse_mac(str_val, hdr.mac);
     } else if (version == 2) {
@@ -150,11 +152,11 @@ int main(int argc, char *argv[]) {
         if (json_get_string(json, "boardversion", str_val, sizeof(str_val)) == 0)
             pack_string(hdr.boardversion, sizeof(hdr.boardversion), str_val);
         if (json_get_string(json, "serial", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.serial, sizeof(hdr.serial), str_val);
+            pack_bounded(hdr.serial, sizeof(hdr.serial), str_val);
         if (json_get_string(json, "usid", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.usid, sizeof(hdr.usid), str_val);
+            pack_bounded(hdr.usid, sizeof(hdr.usid), str_val);
         if (json_get_string(json, "cpuid", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.cpuid, sizeof(hdr.cpuid), str_val);
+            pack_bounded(hdr.cpuid, sizeof(hdr.cpuid), str_val);
         if (json_get_string(json, "mac", str_val, sizeof(str_val)) == 0)
             parse_mac(str_val, hdr.mac);
     } else if (version == 3) {
@@ -164,11 +166,11 @@ int main(int argc, char *argv[]) {
         if (json_get_string(json, "boardversion", str_val, sizeof(str_val)) == 0)
             pack_string(hdr.boardversion, sizeof(hdr.boardversion), str_val);
         if (json_get_string(json, "serial", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.serial, sizeof(hdr.serial), str_val);
+            pack_bounded(hdr.serial, sizeof(hdr.serial), str_val);
         if (json_get_string(json, "usid", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.usid, sizeof(hdr.usid), str_val);
+            pack_bounded(hdr.usid, sizeof(hdr.usid), str_val);
         if (json_get_string(json, "cpuid", str_val, sizeof(str_val)) == 0)
-            pack_string_u8(hdr.cpuid, sizeof(hdr.cpuid), str_val);
+            pack_bounded(hdr.cpuid, sizeof(hdr.cpuid), str_val);
         if (json_get_string(json, "mac", str_val, sizeof(str_val)) == 0)
             parse_mac(str_val, hdr.mac);
 

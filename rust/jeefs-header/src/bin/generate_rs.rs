@@ -13,6 +13,13 @@ fn pack_string(buf: &mut [u8], offset: usize, size: usize, value: &str) {
     // Rest is already zero from initialization
 }
 
+/// Bounded string (RFC #13): all field bytes usable, NUL only when shorter.
+fn pack_bounded(buf: &mut [u8], offset: usize, size: usize, value: &str) {
+    let bytes = value.as_bytes();
+    let len = bytes.len().min(size);
+    buf[offset..offset + len].copy_from_slice(&bytes[..len]);
+}
+
 fn parse_mac(mac_str: &str) -> Option<[u8; 6]> {
     let parts: Vec<u8> = mac_str
         .split(':')
@@ -70,13 +77,13 @@ fn main() {
         pack_string(&mut buf, 44, 32, s);
     }
     if let Some(s) = fields["serial"].as_str() {
-        pack_string(&mut buf, 76, 32, s);
+        pack_bounded(&mut buf, 76, 32, s);
     }
     if let Some(s) = fields["usid"].as_str() {
-        pack_string(&mut buf, 108, 32, s);
+        pack_bounded(&mut buf, 108, 32, s);
     }
     if let Some(s) = fields["cpuid"].as_str() {
-        pack_string(&mut buf, 140, 32, s);
+        pack_bounded(&mut buf, 140, 32, s);
     }
 
     if let Some(s) = fields["mac"].as_str() {
