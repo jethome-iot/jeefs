@@ -1,0 +1,38 @@
+# Supply-chain policy (#22): weekly, grouped minor/patch, 7-day cooldown
+# on new releases. Workflow actions are pinned by commit SHA in ci.yml;
+# Dependabot bumps the pins. Fork/Dependabot PRs require approval before
+# workflows run (repo setting: all_external_contributors) — self-hosted
+# runners never execute unreviewed code.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "pip"
+    directories:
+      - "/python"
+      - "/tools"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      pip-minor-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "cargo"
+    directory: "/rust/jeefs-header"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      cargo-minor-patch:
+        update-types: ["minor", "patch"]
