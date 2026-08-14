@@ -91,6 +91,10 @@ jobs:
       - name: Run pytest
         run: python -m pytest python/tests/ -v
 
+      - name: Run codegen parser tests
+        working-directory: tools
+        run: python -m pytest tests/ -v
+
   # ── Code generation validation ──
   codegen-check:
     runs-on: [self-hosted, amd64]
