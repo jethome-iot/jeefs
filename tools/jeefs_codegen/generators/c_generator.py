@@ -35,11 +35,12 @@ def _generate_constants(constants: list[ConstantDef]) -> str:
         if c.type == "string":
             lines.append(f'#define {name} "{val}"')
         elif c.type == "byte":
-            # Convert 0xNN to \xNN for C char literal
+            # Numeric literal, not a char constant: '\xFF' is
+            # implementation-defined on signed-char targets (-1 vs 255)
             if val.startswith("0x") or val.startswith("0X"):
-                lines.append(f"#define {name} '\\x{val[2:]}'")
+                lines.append(f"#define {name} {val}")
             else:
-                lines.append(f"#define {name} '{val}'")
+                lines.append(f"#define {name} {val}")
         else:
             lines.append(f"#define {name} {val}")
 
