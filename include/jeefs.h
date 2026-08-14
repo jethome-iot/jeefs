@@ -37,7 +37,7 @@ extern "C" {
  * Base principles:
  * - EEPROM is divided into files (partitions). Each partition has a name,
  * offset and size.
- * - file name limited to FILE_NAME_LENGTH
+ * - file name limited to JEEFS_FILE_NAME_LENGTH
  * - files is linked by linked list
  * - files can't be zero size
  * - files can't be fragmented
@@ -49,7 +49,8 @@ extern "C" {
 
 // Returns the number of files found (>= 0) or a negative EEPROMError.
 // Populates fileList with the NUL-terminated names of the files.
-int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH + 1], uint16_t maxFiles);
+int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][JEEFS_FILE_NAME_LENGTH + 1],
+                         uint16_t maxFiles);
 
 // Reads the data of the file with the given filename into the buffer and
 // verifies the stored CRC32.

@@ -15,13 +15,13 @@
 pub const BOARDNAME_LENGTH: usize = 31;
 pub const BOARDVERSION_LENGTH: usize = 31;
 pub const CPUID_LENGTH: usize = 32;
-pub const EEPROM_EMPTYBYTE: u8 = 0x00;
-pub const EEPROM_PARTITION_SIZE: usize = 4096;
+pub const EMPTYBYTE: u8 = 0x00;
 pub const FILE_NAME_LENGTH: usize = 15;
 pub const HEADER_VERSION: usize = 3;
 pub const MAC_LENGTH: usize = 6;
 pub const MAGIC: &[u8; 8] = b"JETHOME\0";
 pub const MAGIC_LENGTH: usize = 8;
+pub const PARTITION_SIZE: usize = 4096;
 pub const SERIAL_LENGTH: usize = 32;
 pub const SIGNATURE_FIELD_SIZE: usize = 64;
 pub const USID_LENGTH: usize = 32;

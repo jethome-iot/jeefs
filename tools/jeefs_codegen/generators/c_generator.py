@@ -28,16 +28,20 @@ def _generate_constants(constants: list[ConstantDef]) -> str:
     for c in constants:
         # Strip surrounding quotes from values if present
         val = c.value.strip('"').strip("'")
+        # The header is public and C has no namespaces: every macro gets
+        # the JEEFS_ prefix (bare MAGIC/HEADER_VERSION collide in u-boot
+        # and kernel trees, #12).
+        name = c.name if c.name.startswith("JEEFS_") else f"JEEFS_{c.name}"
         if c.type == "string":
-            lines.append(f'#define {c.name} "{val}"')
+            lines.append(f'#define {name} "{val}"')
         elif c.type == "byte":
             # Convert 0xNN to \xNN for C char literal
             if val.startswith("0x") or val.startswith("0X"):
-                lines.append(f"#define {c.name} '\\x{val[2:]}'")
+                lines.append(f"#define {name} '\\x{val[2:]}'")
             else:
-                lines.append(f"#define {c.name} '{val}'")
+                lines.append(f"#define {name} '{val}'")
         else:
-            lines.append(f"#define {c.name} {val}")
+            lines.append(f"#define {name} {val}")
 
     return "\n".join(lines)
 

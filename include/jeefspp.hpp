@@ -77,8 +77,8 @@ namespace jeefs {
                 last_error_ = EEPROMREADERROR;
                 return std::nullopt;
             }
-            std::vector<char> flat(static_cast<size_t>(max_files) * (FILE_NAME_LENGTH + 1));
-            auto *table = reinterpret_cast<char (*)[FILE_NAME_LENGTH + 1]>(flat.data());
+            std::vector<char> flat(static_cast<size_t>(max_files) * (JEEFS_FILE_NAME_LENGTH + 1));
+            auto *table = reinterpret_cast<char (*)[JEEFS_FILE_NAME_LENGTH + 1]>(flat.data());
             int16_t count = EEPROM_ListFiles(desc_, table, max_files);
             if (count < 0) {
                 last_error_ = count;
@@ -88,7 +88,7 @@ namespace jeefs {
             names.reserve(static_cast<size_t>(count));
             for (int16_t i = 0; i < count; ++i) {
                 const char *p = table[i];
-                names.emplace_back(p, strnlen(p, FILE_NAME_LENGTH));
+                names.emplace_back(p, strnlen(p, JEEFS_FILE_NAME_LENGTH));
             }
             return names;
         }

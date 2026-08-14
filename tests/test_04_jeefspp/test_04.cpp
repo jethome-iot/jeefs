@@ -39,7 +39,7 @@ int main() {
     make_blank_image();
 
     // C symbols visible in the same TU (fails to compile on guard collision).
-    static_assert(FILE_NAME_LENGTH == 15, "C macro must be visible");
+    static_assert(JEEFS_FILE_NAME_LENGTH == 15, "C macro must be visible");
 
     jeefs::FileSystem fs(kPath, kSize);
     assert(fs.valid());
@@ -73,7 +73,7 @@ int main() {
     // duplicate add is refused
     assert(fs.addFile("config", data) <= 0);
 
-    // name longer than FILE_NAME_LENGTH is refused
+    // name longer than JEEFS_FILE_NAME_LENGTH is refused
     assert(fs.addFile("abcdefghijklmnop", data) < 0);
 
     // same-size overwrite
