@@ -72,11 +72,19 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
         return desc; // handle error
 
     lseek(desc.eeprom_fid, 0, SEEK_SET);
-    read(desc.eeprom_fid, buffer, desc.eeprom_size);
+    ssize_t got = read(desc.eeprom_fid, buffer, desc.eeprom_size);
+    if (got < 0 || (size_t) got != desc.eeprom_size) {
+        debug("eeprom_open: short read %zd of %lu\n", got, desc.eeprom_size);
+        free(buffer);
+        desc.eeprom_fid = -1;
+        return desc;
+    }
 
     EEPROMBlock *block = create_eeprom_block(desc.eeprom_fid, desc.eeprom_size);
-    if (!block)
+    if (!block) {
+        free(buffer);
         return desc; // handle error
+    }
 
     memcpy(block->data, buffer, desc.eeprom_size);
     free(buffer);
