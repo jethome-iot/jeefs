@@ -28,17 +28,20 @@ simply the way to fix that diff.
    so; the `codegen-check` CI job and the local prek hook
    (`tools/check_codegen_sync.sh`) reject any drift between the committed
    artifacts and the specs — a hand edit cannot pass review.
-2. **Never change the format anywhere except `docs/format/*.md`.** The
-   spec change and the regenerated artifacts are committed together, in
-   one commit, so the diff shows the format change in both forms.
+2. **Never change the format anywhere except `docs/format/*.md`.** Commit
+   the spec change and the regenerated artifacts together, in one commit,
+   so the diff shows the format change in both forms. Enforcement is
+   two-layered: CI rejects any tree where the artifacts and specs
+   disagree; the prek hook additionally enforces it at commit time on
+   machines where hooks are installed (see below).
 3. **Wire-stability policy applies** ([ROADMAP.md](ROADMAP.md)): header
    formats v1-v3 are frozen; new fields arrive only via a new header
    version, through the RFC process (see the device-identity RFC #26 for
    the template).
 4. Draft specs carry **no codegen metadata** (`STRUCT`/`SIZE`/`CRC_*`
    HTML comments) until accepted, so they cannot reach generated code by
-   accident, and both CMake and CI enumerate the spec files explicitly —
-   no globbing.
+   accident, and CI enumerates the spec files explicitly — no globbing
+   (CMake has no codegen path at all).
 
 ## Workflow: changing the format
 
@@ -55,7 +58,9 @@ cd tools && python3 -m jeefs_codegen \
     --py-output ../python/jeefs/constants_generated.py \
     --rs-output ../rust/jeefs-header/src/generated.rs
 
-# 3. Verify (the prek hook runs this automatically on commit)
+# 3. Verify (the prek hook runs this automatically on commit,
+#    provided hooks are installed: `brew install prek && prek install`,
+#    one time per clone)
 sh tools/check_codegen_sync.sh
 
 # 4. Commit the spec and the artifacts together
@@ -66,6 +71,12 @@ git add docs/format include/jeefs_generated.h \
 The validator refuses gaps or overlaps in the byte layout, sizes that do
 not match their types, multi-byte fields without explicit endianness and
 misplaced CRC fields — before anything is generated.
+
+## No other regeneration paths
+
+CMake deliberately has **no** codegen target: the manual command above
+is the only way to regenerate, so nothing can overwrite the committed
+artifacts as a side effect of a build or an IDE action.
 
 ## Why the spec is the source and not the C header
 
