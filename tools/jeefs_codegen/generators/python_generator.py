@@ -81,7 +81,12 @@ def _generate_constants(constants: list[ConstantDef]) -> str:
         prefix = "" if c.name.startswith("EEPROM_") else "EEPROM_"
         py_name = f"{prefix}{c.name}"
         if c.type == "string":
-            lines.append(f'{py_name} = b"{val}\\x00"')
+            # Magic values are wire bytes (NUL-terminated); other string
+            # constants (file names) are ordinary text
+            if c.name.endswith("MAGIC"):
+                lines.append(f'{py_name} = b"{val}\\x00"')
+            else:
+                lines.append(f'{py_name} = "{val}"')
         elif c.type == "byte":
             lines.append(f"{py_name} = {val}")
         else:
