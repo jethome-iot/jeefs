@@ -43,8 +43,8 @@ int main() {
 
 void test1() {
     EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    assert(("Check eeprom_open result", ep.eeprom_fid > 0));
-    assert(("Check eeprom_open result size = 8192", ep.eeprom_size == TEST_EEPROM_SIZE));
+    assert("Check eeprom_open result" && ep.eeprom_fid > 0);
+    assert("Check eeprom_open result size = 8192" && ep.eeprom_size == TEST_EEPROM_SIZE);
     printf("EEPROM opened, size: %lu\n", ep.eeprom_size);
 
     int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
@@ -61,9 +61,10 @@ void test1() {
     char filename[100];
     uint8_t filedata[8192];
     uint16_t filesize;
-    int i, err;
-    for (i=0; i < sizeof(test_files)/sizeof (char *); i++) {
-        sprintf(filename, "%s_%d", TEST_FILENAME, i);
+    int err;
+    size_t i;
+    for (i = 0; i < sizeof(test_files)/sizeof (char *); i++) {
+        sprintf(filename, "%s_%zu", TEST_FILENAME, i);
         printf("!!!!++++ Add new file %s\n",filename);
         filesize = strlen(test_files[i])+1;
         memcpy(filedata, test_files[i],filesize);
@@ -75,10 +76,10 @@ void test1() {
             break; // EEPROM full: expected once ~10 files are in
         assert("Check EEPROM_AddFile wrote the file" && err == (int)filesize);
 
-        printf("File %d: %s size:%i\n", i, filename, filesize);
+        printf("File %zu: %s size:%i\n", i, filename, filesize);
         memset(filedata, 0, sizeof(filedata));
     }
-    printf("Files count:%i\n", i);
+    printf("Files count:%zu\n", i);
     assert("Check adds stopped on NOTENOUGHSPACE" && err == NOTENOUGHSPACE);
     assert("Check the expected number of files fit" && i == 10);
     int consistency = EEPROM_HeaderCheckConsistency(ep);
