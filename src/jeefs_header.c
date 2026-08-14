@@ -11,6 +11,8 @@
 #include <string.h>
 #include <zlib.h>
 
+#include "jeefs_endian.h"
+
 static uint32_t header_crc32(const uint8_t *data, size_t length) {
     return crc32(0L, data, length);
 }
@@ -52,10 +54,9 @@ int jeefs_header_verify_crc(const uint8_t *data, size_t len) {
     if ((int)len < hdr_size)
         return -1;
 
-    /* CRC32 is always the last 4 bytes of the header */
+    /* CRC32 is always the last 4 bytes of the header, stored little-endian */
     size_t crc_offset = (size_t)hdr_size - sizeof(uint32_t);
-    uint32_t stored_crc;
-    memcpy(&stored_crc, data + crc_offset, sizeof(uint32_t));
+    uint32_t stored_crc = jeefs_get_le32(data + crc_offset);
 
     uint32_t calc_crc = header_crc32(data, crc_offset);
     if (calc_crc != stored_crc)
@@ -75,7 +76,7 @@ int jeefs_header_update_crc(uint8_t *data, size_t len) {
 
     size_t crc_offset = (size_t)hdr_size - sizeof(uint32_t);
     uint32_t calc_crc = header_crc32(data, crc_offset);
-    memcpy(data + crc_offset, &calc_crc, sizeof(uint32_t));
+    jeefs_put_le32(data + crc_offset, calc_crc);
 
     return 0;
 }
