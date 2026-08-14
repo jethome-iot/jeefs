@@ -98,9 +98,9 @@ fn main() {
             check_str("filename", fh.name_str(), expected_names[file_count]);
         }
 
-        let data_size = { fh.data_size } as usize;
-        let next = { fh.next_file_address };
-        let stored_crc = { fh.crc32 };
+        let data_size = fh.data_size() as usize;
+        let next = fh.next_file_address();
+        let stored_crc = fh.crc32();
 
         println!(
             "  File {}: \"{}\" size={} next={}",

@@ -102,10 +102,23 @@ impl core::fmt::Debug for JeepromHeaderV1 {
             .field("cpuid", &self.cpuid)
             .field("mac", &self.mac)
             .field("reserved2", &self.reserved2)
-            .field("modules", &{ self.modules })
+            .field("modules", &self.modules())
             .field("reserved3", &&self.reserved3[..])
-            .field("crc32", &{ self.crc32 })
+            .field("crc32", &self.crc32())
             .finish()
+    }
+}
+
+impl JeepromHeaderV1 {
+    /// `modules` decoded from the little-endian wire representation.
+    pub fn modules(&self) -> [u16; 16] {
+        let mut a = self.modules;
+        for v in &mut a { *v = u16::from_le(*v); }
+        a
+    }
+    /// `crc32` decoded from the little-endian wire representation.
+    pub fn crc32(&self) -> u32 {
+        u32::from_le(self.crc32)
     }
 }
 
@@ -143,8 +156,15 @@ impl core::fmt::Debug for JeepromHeaderV2 {
             .field("mac", &self.mac)
             .field("reserved2", &self.reserved2)
             .field("reserved3", &&self.reserved3[..])
-            .field("crc32", &{ self.crc32 })
+            .field("crc32", &self.crc32())
             .finish()
+    }
+}
+
+impl JeepromHeaderV2 {
+    /// `crc32` decoded from the little-endian wire representation.
+    pub fn crc32(&self) -> u32 {
+        u32::from_le(self.crc32)
     }
 }
 
@@ -185,9 +205,20 @@ impl core::fmt::Debug for JeepromHeaderV3 {
             .field("mac", &self.mac)
             .field("reserved2", &self.reserved2)
             .field("signature", &&self.signature[..])
-            .field("timestamp", &{ self.timestamp })
-            .field("crc32", &{ self.crc32 })
+            .field("timestamp", &self.timestamp())
+            .field("crc32", &self.crc32())
             .finish()
+    }
+}
+
+impl JeepromHeaderV3 {
+    /// `timestamp` decoded from the little-endian wire representation.
+    pub fn timestamp(&self) -> i64 {
+        i64::from_le(self.timestamp)
+    }
+    /// `crc32` decoded from the little-endian wire representation.
+    pub fn crc32(&self) -> u32 {
+        u32::from_le(self.crc32)
     }
 }
 
@@ -228,9 +259,20 @@ impl core::fmt::Debug for JeepromHeaderV4 {
             .field("mac", &self.mac)
             .field("reserved2", &self.reserved2)
             .field("signature", &&self.signature[..])
-            .field("timestamp", &{ self.timestamp })
-            .field("crc32", &{ self.crc32 })
+            .field("timestamp", &self.timestamp())
+            .field("crc32", &self.crc32())
             .finish()
+    }
+}
+
+impl JeepromHeaderV4 {
+    /// `timestamp` decoded from the little-endian wire representation.
+    pub fn timestamp(&self) -> i64 {
+        i64::from_le(self.timestamp)
+    }
+    /// `crc32` decoded from the little-endian wire representation.
+    pub fn crc32(&self) -> u32 {
+        u32::from_le(self.crc32)
     }
 }
 
@@ -264,12 +306,27 @@ impl core::fmt::Debug for DeviceIdentityV1 {
             .field("device_model", &self.device_model)
             .field("device_serial", &self.device_serial)
             .field("hw_revision", &self.hw_revision)
-            .field("flags", &{ self.flags })
+            .field("flags", &self.flags())
             .field("reserved2", &&self.reserved2[..])
             .field("signature", &&self.signature[..])
-            .field("timestamp", &{ self.timestamp })
-            .field("crc32", &{ self.crc32 })
+            .field("timestamp", &self.timestamp())
+            .field("crc32", &self.crc32())
             .finish()
+    }
+}
+
+impl DeviceIdentityV1 {
+    /// `flags` decoded from the little-endian wire representation.
+    pub fn flags(&self) -> u16 {
+        u16::from_le(self.flags)
+    }
+    /// `timestamp` decoded from the little-endian wire representation.
+    pub fn timestamp(&self) -> i64 {
+        i64::from_le(self.timestamp)
+    }
+    /// `crc32` decoded from the little-endian wire representation.
+    pub fn crc32(&self) -> u32 {
+        u32::from_le(self.crc32)
     }
 }
 
@@ -284,6 +341,21 @@ pub struct JeefsFileHeaderV1 {
 }
 
 const _: () = assert!(core::mem::size_of::<JeefsFileHeaderV1>() == 24);
+
+impl JeefsFileHeaderV1 {
+    /// `data_size` decoded from the little-endian wire representation.
+    pub fn data_size(&self) -> u16 {
+        u16::from_le(self.data_size)
+    }
+    /// `crc32` decoded from the little-endian wire representation.
+    pub fn crc32(&self) -> u32 {
+        u32::from_le(self.crc32)
+    }
+    /// `next_file_address` decoded from the little-endian wire representation.
+    pub fn next_file_address(&self) -> u16 {
+        u16::from_le(self.next_file_address)
+    }
+}
 
 // --- C name to Rust name mapping ---
 // JEEPROMHeaderversion -> JeepromHeaderVersion

@@ -173,6 +173,45 @@ def _generate_struct(s: StructDef) -> str:
     return "\n".join(lines)
 
 
+def _generate_le_accessors(s: StructDef) -> str:
+    """Accessor methods decoding little-endian wire fields portably.
+
+    Reading a multi-byte member of the packed struct yields the wire bytes
+    interpreted in host order; `from_le` makes that a no-op on LE hosts and
+    a byte swap on BE hosts.
+    """
+    rust_name = _c_name_to_rust(s.name)
+    le_fields = [f for f in s.fields if f.endianness == "little-endian"]
+    if not le_fields:
+        return ""
+
+    lines: list[str] = []
+    lines.append(f"impl {rust_name} {{")
+    for f in le_fields:
+        rust_type = C_TO_RUST_TYPE.get(f.c_type, f.c_type)
+        rust_field = _to_snake_case(f.name)
+        if f.array_size > 0:
+            lines.append(
+                f"    /// `{rust_field}` decoded from the little-endian wire representation."
+            )
+            lines.append(
+                f"    pub fn {rust_field}(&self) -> [{rust_type}; {f.array_size}] {{"
+            )
+            lines.append(f"        let mut a = self.{rust_field};")
+            lines.append(f"        for v in &mut a {{ *v = {rust_type}::from_le(*v); }}")
+            lines.append("        a")
+            lines.append("    }")
+        else:
+            lines.append(
+                f"    /// `{rust_field}` decoded from the little-endian wire representation."
+            )
+            lines.append(f"    pub fn {rust_field}(&self) -> {rust_type} {{")
+            lines.append(f"        {rust_type}::from_le(self.{rust_field})")
+            lines.append("    }")
+    lines.append("}")
+    return "\n".join(lines)
+
+
 def _generate_struct_debug_impl(s: StructDef) -> str:
     """Generate a manual Debug impl since #[derive(Debug)] doesn't work with packed structs containing arrays > 32."""
     rust_name = _c_name_to_rust(s.name)
@@ -191,9 +230,14 @@ def _generate_struct_debug_impl(s: StructDef) -> str:
                 lines.append(f'            .field("{rust_field}", &&self.{rust_field}[..])')
             else:
                 lines.append(f'            .field("{rust_field}", &self.{rust_field})')
+        elif field.array_size > 0 and field.endianness == "little-endian":
+            lines.append(f'            .field("{rust_field}", &self.{rust_field}())')
         elif field.array_size > 0:
             # Non-u8 array in packed struct: copy to local to avoid misaligned reference
             lines.append(f'            .field("{rust_field}", &{{ self.{rust_field} }})')
+        elif field.endianness == "little-endian":
+            # LE wire field: show the decoded value (see _generate_le_accessors)
+            lines.append(f'            .field("{rust_field}", &self.{rust_field}())')
         else:
             # Scalar in packed struct: copy to avoid unaligned reference
             lines.append(f'            .field("{rust_field}", &{{ self.{rust_field} }})')
@@ -238,6 +282,10 @@ def generate_rust_module(spec: FormatSpec) -> str:
         if has_large_array:
             sections.append("")
             sections.append(_generate_struct_debug_impl(s))
+        le_accessors = _generate_le_accessors(s)
+        if le_accessors:
+            sections.append("")
+            sections.append(le_accessors)
 
     # Name mapping comment for cross-referencing with C
     sections.append("")
