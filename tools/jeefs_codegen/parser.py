@@ -22,6 +22,10 @@ from .models import (
 _META_KV_RE = re.compile(r"<!--\s*(\w+)\s*:\s*(.+?)\s*-->")
 _META_BARE_RE = re.compile(r"<!--\s*(\w+)\s*-->")
 
+# A definition block must name exactly one of these; the rest qualify it.
+_PRIMARY_KEYS = {"STRUCT", "ENUM", "CONSTANTS", "UNION"}
+_KNOWN_KEYS = _PRIMARY_KEYS | {"SIZE", "VERSION", "CRC_FIELD", "CRC_COVERAGE", "C_PREFIX", "PY_CLASS"}
+
 # Regex for C type with optional array: uint8_t[32], char[8], int64_t
 _TYPE_RE = re.compile(r"^(\w+?)(\[(\d+)\])?$")
 
@@ -69,12 +73,19 @@ def _parse_struct_table(
 ) -> StructDef:
     """Parse a struct definition from table data."""
     name = metadata["STRUCT"]
+    if "SIZE" not in metadata:
+        raise ValueError(f"Struct '{name}': missing SIZE metadata")
     total_size = int(metadata["SIZE"])
     version = int(metadata["VERSION"]) if "VERSION" in metadata else None
     crc_field = metadata.get("CRC_FIELD")
     crc_coverage = None
     if "CRC_COVERAGE" in metadata:
         parts = metadata["CRC_COVERAGE"].split("-")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Struct '{name}': malformed CRC_COVERAGE "
+                f"'{metadata['CRC_COVERAGE']}' (expected START-END)"
+            )
         crc_coverage = (int(parts[0]), int(parts[1]))
 
     # Find column indices
@@ -96,11 +107,18 @@ def _parse_struct_table(
         endianness = row[col_idx.get("endianness", -1)] if "endianness" in col_idx else "-"
         description = row[col_idx.get("description", -1)] if "description" in col_idx else ""
 
-        # Parse offset
+        # Parse offset; a range must agree with the declared size
         m = _OFFSET_RE.match(offset_str)
         if not m:
             raise ValueError(f"Invalid offset '{offset_str}' in struct '{name}'")
         offset = int(m.group(1))
+        if m.group(2) is not None:
+            end = int(m.group(2))
+            if end != offset + size - 1:
+                raise ValueError(
+                    f"Offset range '{offset_str}' for field '{field_name}' in '{name}' "
+                    f"contradicts size {size} (expected end {offset + size - 1})"
+                )
 
         # Parse type
         tm = _TYPE_RE.match(type_str)
@@ -151,7 +169,7 @@ def _parse_enum_table(
         if len(row) < len(columns):
             row.extend([""] * (len(columns) - len(row)))
 
-        value = int(row[col_idx["value"]])
+        value = int(row[col_idx["value"]], 0)
         member_name = row[col_idx["name"]]
         description = row[col_idx.get("description", -1)] if "description" in col_idx else ""
 
@@ -221,60 +239,71 @@ def parse_file(path: Path) -> FormatSpec:
 
     spec = FormatSpec()
 
-    # Split file into sections: each section starts with metadata comments
-    # followed by a markdown table
+    # Split file into sections: metadata comments (blank lines between them
+    # are allowed) followed by a markdown table. Half-formed sections are an
+    # error, never a silent skip — a dropped definition would remove a
+    # struct from the generated code of three languages at once (#12).
     i = 0
     while i < len(lines):
-        line = lines[i].strip()
+        stripped = lines[i].strip()
+        if not (_META_KV_RE.match(stripped) or _META_BARE_RE.match(stripped)):
+            i += 1
+            continue
 
-        # Collect metadata comments
+        block_line = i + 1  # 1-based, for error messages
+
+        # Collect the comment block; blank lines may separate the comments
+        # and the table
         metadata: dict[str, str] = {}
         while i < len(lines):
-            stripped_line = lines[i].strip()
-            m = _META_KV_RE.match(stripped_line)
-            m_bare = _META_BARE_RE.match(stripped_line) if not m else None
+            stripped = lines[i].strip()
+            m = _META_KV_RE.match(stripped)
+            m_bare = _META_BARE_RE.match(stripped) if not m else None
             if m:
                 metadata[m.group(1)] = m.group(2)
                 i += 1
             elif m_bare:
-                # Bare metadata like <!-- CONSTANTS -->
                 metadata[m_bare.group(1)] = ""
                 i += 1
-            elif metadata:
-                # We have metadata, now look for the table
-                break
-            else:
+            elif stripped == "":
                 i += 1
+            else:
                 break
-
-        if not metadata:
-            continue
 
         # Collect table lines (consecutive lines starting with |)
         table_lines: list[str] = []
-        while i < len(lines):
-            stripped = lines[i].strip()
-            if stripped.startswith("|"):
-                table_lines.append(stripped)
-                i += 1
-            elif stripped == "" and not table_lines:
-                # Skip blank lines between metadata and table
-                i += 1
-            elif stripped == "" and table_lines:
-                # Blank line after table = end of table
-                break
-            elif not stripped.startswith("|") and table_lines:
-                break
-            else:
-                i += 1
-                break
+        while i < len(lines) and lines[i].strip().startswith("|"):
+            table_lines.append(lines[i].strip())
+            i += 1
 
+        where = f"{path.name}:{block_line}"
+        primary = _PRIMARY_KEYS & metadata.keys()
+        unknown = metadata.keys() - _KNOWN_KEYS
+
+        if not primary:
+            if table_lines and metadata.keys() & _KNOWN_KEYS:
+                raise ValueError(
+                    f"{where}: metadata {sorted(metadata)} qualifies a table "
+                    f"but names no {sorted(_PRIMARY_KEYS)} definition"
+                )
+            # A prose comment with no table attached — not metadata, skip.
+            if not table_lines:
+                continue
+            raise ValueError(
+                f"{where}: unknown metadata {sorted(unknown)} adjacent to a table"
+            )
+
+        if len(primary) > 1:
+            raise ValueError(f"{where}: conflicting definition keys {sorted(primary)}")
+        if unknown:
+            raise ValueError(f"{where}: unknown metadata keys {sorted(unknown)}")
         if not table_lines:
-            continue
+            raise ValueError(
+                f"{where}: {next(iter(primary))} metadata with no table following"
+            )
 
         columns, rows = _parse_table_rows(table_lines)
 
-        # Dispatch based on metadata type
         if "STRUCT" in metadata:
             spec.structs.append(_parse_struct_table(metadata, columns, rows))
         elif "ENUM" in metadata:
