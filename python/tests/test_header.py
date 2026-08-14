@@ -577,3 +577,43 @@ class TestSerialization:
         r = repr(header)
         assert "EEPROMHeaderV3" in r
         assert "JXD-CPU-E1ETH" in r
+
+
+class TestBoundedStrings:
+    """RFC #13: serial/usid/cpuid are bounded strings — printable ASCII,
+    all 32 bytes usable, NUL optional when the value fills the field."""
+
+    def _mk(self, **kw):
+        defaults = dict(boardname="JetHub-D1p", boardversion="1.0",
+                        serial="SN-1", usid="U-1", cpuid="C-1")
+        defaults.update(kw)
+        return EEPROMHeaderV3(**defaults)
+
+    def test_full_32_byte_serial_round_trips(self):
+        full = "S" * 32
+        hdr = self._mk(serial=full, usid="u" * 32, cpuid="c" * 32)
+        raw = hdr.to_bytes()
+        off, sz = EEPROM_FIELDS["serial"]
+        assert raw[off : off + sz] == b"S" * 32  # no NUL stolen
+        back = EEPROMHeaderV3.from_bytes(raw)
+        assert back.serial == full
+        assert back.usid == "u" * 32
+        assert back.cpuid == "c" * 32
+
+    def test_short_serial_is_nul_terminated_and_padded(self):
+        hdr = self._mk(serial="SN-42")
+        raw = hdr.to_bytes()
+        off, sz = EEPROM_FIELDS["serial"]
+        field = raw[off : off + sz]
+        assert field[:5] == b"SN-42"
+        assert field[5:] == b"\x00" * (sz - 5)
+
+    def test_validate_allows_32_rejects_33(self):
+        assert self._mk(serial="S" * 32).validate() == []
+        errs = self._mk(serial="S" * 33).validate()
+        assert any("serial" in e for e in errs)
+
+    def test_boardname_stays_nul_mandatory(self):
+        errs = self._mk(boardname="B" * 32).validate()
+        assert any("boardname" in e for e in errs)
+        assert self._mk(boardname="B" * 31).validate() == []
