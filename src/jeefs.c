@@ -11,6 +11,7 @@
 
 #include "debug.h"
 #include "eepromerr.h"
+#include "jeefs_header.h"
 
 /*
  * The file chain is contiguous by construction (filesystem-v1.md): the
@@ -26,10 +27,12 @@
 // Fixed-size scratch for chunked copy/fill: no VLAs, bounded stack (#7).
 #define JEEFS_CHUNK 64
 
-// Internal helpers
+// Internal helpers. Header parsing (version detection, sizes, header CRC)
+// lives in jeefs_header.c — this file only adds I/O around it. The local
+// calculateCRC32 covers file *data* checksums; it moves to the port layer
+// together with the header library's copy (#24).
 
 static uint32_t calculateCRC32(const uint8_t *data, size_t length);
-static int EEPROM_GetHeaderSize(const void *header);
 static int EEPROM_GetHeaderSize_read(EEPROMDescriptor eeprom_descriptor);
 static inline bool EEPROM_ByteIsEmpty(char var);
 
@@ -187,31 +190,16 @@ int EEPROM_CloseEEPROM(EEPROMDescriptor eeprom_descriptor) {
   return eeprom_close(eeprom_descriptor);
 }
 
-static int EEPROM_GetHeaderSize(const void *header) {
-  const JEEPROMHeaderversion *h = (const JEEPROMHeaderversion *)header;
-  if (strncmp(h->magic, MAGIC, MAGIC_LENGTH) != 0) {
-    debug("EEPROM_GetHeaderSize: magic error %.8s\n", h->magic);
-    return -1;
-  }
-  switch (h->version) {
-  case 1:
-    return sizeof(JEEPROMHeaderv1);
-  case 2:
-    return sizeof(JEEPROMHeaderv2);
-  case 3:
-    return sizeof(JEEPROMHeaderv3);
-  default:
-    debug("EEPROM_GetHeaderSize: version error %u\n", h->version);
-    return -1;
-  }
-}
-
 static int EEPROM_GetHeaderSize_read(EEPROMDescriptor eeprom_descriptor) {
   JEEPROMHeaderversion header;
   if (eeprom_read(eeprom_descriptor, &header, sizeof(header), 0) !=
       sizeof(header))
     return -1;
-  return EEPROM_GetHeaderSize(&header);
+  int version =
+      jeefs_header_detect_version((const uint8_t *)&header, sizeof(header));
+  if (version < 0)
+    return -1;
+  return jeefs_header_size(version);
 }
 
 int EEPROM_GetHeader(EEPROMDescriptor eeprom_descriptor, void *header,
@@ -235,23 +223,15 @@ int EEPROM_SetHeader(EEPROMDescriptor eeprom_descriptor, void *header) {
   if (!header)
     return BUFFERNOTVALID;
 
-  int size = EEPROM_GetHeaderSize(header);
-  if (size < 0)
+  int version = jeefs_header_detect_version((const uint8_t *)header,
+                                            sizeof(JEEPROMHeaderversion));
+  if (version < 0)
+    return EEPROMCORRUPTED;
+  int size = jeefs_header_size(version);
+
+  if (jeefs_header_update_crc((uint8_t *)header, (size_t)size) != 0)
     return EEPROMCORRUPTED;
 
-  JEEPROMHeaderversion *h = (JEEPROMHeaderversion *)header;
-  uint32_t crc = calculateCRC32((uint8_t *)header, size - sizeof(uint32_t));
-  switch (h->version) {
-  case 1:
-    ((JEEPROMHeaderv1 *)header)->crc32 = crc;
-    break;
-  case 2:
-    ((JEEPROMHeaderv2 *)header)->crc32 = crc;
-    break;
-  case 3:
-    ((JEEPROMHeaderv3 *)header)->crc32 = crc;
-    break;
-  }
   if (eeprom_write(eeprom_descriptor, header, (uint16_t)size, 0) != size)
     return EEPROMWRITEERROR;
   return 0;
@@ -261,32 +241,21 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
   JEEPROMHeaderversion vh;
   if (eeprom_read(eeprom_descriptor, &vh, sizeof(vh), 0) != sizeof(vh))
     return EEPROMREADERROR; // an I/O failure is not "inconsistent"
-  int header_size = EEPROM_GetHeaderSize(&vh);
-  if (header_size < 0)
+  int version =
+      jeefs_header_detect_version((const uint8_t *)&vh, sizeof(vh));
+  if (version < 0)
     return 0; // bad magic/version: inconsistent
+  int header_size = jeefs_header_size(version);
 
   union JEEPROMHeader header;
   if (eeprom_read(eeprom_descriptor, &header, (uint16_t)header_size, 0) !=
       header_size)
     return EEPROMREADERROR;
 
-  uint32_t stored;
-  switch (header.version.version) {
-  case 1:
-    stored = header.v1.crc32;
-    break;
-  case 2:
-    stored = header.v2.crc32;
-    break;
-  case 3:
-    stored = header.v3.crc32;
-    break;
-  default:
-    return 0;
-  }
-  uint32_t calc = calculateCRC32((uint8_t *)&header,
-                                 header_size - sizeof(uint32_t));
-  return stored == calc ? 1 : 0;
+  return jeefs_header_verify_crc((const uint8_t *)&header,
+                                 (size_t)header_size) == 0
+             ? 1
+             : 0;
 }
 
 int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor,
@@ -504,30 +473,15 @@ int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor,
 
 // Format EEPROM: write an initialized header, wipe the file area.
 int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version) {
-  union JEEPROMHeader header;
-  memset(&header, 0, sizeof(header));
-  memcpy(header.version.magic, MAGIC, MAGIC_LENGTH);
-  header.version.version = (uint8_t)version;
-
-  int header_size = EEPROM_GetHeaderSize(&header);
+  int header_size = jeefs_header_size(version);
   if (header_size < 0)
     return EEPROMCORRUPTED;
   if ((uint32_t)header_size > ep.eeprom_size)
     return NOTENOUGHSPACE;
 
-  uint32_t crc =
-      calculateCRC32((uint8_t *)&header, header_size - sizeof(uint32_t));
-  switch (version) {
-  case 1:
-    header.v1.crc32 = crc;
-    break;
-  case 2:
-    header.v2.crc32 = crc;
-    break;
-  case 3:
-    header.v3.crc32 = crc;
-    break;
-  }
+  union JEEPROMHeader header;
+  if (jeefs_header_init((uint8_t *)&header, sizeof(header), version) != 0)
+    return EEPROMCORRUPTED;
 
   if (eeprom_write(ep, &header, (uint16_t)header_size, 0) != header_size)
     return EEPROMWRITEERROR;
