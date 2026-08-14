@@ -29,7 +29,11 @@ Documentation = "https://github.com/jethome-iot/jeefs/tree/master/docs/python"
 Issues = "https://github.com/jethome-iot/jeefs/issues"
 
 [project.optional-dependencies]
-test = ["pytest>=7.0"]
+test = ["pytest~=9.1"]
+
+[tool.uv]
+# Supply-chain cooldown (#22): ignore releases younger than 7 days
+exclude-newer = "7 days"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
