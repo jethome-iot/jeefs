@@ -141,7 +141,8 @@ def main() -> int:
     errors = 0
     for label, path, updater, checker in TARGETS:
         if not path.exists():
-            print(f"  SKIP {label} (not found)")
+            print(f"  MISSING {label}")
+            errors += 1
             continue
 
         if check_only:
