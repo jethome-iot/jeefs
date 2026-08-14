@@ -11,6 +11,15 @@ The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/
 1. **Header parsing/manipulation** (priority) — native implementations per language, `EEPROM_FORMAT.md` as source of truth, shared binary test vectors
 2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header
 
+### Code generation policy
+
+The build never runs the generator: `include/jeefs_generated.h`,
+`python/jeefs/constants_generated.py` and `rust/jeefs-header/src/generated.rs`
+are committed, reviewed files. `docs/format/*.md` is the canonical format
+description; CI (`codegen-check`) and the prek hook reject any drift between
+the two. **Never edit generated files by hand; never change the format outside
+`docs/format/*.md`.** Full policy: `docs/CODEGEN.md`.
+
 ### Multi-language strategy
 
 Header parsing uses **native implementations per language** (not FFI). Rationale: the header is 256 bytes / ~13 fields — the parsing logic (~80 lines) is comparable in size to an FFI wrapper, and native packages are trivial to deploy (`pip install`, `cargo add`, `go get`). `EEPROM_FORMAT.md` is the canonical spec; shared binary test vectors in `test-vectors/` ensure cross-language consistency.
