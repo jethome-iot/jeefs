@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from .constants import (
     EEPROM_CRC_COVERAGE,
-    EEPROM_FIELDS,
+    EEPROM_FIELDS_V3,
     EEPROM_HEADER_SIZE,
     EEPROM_HEADER_VERSION,
     EEPROM_MAGIC,
@@ -127,7 +127,9 @@ class EEPROMHeaderV3:
         header = EEPROMHeaderV3.from_bytes(raw_data)
     """
 
-    VERSION = EEPROM_HEADER_VERSION
+    # Pinned literal: this class parses/writes header v3 regardless of the
+    # repo-wide current version (EEPROM_HEADER_VERSION is 4 since RFC #56)
+    VERSION = 3
 
     # Device identity fields
     boardname: str = ""
@@ -233,25 +235,25 @@ class EEPROMHeaderV3:
         # header_reserved (offset 10-11): zeros from init
 
         # String fields
-        off, sz = EEPROM_FIELDS["boardname"]
+        off, sz = EEPROM_FIELDS_V3["boardname"]
         eeprom[off : off + sz] = _pack_string(self.boardname, sz)
 
-        off, sz = EEPROM_FIELDS["boardversion"]
+        off, sz = EEPROM_FIELDS_V3["boardversion"]
         eeprom[off : off + sz] = _pack_string(self.boardversion, sz)
 
-        off, sz = EEPROM_FIELDS["serial"]
+        off, sz = EEPROM_FIELDS_V3["serial"]
         eeprom[off : off + sz] = _pack_bounded(self.serial, sz)
 
-        off, sz = EEPROM_FIELDS["usid"]
+        off, sz = EEPROM_FIELDS_V3["usid"]
         eeprom[off : off + sz] = _pack_bounded(self.usid, sz)
 
-        off, sz = EEPROM_FIELDS["cpuid"]
+        off, sz = EEPROM_FIELDS_V3["cpuid"]
         eeprom[off : off + sz] = _pack_bounded(self.cpuid, sz)
 
         # MAC: 6 raw bytes (offset 172)
         if self.mac:
             mac_bytes = parse_mac_string(self.mac)
-            off, sz = EEPROM_FIELDS["mac"]
+            off, sz = EEPROM_FIELDS_V3["mac"]
             eeprom[off : off + sz] = mac_bytes
 
         # reserved2 (offset 178-179): zeros from init
@@ -260,18 +262,18 @@ class EEPROMHeaderV3:
         if self.signature and self.signature_algorithm != SignatureAlgorithm.NONE:
             expected_size = SIGNATURE_SIZES[self.signature_algorithm]
             sig_data = self.signature[:expected_size]
-            off = EEPROM_FIELDS["signature"][0]
+            off = EEPROM_FIELDS_V3["signature"][0]
             eeprom[off : off + len(sig_data)] = sig_data
 
         # Timestamp (offset 244, int64 little-endian)
         ts = self.timestamp
         if ts is None or ts == 0:
             ts = int(time_module.time())
-        struct.pack_into("<q", eeprom, EEPROM_FIELDS["timestamp"][0], ts)
+        struct.pack_into("<q", eeprom, EEPROM_FIELDS_V3["timestamp"][0], ts)
 
         # CRC32 (offset 252, uint32 little-endian, covers bytes 0-251)
         crc32_value = binascii.crc32(bytes(eeprom[:EEPROM_CRC_COVERAGE])) & 0xFFFFFFFF
-        struct.pack_into("<I", eeprom, EEPROM_FIELDS["crc32"][0], crc32_value)
+        struct.pack_into("<I", eeprom, EEPROM_FIELDS_V3["crc32"][0], crc32_value)
 
         return bytes(eeprom)
 
@@ -292,40 +294,40 @@ class EEPROMHeaderV3:
             raise ValueError(f"Data too short: {len(data)} bytes " f"(need {EEPROM_HEADER_SIZE})")
 
         # Verify magic
-        off, sz = EEPROM_FIELDS["magic"]
+        off, sz = EEPROM_FIELDS_V3["magic"]
         magic = data[off : off + sz]
         if magic != EEPROM_MAGIC:
             raise ValueError(f"Invalid EEPROM magic: {magic!r} (expected {EEPROM_MAGIC!r})")
 
         # Verify version
-        version = data[EEPROM_FIELDS["version"][0]]
-        if version != EEPROM_HEADER_VERSION:
+        version = data[EEPROM_FIELDS_V3["version"][0]]
+        if version != cls.VERSION:
             raise ValueError(
                 f"Unsupported EEPROM header version: {version} "
-                f"(only version {EEPROM_HEADER_VERSION} is supported)"
+                f"(only version {cls.VERSION} is supported)"
             )
 
         # Parse signature algorithm
-        sig_ver_byte = data[EEPROM_FIELDS["signature_version"][0]]
+        sig_ver_byte = data[EEPROM_FIELDS_V3["signature_version"][0]]
         sig_algo = SignatureAlgorithm.from_int(sig_ver_byte)
 
         # Parse string fields
         def get_str(field_name: str) -> str:
-            off, sz = EEPROM_FIELDS[field_name]
+            off, sz = EEPROM_FIELDS_V3[field_name]
             return _unpack_string(data[off : off + sz])
 
         # Parse MAC (6 raw bytes)
-        off, sz = EEPROM_FIELDS["mac"]
+        off, sz = EEPROM_FIELDS_V3["mac"]
         mac_bytes = data[off : off + sz]
         mac_str = ":".join(f"{b:02X}" for b in mac_bytes)
 
         # Parse signature based on algorithm
-        sig_off = EEPROM_FIELDS["signature"][0]
+        sig_off = EEPROM_FIELDS_V3["signature"][0]
         sig_size = SIGNATURE_SIZES.get(sig_algo, 0)
         signature = bytes(data[sig_off : sig_off + sig_size]) if sig_size > 0 else b""
 
         # Parse timestamp (int64 little-endian)
-        ts_off = EEPROM_FIELDS["timestamp"][0]
+        ts_off = EEPROM_FIELDS_V3["timestamp"][0]
         timestamp = struct.unpack("<q", data[ts_off : ts_off + 8])[0]
 
         return cls(
@@ -353,7 +355,7 @@ class EEPROMHeaderV3:
             return False
 
         stored_crc = struct.unpack(
-            "<I", data[EEPROM_FIELDS["crc32"][0] : EEPROM_FIELDS["crc32"][0] + 4]
+            "<I", data[EEPROM_FIELDS_V3["crc32"][0] : EEPROM_FIELDS_V3["crc32"][0] + 4]
         )[0]
         expected_crc = binascii.crc32(data[:EEPROM_CRC_COVERAGE]) & 0xFFFFFFFF
         return stored_crc == expected_crc
@@ -371,7 +373,7 @@ class EEPROMHeaderV3:
         if len(data) < EEPROM_HEADER_SIZE:
             return False
 
-        crc_off = EEPROM_FIELDS["crc32"][0]
+        crc_off = EEPROM_FIELDS_V3["crc32"][0]
         stored_crc = struct.unpack("<I", data[crc_off : crc_off + 4])[0]
         expected_crc = binascii.crc32(data[:EEPROM_CRC_COVERAGE]) & 0xFFFFFFFF
         return stored_crc == expected_crc

@@ -52,7 +52,7 @@ EEPROM_BOARDVERSION_LENGTH = 31
 EEPROM_CPUID_LENGTH = 32
 EEPROM_EMPTYBYTE = 0x00
 EEPROM_FILE_NAME_LENGTH = 15
-EEPROM_HEADER_VERSION = 3
+EEPROM_HEADER_VERSION = 4
 EEPROM_MAC_LENGTH = 6
 EEPROM_MAGIC = b"JETHOME\x00"
 EEPROM_MAGIC_LENGTH = 8
@@ -61,8 +61,28 @@ EEPROM_SERIAL_LENGTH = 32
 EEPROM_SIGNATURE_FIELD_SIZE = 64
 EEPROM_USID_LENGTH = 32
 
-# Field offsets and sizes for JEEPROMHeaderv3
+# Field offsets and sizes for JEEPROMHeaderv4
 EEPROM_FIELDS: dict[str, tuple[int, int]] = {
+    "magic": (0, 8),
+    "version": (8, 1),
+    "signature_version": (9, 1),
+    "header_reserved": (10, 2),
+    "boardname": (12, 32),
+    "boardversion": (44, 32),
+    "board_serial": (76, 32),
+    "usid": (108, 32),
+    "cpuid": (140, 32),
+    "mac": (172, 6),
+    "reserved2": (178, 2),
+    "signature": (180, 64),
+    "timestamp": (244, 8),
+    "crc32": (252, 4),
+}
+EEPROM_HEADER_SIZE = 256
+EEPROM_CRC_COVERAGE = 252
+
+# Field offsets and sizes for JEEPROMHeaderv3
+EEPROM_FIELDS_V3: dict[str, tuple[int, int]] = {
     "magic": (0, 8),
     "version": (8, 1),
     "signature_version": (9, 1),
@@ -78,8 +98,8 @@ EEPROM_FIELDS: dict[str, tuple[int, int]] = {
     "timestamp": (244, 8),
     "crc32": (252, 4),
 }
-EEPROM_HEADER_SIZE = 256
-EEPROM_CRC_COVERAGE = 252
+EEPROM_V3_HEADER_SIZE = 256
+EEPROM_V3_CRC_COVERAGE = 252
 
 # Field offsets and sizes for JEEPROMHeaderv2
 EEPROM_FIELDS_V2: dict[str, tuple[int, int]] = {

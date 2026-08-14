@@ -7,6 +7,7 @@ Provides a single source of truth for JEEPROMHeaderv3 binary format.
 from .constants import (
     EEPROM_CRC_COVERAGE,
     EEPROM_FIELDS,
+    EEPROM_FIELDS_V3,
     EEPROM_HEADER_SIZE,
     EEPROM_HEADER_VERSION,
     EEPROM_MAGIC,
@@ -22,6 +23,7 @@ __all__ = [
     "SignatureAlgorithm",
     "SIGNATURE_SIZES",
     "EEPROM_FIELDS",
+    "EEPROM_FIELDS_V3",
     "EEPROM_HEADER_SIZE",
     "EEPROM_HEADER_VERSION",
     "EEPROM_MAGIC",

@@ -41,7 +41,7 @@ Used to detect the header version by reading only the first 12 bytes. The `versi
 | 1     | SECP192R1 | 48             | ECDSA secp192r1/NIST P-192, r‖s  |
 | 2     | SECP256R1 | 64             | ECDSA secp256r1/NIST P-256, r‖s  |
 
-- Stored in the `signature_version` byte at offset 9 of header v3 and of
+- Stored in the `signature_version` byte at offset 9 of headers v3/v4 and of
   the DeviceIdentityV1 record ([device-identity-v1.md](device-identity-v1.md)).
 - Signature is raw `r || s` concatenation (not DER-encoded).
 - `secp192r1`: bytes 180-227 used (48B), bytes 228-243 are zeros.
@@ -55,7 +55,7 @@ Used to detect the header version by reading only the first 12 bytes. The `versi
 |---------------------|-----------|--------|-----------------------------------------|
 | MAGIC               | "JETHOME" | string | Magic string (7 chars, without null)    |
 | MAGIC_LENGTH        | 8         | int    | Magic field size (including null byte)  |
-| HEADER_VERSION      | 3         | int    | Current (latest) header version         |
+| HEADER_VERSION      | 4         | int    | Current (latest) header version         |
 | SIGNATURE_FIELD_SIZE| 64        | int    | Total signature field size in bytes     |
 | FILE_NAME_LENGTH    | 15        | int    | Max filename length (excluding null)    |
 | MAC_LENGTH          | 6         | int    | MAC address size in bytes               |
@@ -79,3 +79,4 @@ The C implementation provides a union for version-agnostic header handling:
 | v1      | JEEPROMHeaderv1      | Full v1 header (512B)    |
 | v2      | JEEPROMHeaderv2      | Full v2 header (256B)    |
 | v3      | JEEPROMHeaderv3      | Full v3 header (256B)    |
+| v4      | JEEPROMHeaderv4      | Full v4 header (256B)    |

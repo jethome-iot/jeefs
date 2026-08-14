@@ -22,7 +22,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "python"))
 
-from jeefs.constants_generated import EEPROM_FIELDS  # noqa: E402
+from jeefs.constants_generated import EEPROM_FIELDS_V3 as EEPROM_FIELDS  # noqa: E402
 
 
 def verify(bin_path: str, json_path: str) -> int:

@@ -18,7 +18,7 @@ simply the way to fix that diff.
 
 | Role | Files |
 |------|-------|
-| Source of truth (edit these) | `docs/format/header-common.md`, `header-v1.md`, `header-v2.md`, `header-v3.md`, `filesystem-v1.md` |
+| Source of truth (edit these) | `docs/format/header-common.md`, `header-v1.md`, `header-v2.md`, `header-v3.md`, `header-v4.md`, `filesystem-v1.md` |
 | Generated (never edit by hand) | `include/jeefs_generated.h`, `python/jeefs/constants_generated.py`, `rust/jeefs-header/src/generated.rs` |
 | Generator | `tools/jeefs_codegen/` (parser, validator, per-language generators) |
 
@@ -53,7 +53,7 @@ $EDITOR docs/format/header-v3.md
 cd tools && python3 -m jeefs_codegen \
     --specs ../docs/format/header-common.md ../docs/format/header-v1.md \
             ../docs/format/header-v2.md ../docs/format/header-v3.md \
-            ../docs/format/filesystem-v1.md \
+            ../docs/format/header-v4.md ../docs/format/filesystem-v1.md \
     --c-output ../include/jeefs_generated.h \
     --py-output ../python/jeefs/constants_generated.py \
     --rs-output ../rust/jeefs-header/src/generated.rs
