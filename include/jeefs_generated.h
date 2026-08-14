@@ -19,19 +19,19 @@ extern "C" {
 
 // --- Named constants ---
 
-#define MAGIC "JETHOME"
-#define MAGIC_LENGTH 8
-#define HEADER_VERSION 3
-#define SIGNATURE_FIELD_SIZE 64
-#define FILE_NAME_LENGTH 15
-#define MAC_LENGTH 6
-#define SERIAL_LENGTH 32
-#define USID_LENGTH 32
-#define CPUID_LENGTH 32
 #define BOARDNAME_LENGTH 31
 #define BOARDVERSION_LENGTH 31
+#define CPUID_LENGTH 32
 #define EEPROM_EMPTYBYTE '\x00'
 #define EEPROM_PARTITION_SIZE 4096
+#define FILE_NAME_LENGTH 15
+#define HEADER_VERSION 3
+#define MAC_LENGTH 6
+#define MAGIC "JETHOME"
+#define MAGIC_LENGTH 8
+#define SERIAL_LENGTH 32
+#define SIGNATURE_FIELD_SIZE 64
+#define USID_LENGTH 32
 
 // JEEFSSignatureAlgorithm
 enum JEEFSSignatureAlgorithm {

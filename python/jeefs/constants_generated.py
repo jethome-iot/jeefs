@@ -47,19 +47,19 @@ SIGNATURE_SIZES: dict[SignatureAlgorithm, int] = {
 
 # --- Named constants ---
 
-EEPROM_MAGIC = b"JETHOME\x00"
-EEPROM_MAGIC_LENGTH = 8
-EEPROM_HEADER_VERSION = 3
-EEPROM_SIGNATURE_FIELD_SIZE = 64
-EEPROM_FILE_NAME_LENGTH = 15
-EEPROM_MAC_LENGTH = 6
-EEPROM_SERIAL_LENGTH = 32
-EEPROM_USID_LENGTH = 32
-EEPROM_CPUID_LENGTH = 32
 EEPROM_BOARDNAME_LENGTH = 31
 EEPROM_BOARDVERSION_LENGTH = 31
+EEPROM_CPUID_LENGTH = 32
 EEPROM_EMPTYBYTE = 0x00
 EEPROM_PARTITION_SIZE = 4096
+EEPROM_FILE_NAME_LENGTH = 15
+EEPROM_HEADER_VERSION = 3
+EEPROM_MAC_LENGTH = 6
+EEPROM_MAGIC = b"JETHOME\x00"
+EEPROM_MAGIC_LENGTH = 8
+EEPROM_SERIAL_LENGTH = 32
+EEPROM_SIGNATURE_FIELD_SIZE = 64
+EEPROM_USID_LENGTH = 32
 
 # Field offsets and sizes for JEEPROMHeaderv3
 EEPROM_FIELDS: dict[str, tuple[int, int]] = {
@@ -118,17 +118,17 @@ EEPROM_FIELDS_V1: dict[str, tuple[int, int]] = {
 EEPROM_V1_HEADER_SIZE = 512
 EEPROM_V1_CRC_COVERAGE = 508
 
-# Field offsets and sizes for JEEPROMHeaderversion
-EEPROM_FIELDS_JEEPROMHEADERVERSION: dict[str, tuple[int, int]] = {
-    "magic": (0, 8),
-    "version": (8, 1),
-    "reserved1": (9, 3),
-}
-
 # Field offsets and sizes for JEEFSFileHeaderv1
 EEPROM_FIELDS_JEEFSFILEHEADERV1: dict[str, tuple[int, int]] = {
     "name": (0, 16),
     "dataSize": (16, 2),
     "crc32": (18, 4),
     "nextFileAddress": (22, 2),
+}
+
+# Field offsets and sizes for JEEPROMHeaderversion
+EEPROM_FIELDS_JEEPROMHEADERVERSION: dict[str, tuple[int, int]] = {
+    "magic": (0, 8),
+    "version": (8, 1),
+    "reserved1": (9, 3),
 }

@@ -317,7 +317,11 @@ def parse_file(path: Path) -> FormatSpec:
 
 
 def parse_files(paths: list[Path]) -> FormatSpec:
-    """Parse multiple markdown files and merge into a single FormatSpec."""
+    """Parse multiple markdown files and merge into a single FormatSpec.
+
+    The merged spec is sorted on stable keys so generated output does not
+    depend on the order of the --specs arguments (#12).
+    """
     merged = FormatSpec()
     for path in paths:
         spec = parse_file(path)
@@ -325,4 +329,9 @@ def parse_files(paths: list[Path]) -> FormatSpec:
         merged.enums.extend(spec.enums)
         merged.constants.extend(spec.constants)
         merged.unions.extend(spec.unions)
+
+    merged.structs.sort(key=lambda s: (-(s.version or 0), s.name))
+    merged.enums.sort(key=lambda e: e.name)
+    merged.unions.sort(key=lambda u: u.name)
+    merged.constants.sort(key=lambda c: c.name)
     return merged
