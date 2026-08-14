@@ -35,6 +35,10 @@ else()
     # TODO: add target_link_libraries(JeefsApp eepromops-file)
 endif()
 
+# The FS layer builds its header operations on the pure header library.
+target_link_libraries(jeefs jeefs_header)
+target_link_libraries(jeefsstatic jeefs_header)
+
 
 target_link_libraries(jeefs ZLIB::ZLIB)
 target_link_libraries(jeefsstatic ZLIB::ZLIB)
