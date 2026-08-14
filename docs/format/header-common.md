@@ -9,7 +9,12 @@ This file defines constants, enumerations, and shared properties used across all
 - **CRC32:** IEEE 802.3 polynomial `0xEDB88320` (same as zlib `crc32()`). Covers bytes 0 through `header_size - 4 - 1`.
 - **Packing:** No padding — all structs use `#pragma pack(push, 1)`.
 - **Empty bytes:** Both `0x00` and `0xFF` are treated as "empty/unwritten".
-- **String fields:** Null-terminated UTF-8, zero-padded to field size.
+- **String fields:** two kinds (RFC #13):
+  - *name-like* (`boardname`, `boardversion`): null-terminated, zero-padded
+    — at most `size - 1` content bytes;
+  - *bounded* (`serial`, `usid`, `cpuid`): printable ASCII, zero-padded,
+    NUL optional when the value fills the field — all bytes usable.
+    Content validation is outside the library.
 
 ## Version Detection Struct
 

@@ -56,7 +56,7 @@ typedef struct {
     uint8_t reserved1[3];  // 3B, offset 9, Reserved (zeros)
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-term.
-    uint8_t serial[32];  // 32B, offset 76, Device serial number
+    uint8_t serial[32];  // 32B, offset 76, Board serial (bounded str.)
     uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID
     uint8_t cpuid[32];  // 32B, offset 140, CPU ID
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
@@ -73,7 +73,7 @@ typedef struct {
     uint8_t reserved1[3];  // 3B, offset 9, Reserved (zeros)
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-term.
-    uint8_t serial[32];  // 32B, offset 76, Device serial number
+    uint8_t serial[32];  // 32B, offset 76, Board serial (bounded str.)
     uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID
     uint8_t cpuid[32];  // 32B, offset 140, CPU ID
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
@@ -90,9 +90,9 @@ typedef struct {
     uint8_t header_reserved[2];  // 2B, offset 10, Reserved (zeros)
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-terminated
-    uint8_t serial[32];  // 32B, offset 76, Device serial number
-    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID
-    uint8_t cpuid[32];  // 32B, offset 140, CPU ID / factory MAC
+    uint8_t serial[32];  // 32B, offset 76, Board serial number (bounded string)
+    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID (bounded string)
+    uint8_t cpuid[32];  // 32B, offset 140, CPU ID / factory MAC (bounded string)
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved for extended MAC
     uint8_t signature[64];  // 64B, offset 180, ECDSA signature (r‖s, zero-padded)

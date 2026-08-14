@@ -74,7 +74,7 @@ pub struct JeepromHeaderV1 {
     pub reserved1: [u8; 3],  // Reserved (zeros)
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-term.
-    pub serial: [u8; 32],  // Device serial number
+    pub serial: [u8; 32],  // Board serial (bounded str.)
     pub usid: [u8; 32],  // CPU eFuse USID
     pub cpuid: [u8; 32],  // CPU ID
     pub mac: [u8; 6],  // MAC address (6 raw bytes)
@@ -115,7 +115,7 @@ pub struct JeepromHeaderV2 {
     pub reserved1: [u8; 3],  // Reserved (zeros)
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-term.
-    pub serial: [u8; 32],  // Device serial number
+    pub serial: [u8; 32],  // Board serial (bounded str.)
     pub usid: [u8; 32],  // CPU eFuse USID
     pub cpuid: [u8; 32],  // CPU ID
     pub mac: [u8; 6],  // MAC address (6 raw bytes)
@@ -155,9 +155,9 @@ pub struct JeepromHeaderV3 {
     pub header_reserved: [u8; 2],  // Reserved (zeros)
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-terminated
-    pub serial: [u8; 32],  // Device serial number
-    pub usid: [u8; 32],  // CPU eFuse USID
-    pub cpuid: [u8; 32],  // CPU ID / factory MAC
+    pub serial: [u8; 32],  // Board serial number (bounded string)
+    pub usid: [u8; 32],  // CPU eFuse USID (bounded string)
+    pub cpuid: [u8; 32],  // CPU ID / factory MAC (bounded string)
     pub mac: [u8; 6],  // MAC address (6 raw bytes)
     pub reserved2: [u8; 2],  // Reserved for extended MAC
     pub signature: [u8; 64],  // ECDSA signature (r‖s, zero-padded)
