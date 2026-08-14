@@ -3,7 +3,7 @@
 
 use crate::generated::*;
 
-/// Detect header version from raw bytes. Returns `Some(1..=3)` or `None`.
+/// Detect header version from raw bytes. Returns `Some(1..=4)` or `None`.
 pub fn detect_version(data: &[u8]) -> Option<u8> {
     if data.len() < core::mem::size_of::<JeepromHeaderVersion>() {
         return None;
@@ -12,7 +12,7 @@ pub fn detect_version(data: &[u8]) -> Option<u8> {
         return None;
     }
     let ver = data[8];
-    if (1..=3).contains(&ver) {
+    if (1..=4).contains(&ver) {
         Some(ver)
     } else {
         None
@@ -25,6 +25,7 @@ pub fn header_size(version: u8) -> Option<usize> {
         1 => Some(core::mem::size_of::<JeepromHeaderV1>()),
         2 => Some(core::mem::size_of::<JeepromHeaderV2>()),
         3 => Some(core::mem::size_of::<JeepromHeaderV3>()),
+        4 => Some(core::mem::size_of::<JeepromHeaderV4>()),
         _ => None,
     }
 }
@@ -35,6 +36,7 @@ fn crc_coverage(version: u8) -> Option<usize> {
         1 => Some(508), // 512 - 4
         2 => Some(252), // 256 - 4
         3 => Some(252), // 256 - 4
+        4 => Some(252), // 256 - 4
         _ => None,
     }
 }
@@ -238,6 +240,15 @@ mod tests {
     use alloc::vec;
     use alloc::vec::Vec;
 
+    #[test]
+    fn v4_init_detect_verify_round_trip() {
+        let mut buf = vec![0u8; 256];
+        assert!(initialize_header(&mut buf, 4));
+        assert_eq!(detect_version(&buf), Some(4));
+        assert_eq!(header_size(4), Some(256));
+        assert!(verify_crc(&buf));
+    }
+
     fn make_v3_header() -> Vec<u8> {
         let mut buf = vec![0u8; 256];
         // Magic
@@ -286,7 +297,8 @@ mod tests {
         assert_eq!(header_size(1), Some(512));
         assert_eq!(header_size(2), Some(256));
         assert_eq!(header_size(3), Some(256));
-        assert_eq!(header_size(4), None);
+        assert_eq!(header_size(4), Some(256));
+        assert_eq!(header_size(5), None);
     }
 
     #[test]
@@ -333,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_initialize_header() {
-        for ver in [1u8, 2, 3] {
+        for ver in [1u8, 2, 3, 4] {
             let size = header_size(ver).unwrap();
             let mut buf = vec![0xFFu8; size];
             assert!(initialize_header(&mut buf, ver));
@@ -342,7 +354,7 @@ mod tests {
         }
         let mut buf = [0u8; 512];
         assert!(!initialize_header(&mut buf, 0));
-        assert!(!initialize_header(&mut buf, 4));
+        assert!(!initialize_header(&mut buf, 5));
         // Buffer too small
         let mut small = [0u8; 100];
         assert!(!initialize_header(&mut small, 3));
