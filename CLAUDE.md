@@ -8,7 +8,7 @@ JEEFS (JetHome EEPROM File System) — a library for working with a simple linke
 
 The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/Go/TypeScript) with two areas:
 
-1. **Header parsing/manipulation** (priority) — native implementations per language, `EEPROM_FORMAT.md` as source of truth, shared binary test vectors
+1. **Header parsing/manipulation** (priority) — native implementations per language, `docs/format/*.md` as source of truth, shared binary test vectors
 2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header
 
 ### Code generation policy
@@ -18,11 +18,12 @@ The build never runs the generator: `include/jeefs_generated.h`,
 are committed, reviewed files. `docs/format/*.md` is the canonical format
 description; CI (`codegen-check`) and the prek hook reject any drift between
 the two. **Never edit generated files by hand; never change the format outside
-`docs/format/*.md`.** Full policy: `docs/CODEGEN.md`.
+`docs/format/*.md`.** Local hooks: `brew install prek && prek install`
+(one time per clone). Full policy: `docs/CODEGEN.md`.
 
 ### Multi-language strategy
 
-Header parsing uses **native implementations per language** (not FFI). Rationale: the header is 256 bytes / ~13 fields — the parsing logic (~80 lines) is comparable in size to an FFI wrapper, and native packages are trivial to deploy (`pip install`, `cargo add`, `go get`). `EEPROM_FORMAT.md` is the canonical spec; shared binary test vectors in `test-vectors/` ensure cross-language consistency.
+Header parsing uses **native implementations per language** (not FFI). Rationale: the header is 256 bytes / ~13 fields — the parsing logic (~80 lines) is comparable in size to an FFI wrapper, and native packages are trivial to deploy (`pip install`, `cargo add`, `go get`). `docs/format/*.md` is the canonical spec (`EEPROM_FORMAT.md` is a human-readable overview); shared binary test vectors in `test-vectors/` ensure cross-language consistency.
 
 FS operations stay in C/C++ — more complex, I/O-dependent, only needed on embedded targets.
 
@@ -108,7 +109,7 @@ Offset 0:
 
 All structures use `#pragma pack(push, 1)` — no padding. Addresses are `uint16_t` (max 64KB). Empty bytes are `0x00` or `0xFF` (both treated as empty). All multi-byte fields are **little-endian**. Magic is `4A 45 54 48 4F 4D 45 00` ("JETHOME\0") for all versions. CRC32 uses IEEE 802.3 polynomial (zlib `crc32()`).
 
-See `EEPROM_FORMAT.md` for full field-by-field layout tables for all versions.
+See `docs/format/*.md` (canonical) and `EEPROM_FORMAT.md` (overview) for field-by-field layout tables.
 
 ### Key Data Structures
 
@@ -132,8 +133,7 @@ Negative return values are errors defined in `EEPROMError` enum: `FILEEXISTS`, `
 
 ### Known Issues / TODOs in Code
 
-- Binary test vectors (`test-vectors/`) not yet generated — planned for cross-language CI
-- Additional language implementations (Rust, Go, TypeScript) planned but not yet started
+- Go and TypeScript implementations planned, not yet started (Rust exists in `rust/jeefs-header/`)
 
 ## CMake Options
 
@@ -161,7 +161,10 @@ python/
   tests/             # pytest suite (58 tests)
   pyproject.toml     # Package config (jeefs)
 tests/               # C test suite (ctest)
-EEPROM_FORMAT.md     # Canonical binary format specification
+docs/format/         # Canonical machine-readable format specs (codegen source)
+docs/CODEGEN.md      # Generated-files policy
+tools/jeefs_codegen/ # Spec parser + C/Python/Rust generators
+EEPROM_FORMAT.md     # Human-readable format overview
 ```
 
 ## CI/CD
