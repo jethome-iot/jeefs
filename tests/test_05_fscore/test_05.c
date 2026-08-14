@@ -7,6 +7,8 @@
  * Every scenario runs on its own freshly created image.
  */
 
+/* Tests must assert in every build type, including -DNDEBUG ones. */
+#undef NDEBUG
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

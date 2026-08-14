@@ -8,6 +8,8 @@
  * on the wrapper: RAII, buffers, error propagation, header round-trips.
  */
 
+/* Tests must assert in every build type, including -DNDEBUG ones. */
+#undef NDEBUG
 #include <cassert>
 #include <cstdio>
 #include <cstring>
