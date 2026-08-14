@@ -31,11 +31,10 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            rust/jeefs-header/target
             ~/.cargo/registry
             ~/.cargo/git
-          key: rust-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
-          restore-keys: rust-${{ runner.os }}-
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
 
       - name: CMake configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -64,11 +63,10 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            rust/jeefs-header/target
             ~/.cargo/registry
             ~/.cargo/git
-          key: rust-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
-          restore-keys: rust-${{ runner.os }}-
+          key: cargo-deps-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
+          restore-keys: cargo-deps-${{ runner.os }}-
 
       - name: Rust unit tests
         run: cargo test --manifest-path rust/jeefs-header/Cargo.toml --verbose
