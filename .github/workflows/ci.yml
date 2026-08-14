@@ -158,6 +158,7 @@ jobs:
       - name: Configure with ASan/UBSan
         run: >
           cmake -B build-asan -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"
           -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"
 
