@@ -1,0 +1,5 @@
+# Custom labels of the project's self-hosted runners (CI policy: no
+# GitHub-hosted runners), so actionlint can validate runs-on entries.
+self-hosted-runner:
+  labels:
+    - amd64
