@@ -76,7 +76,7 @@ static int json_get_string(const char *json, const char *key, char *out, size_t 
     const char *end = strchr(pos, '"');
     if (!end)
         return -1;
-    size_t len = (size_t)(end - pos);
+    size_t len = (size_t) (end - pos);
     if (len >= out_size)
         len = out_size - 1;
     memcpy(out, pos, len);
@@ -163,25 +163,25 @@ int main(int argc, char *argv[]) {
 
     /* Verify individual fields based on version */
     char expected_str[256];
-    const JEEPROMHeaderversion *hdr_ver = (const JEEPROMHeaderversion *)bin_data;
-    (void)hdr_ver;
+    const JEEPROMHeaderversion *hdr_ver = (const JEEPROMHeaderversion *) bin_data;
+    (void) hdr_ver;
 
     /* Common string fields across all versions (at same offsets) */
     /* boardname at offset 12, boardversion at 44, serial at 76, usid at 108, cpuid at 140, mac at 172 */
     if (json_get_string(json, "boardname", expected_str, sizeof(expected_str)) == 0) {
-        check_string("boardname", (const char *)(bin_data + 12), expected_str);
+        check_string("boardname", (const char *) (bin_data + 12), expected_str);
     }
     if (json_get_string(json, "boardversion", expected_str, sizeof(expected_str)) == 0) {
-        check_string("boardversion", (const char *)(bin_data + 44), expected_str);
+        check_string("boardversion", (const char *) (bin_data + 44), expected_str);
     }
     if (json_get_string(json, "serial", expected_str, sizeof(expected_str)) == 0) {
-        check_string("serial", (const char *)(bin_data + 76), expected_str);
+        check_string("serial", (const char *) (bin_data + 76), expected_str);
     }
     if (json_get_string(json, "usid", expected_str, sizeof(expected_str)) == 0) {
-        check_string("usid", (const char *)(bin_data + 108), expected_str);
+        check_string("usid", (const char *) (bin_data + 108), expected_str);
     }
     if (json_get_string(json, "cpuid", expected_str, sizeof(expected_str)) == 0) {
-        check_string("cpuid", (const char *)(bin_data + 140), expected_str);
+        check_string("cpuid", (const char *) (bin_data + 140), expected_str);
     }
     if (json_get_string(json, "mac", expected_str, sizeof(expected_str)) == 0) {
         check_mac("mac", bin_data + 172, expected_str);
@@ -199,10 +199,10 @@ int main(int argc, char *argv[]) {
             int64_t actual_ts;
             memcpy(&actual_ts, bin_data + 244, 8);
             if (actual_ts != expected_ts) {
-                fprintf(stderr, "  FAIL: timestamp = %lld (expected %lld)\n", (long long)actual_ts, expected_ts);
+                fprintf(stderr, "  FAIL: timestamp = %lld (expected %lld)\n", (long long) actual_ts, expected_ts);
                 failures++;
             } else {
-                printf("  OK: timestamp = %lld\n", (long long)actual_ts);
+                printf("  OK: timestamp = %lld\n", (long long) actual_ts);
             }
         }
     }

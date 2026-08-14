@@ -7,18 +7,18 @@
 /* Tests must assert in every build type, including -DNDEBUG ones. */
 #undef NDEBUG
 #include <assert.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libgen.h>
 
 #define DEBUG 1
 
-#include "jeefs.h"
-#include "tests-common.h"
 #include "debug.h"
 #include "eepromerr.h"
+#include "jeefs.h"
+#include "tests-common.h"
 
 void test0(int version, int expected_header_size);
 
@@ -30,7 +30,7 @@ static void prepare_eeprom_file(void) {
 }
 
 int main() {
-    printf("Hello, World! DEBUG:%i\n",DEBUG);
+    printf("Hello, World! DEBUG:%i\n", DEBUG);
     // print sizes of structures from jeefs.h
     printf("sizeof(JEEPROMHeaderv1) = %lu\n", sizeof(JEEPROMHeaderv1));
     printf("sizeof(JEEPROMHeaderv2) = %lu\n", sizeof(JEEPROMHeaderv2));
@@ -39,23 +39,27 @@ int main() {
 
     char dir[1000];
     getcwd(dir, sizeof(dir));
-    debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: %s\n",
+    debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: "
+          "%s\n",
           TEST_DIR, TEST_FILENAME, TEST_EEPROM_PATH, TEST_EEPROM_FILENAME, TEST_EEPROM_SIZE, dir);
 
     // Test v1 format
     prepare_eeprom_file();
     test0(1, sizeof(JEEPROMHeaderv1));
-    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v1) - passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v1) - "
+           "passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 
     // Test v2 format
     prepare_eeprom_file();
     test0(2, sizeof(JEEPROMHeaderv2));
-    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v2) - passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v2) - "
+           "passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 
     // Test v3 format
     prepare_eeprom_file();
     test0(3, sizeof(JEEPROMHeaderv3));
-    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v3) - passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v3) - "
+           "passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 
     // Re-format with v1 for subsequent tests (test_01, test_02)
     prepare_eeprom_file();
@@ -68,8 +72,7 @@ int main() {
 
 
 void test0(int version, int expected_header_size) {
-    printf("\n--- Testing format with header version %d (header size %d) ---\n",
-           version, expected_header_size);
+    printf("\n--- Testing format with header version %d (header size %d) ---\n", version, expected_header_size);
 
     EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
     assert("Check eeprom_open result" && ep.eeprom_fid > 0);
@@ -93,9 +96,9 @@ void test0(int version, int expected_header_size) {
     assert(buf != NULL && buf2 != NULL);
     memset(buf, EEPROM_EMPTYBYTE, ep.eeprom_size);
     lseek(ep.eeprom_fid, 0, SEEK_SET);
-    assert(read(ep.eeprom_fid, buf2, ep.eeprom_size) == (ssize_t)ep.eeprom_size);
+    assert(read(ep.eeprom_fid, buf2, ep.eeprom_size) == (ssize_t) ep.eeprom_size);
     printf("Check EEPROM data consistency (after header at offset %d)\n", expected_header_size);
-    for (size_t i = (size_t)expected_header_size; i < ep.eeprom_size; i++) {
+    for (size_t i = (size_t) expected_header_size; i < ep.eeprom_size; i++) {
         assert("\nCheck EEPROM data consistency failed\n" && buf[i] == buf2[i]);
     }
     free(buf);
@@ -103,4 +106,3 @@ void test0(int version, int expected_header_size) {
 
     EEPROM_CloseEEPROM(ep);
 }
-

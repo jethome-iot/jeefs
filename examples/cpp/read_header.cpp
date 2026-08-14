@@ -44,8 +44,7 @@ int main(int argc, char *argv[]) {
     // Check buffer is large enough for this version's struct
     int expected = jeefs_header_size(*version);
     if (expected < 0 || buf.size() < static_cast<size_t>(expected)) {
-        std::cerr << "Error: file too short for v" << *version
-                  << " header (" << buf.size() << " < " << expected
+        std::cerr << "Error: file too short for v" << *version << " header (" << buf.size() << " < " << expected
                   << " bytes)" << std::endl;
         return 1;
     }
@@ -62,8 +61,7 @@ int main(int argc, char *argv[]) {
 
     const uint8_t *mac = view.mac();
     if (mac) {
-        std::printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3],
-                     mac[4], mac[5]);
+        std::printf("MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     }
 
     return 0;

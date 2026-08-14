@@ -7,38 +7,40 @@
 /* Tests must assert in every build type, including -DNDEBUG ones. */
 #undef NDEBUG
 #include <assert.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libgen.h>
 
 #define DEBUG 1
 
-#include "jeefs.h"
-#include "tests-common.h"
 #include "debug.h"
 #include "eepromerr.h"
+#include "jeefs.h"
+#include "tests-common.h"
 
 void test1();
 
 void test2();
 
 int main() {
-    printf("Hello, World! DEBUG:%i\n",DEBUG);
+    printf("Hello, World! DEBUG:%i\n", DEBUG);
     // print sizes of structures from jeefs.h
     printf("sizeof(JEEPROMHeaderv1) = %lu\n", sizeof(JEEPROMHeaderv2));
     printf("sizeof(JEEFSFileHeader) = %lu\n", sizeof(JEEFSFileHeader));
 
     char dir[1000];
     getcwd(dir, sizeof(dir));
-    debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: %s\n",
+    debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: "
+          "%s\n",
           TEST_DIR, TEST_FILENAME, TEST_EEPROM_PATH, TEST_EEPROM_FILENAME, TEST_EEPROM_SIZE, dir);
 
     // Test 1: open, write, close
     test1();
 
-    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 1 - passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 1 - "
+           "passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     return 0;
 }
 
@@ -65,18 +67,18 @@ void test1() {
     uint16_t filesize;
     int err;
     size_t i;
-    for (i = 0; i < sizeof(test_files)/sizeof (char *); i++) {
+    for (i = 0; i < sizeof(test_files) / sizeof(char *); i++) {
         sprintf(filename, "%s_%zu", TEST_FILENAME, i);
-        printf("!!!!++++ Add new file %s\n",filename);
-        filesize = strlen(test_files[i])+1;
-        memcpy(filedata, test_files[i],filesize);
+        printf("!!!!++++ Add new file %s\n", filename);
+        filesize = strlen(test_files[i]) + 1;
+        memcpy(filedata, test_files[i], filesize);
 
-        err = EEPROM_AddFile(ep, filename, filedata, strlen(test_files[i])+1);
+        err = EEPROM_AddFile(ep, filename, filedata, strlen(test_files[i]) + 1);
         printf("EEPROM_AddFile: %i\n", err);
         fflush(stdout);
         if (err == NOTENOUGHSPACE)
             break; // EEPROM full: expected once ~10 files are in
-        assert("Check EEPROM_AddFile wrote the file" && err == (int)filesize);
+        assert("Check EEPROM_AddFile wrote the file" && err == (int) filesize);
 
         printf("File %zu: %s size:%i\n", i, filename, filesize);
         memset(filedata, 0, sizeof(filedata));
@@ -87,6 +89,4 @@ void test1() {
     int consistency = EEPROM_HeaderCheckConsistency(ep);
     assert("Check EEPROM_header consistency after adds" && consistency == 1);
     EEPROM_CloseEEPROM(ep);
-
 }
-

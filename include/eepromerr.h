@@ -12,22 +12,22 @@ extern "C" {
 #endif
 
 typedef enum {
-  NOTHINGDO = 0,
-  FILEEXISTS = -1,
-  FILENAMETOOLONG = -2,
-  FILENAMETOOSHORT = -3,
-  FILENAMENOTVALID = -4,
-  // File not found
-  FILENOTFOUND = -5,
-  // Not enough buffer space
-  NOTENOUGHSPACE = -6,
-  // File already exists
-  FILEALREADYEXISTS = -7,
-  // buffer not valid
-  BUFFERNOTVALID = -8,
-  EEPROMCORRUPTED = -10,
-  EEPROMREADERROR = -11,
-  EEPROMWRITEERROR = -12
+    NOTHINGDO = 0,
+    FILEEXISTS = -1,
+    FILENAMETOOLONG = -2,
+    FILENAMETOOSHORT = -3,
+    FILENAMENOTVALID = -4,
+    // File not found
+    FILENOTFOUND = -5,
+    // Not enough buffer space
+    NOTENOUGHSPACE = -6,
+    // File already exists
+    FILEALREADYEXISTS = -7,
+    // buffer not valid
+    BUFFERNOTVALID = -8,
+    EEPROMCORRUPTED = -10,
+    EEPROMREADERROR = -11,
+    EEPROMWRITEERROR = -12
 } EEPROMError;
 
 #ifdef __cplusplus

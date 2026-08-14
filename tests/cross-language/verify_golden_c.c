@@ -75,9 +75,9 @@ int main(int argc, char *argv[]) {
         printf("  OK: header CRC32 valid\n");
     }
 
-    check_str("boardname", (const char *)(eeprom + 12), "JetHub-D1p");
-    check_str("boardversion", (const char *)(eeprom + 44), "2.0");
-    check_str("serial", (const char *)(eeprom + 76), "SN-GOLDEN-001");
+    check_str("boardname", (const char *) (eeprom + 12), "JetHub-D1p");
+    check_str("boardversion", (const char *) (eeprom + 44), "2.0");
+    check_str("serial", (const char *) (eeprom + 76), "SN-GOLDEN-001");
     check_int("signature_version", eeprom[9], 0);
 
     printf("\n=== Filesystem verification ===\n");
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
     uint16_t offset = 256; /* after v3 header */
 
     while (offset != 0 && offset < EEPROM_SIZE) {
-        const JEEFSFileHeaderv1 *fh = (const JEEFSFileHeaderv1 *)(eeprom + offset);
+        const JEEFSFileHeaderv1 *fh = (const JEEFSFileHeaderv1 *) (eeprom + offset);
 
         /* Check if this looks like a valid file header */
         if (fh->name[0] == '\0')

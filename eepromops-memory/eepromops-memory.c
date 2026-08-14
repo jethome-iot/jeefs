@@ -4,18 +4,18 @@
  * Author: Viacheslav Bocharov <v@baodeep.com>
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <assert.h>
-#include <memory.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <memory.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include "../include/eepromops.h"
 #include "../include/debug.h"
+#include "../include/eepromops.h"
 
 typedef struct EEPROMBlock {
     uint8_t *data;
@@ -33,8 +33,8 @@ static EEPROMBlock *head_block = NULL;
 // Internal functions
 static uint16_t eeprom_getsize(EEPROMDescriptor eeprom_descriptor);
 // Internal function to create a new EEPROM block
-static EEPROMBlock* create_eeprom_block(int fid, size_t size);
-static EEPROMBlock* find_block(int fid);
+static EEPROMBlock *create_eeprom_block(int fid, size_t size);
+static EEPROMBlock *find_block(int fid);
 ssize_t eeprom_save(EEPROMDescriptor desc);
 
 
@@ -52,7 +52,8 @@ ssize_t eeprom_save(EEPROMDescriptor desc);
 EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
     EEPROMDescriptor desc;
     desc.eeprom_fid = open(pathname, O_RDWR);
-    if (desc.eeprom_fid == -1) return desc;  // handle error
+    if (desc.eeprom_fid == -1)
+        return desc; // handle error
 
     if (eeprom_size == 0) {
         desc.eeprom_size = eeprom_getsize(desc);
@@ -66,19 +67,21 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
         desc.eeprom_size = eeprom_size;
     }
 
-    uint8_t *buffer = (uint8_t *)malloc(desc.eeprom_size);
-    if (!buffer) return desc;  // handle error
+    uint8_t *buffer = (uint8_t *) malloc(desc.eeprom_size);
+    if (!buffer)
+        return desc; // handle error
 
     lseek(desc.eeprom_fid, 0, SEEK_SET);
     read(desc.eeprom_fid, buffer, desc.eeprom_size);
 
     EEPROMBlock *block = create_eeprom_block(desc.eeprom_fid, desc.eeprom_size);
-    if (!block) return desc;  // handle error
+    if (!block)
+        return desc; // handle error
 
     memcpy(block->data, buffer, desc.eeprom_size);
     free(buffer);
 
-    block->dirty= false;
+    block->dirty = false;
     block->saveonwrite = true;
     block->fid = desc.eeprom_fid;
 
@@ -88,7 +91,7 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
 
 
 ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t count, uint16_t offset) {
-    //debug("eeprom_read: count: %d offset: %d\n", count, offset);
+    // debug("eeprom_read: count: %d offset: %d\n", count, offset);
     if (offset + count > eeprom_descriptor.eeprom_size) {
         debug("eeprom_read: offset + count %i > eeprom.size %lu\n", offset + count, eeprom_descriptor.eeprom_size);
         return -1;
@@ -97,7 +100,7 @@ ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t coun
     EEPROMBlock *block = find_block(eeprom_descriptor.eeprom_fid);
     if (!block) {
         debug("eeprom_read: block not found\n");
-        return -1;  // Error, block not found
+        return -1; // Error, block not found
     }
 
     // Double check that the block size is correct
@@ -113,13 +116,16 @@ ssize_t eeprom_read(EEPROMDescriptor eeprom_descriptor, void *buf, uint16_t coun
 
 uint16_t eeprom_write(EEPROMDescriptor eeprom_descriptor, const void *buf, uint16_t count, uint16_t offset) {
     uint16_t count2;
-    if (offset + count > eeprom_descriptor.eeprom_size) return -1;
+    if (offset + count > eeprom_descriptor.eeprom_size)
+        return -1;
 
     EEPROMBlock *block = find_block(eeprom_descriptor.eeprom_fid);
-    if (!block) return -1;  // Error, block not found
+    if (!block)
+        return -1; // Error, block not found
 
     // Double check that the block size is correct
-    if (offset + count > block->size) return -1;
+    if (offset + count > block->size)
+        return -1;
 
     memcpy(block->data + offset, buf, count);
 
@@ -168,19 +174,20 @@ uint16_t eeprom_getsize(EEPROMDescriptor eeprom_descriptor) {
     // For instance, using a method specific to your EEPROM hardware or OS APIs to determine the size.
     struct stat eeprom_fstat;
     if (fstat(eeprom_descriptor.eeprom_fid, &eeprom_fstat)) {
-        debug("eeprom_getsize: fstat failed %i\n",errno);
+        debug("eeprom_getsize: fstat failed %i\n", errno);
         return -1;
     }
     eeprom_descriptor.eeprom_size = eeprom_fstat.st_size;
     return eeprom_descriptor.eeprom_size; // Assuming 8K EEPROM for now
 }
 
-static EEPROMBlock* create_eeprom_block(int fid, size_t size) {
-    EEPROMBlock *new_block = (EEPROMBlock *)malloc(sizeof(EEPROMBlock));
-    if (!new_block) return NULL;
+static EEPROMBlock *create_eeprom_block(int fid, size_t size) {
+    EEPROMBlock *new_block = (EEPROMBlock *) malloc(sizeof(EEPROMBlock));
+    if (!new_block)
+        return NULL;
 
     new_block->fid = fid;
-    new_block->data = (uint8_t *)malloc(size);
+    new_block->data = (uint8_t *) malloc(size);
     if (!new_block->data) {
         free(new_block);
         return NULL;
@@ -206,21 +213,21 @@ EEPROMBlock *find_block(int fid) {
 
 ssize_t eeprom_save(EEPROMDescriptor desc) {
     EEPROMBlock *block = find_block(desc.eeprom_fid);
-    if (!block) return -1;
+    if (!block)
+        return -1;
     ssize_t current = 0;
     ssize_t written = 0;
     while (current < block->size) {
         lseek(desc.eeprom_fid, current, SEEK_SET);
         written = write(desc.eeprom_fid, block->data + current, block->size - current);
         if (written <= 0) {
-            debug("eeprom_save: write failed %i\n",errno);
+            debug("eeprom_save: write failed %i\n", errno);
             return -1;
         }
         current += written;
-
     }
 
     // lseek(desc.eeprom_fid, 0, SEEK_SET);
     return current;
-    //write(desc.eeprom_fid, block->data, block->size);
+    // write(desc.eeprom_fid, block->data, block->size);
 }
