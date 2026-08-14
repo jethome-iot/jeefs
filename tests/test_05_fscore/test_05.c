@@ -69,6 +69,13 @@ static void poke(EEPROMDescriptor ep, uint16_t off, const void *data,
     assert(eeprom_write(ep, (void *)data, n, off) == n);
 }
 
+// Wire fields are little-endian: encode explicitly so the corruption
+// scenarios stay identical on a big-endian host.
+static void poke_le16(EEPROMDescriptor ep, uint16_t off, uint16_t v) {
+    uint8_t le[2] = {(uint8_t)(v & 0xFF), (uint8_t)(v >> 8)};
+    poke(ep, off, le, 2);
+}
+
 static void test_format_and_header(void) {
     EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
     assert(EEPROM_HeaderCheckConsistency(ep) == 1);
@@ -227,8 +234,7 @@ static void test_corrupted_chain_terminates(void) {
 
     // nextFileAddress of "a" points back at "a": a cycle. Offset of the
     // nextFileAddress field inside JEEFSFileHeaderv1 is 22.
-    uint16_t self = HDR_V3;
-    poke(ep, HDR_V3 + 22, &self, 2);
+    poke_le16(ep, HDR_V3 + 22, HDR_V3);
 
     char names[8][FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
@@ -245,8 +251,7 @@ static void test_oversized_datasize_rejected(void) {
 
     // dataSize of "a" -> 0xFF00: out of bounds for an 8K image. Offset of
     // dataSize inside JEEFSFileHeaderv1 is 16.
-    uint16_t huge = 0xFF00;
-    poke(ep, HDR_V3 + 16, &huge, 2);
+    poke_le16(ep, HDR_V3 + 16, 0xFF00);
 
     char names[8][FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
@@ -265,10 +270,8 @@ static void test_link_to_eeprom_end_rejected(void) {
     assert(add_pattern(ep, "a", 10, 1) == 10);
 
     // dataSize of "a" -> spans to EEPROM end; next -> exactly eeprom_size
-    uint16_t span = IMG_SIZE - HDR_V3 - 24;
-    uint16_t end = IMG_SIZE;
-    poke(ep, HDR_V3 + 16, &span, 2);
-    poke(ep, HDR_V3 + 22, &end, 2);
+    poke_le16(ep, HDR_V3 + 16, IMG_SIZE - HDR_V3 - 24);
+    poke_le16(ep, HDR_V3 + 22, IMG_SIZE);
 
     char names[8][FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
@@ -299,8 +302,7 @@ static void test_erased_next_is_terminal(void) {
 
     // erase the link of "b" (the last file): 0xFFFF instead of 0
     uint16_t b_addr = HDR_V3 + 24 + 10;
-    uint16_t erased = 0xFFFF;
-    poke(ep, b_addr + 22, &erased, 2);
+    poke_le16(ep, b_addr + 22, 0xFFFF);
 
     char names[8][FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 2);
