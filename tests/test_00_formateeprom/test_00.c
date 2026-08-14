@@ -24,8 +24,9 @@ void test0(int version, int expected_header_size);
 
 static void prepare_eeprom_file(void) {
     int teeprom = open(TEST_FULL_EEPROM_FILENAME, O_CREAT | O_RDWR, 0666);
-    ftruncate(teeprom, 0);
-    ftruncate(teeprom, TEST_EEPROM_SIZE);
+    assert(teeprom != -1);
+    assert(ftruncate(teeprom, 0) == 0);
+    assert(ftruncate(teeprom, TEST_EEPROM_SIZE) == 0);
     close(teeprom);
 }
 
@@ -38,7 +39,7 @@ int main() {
     printf("sizeof(JEEFSFileHeaderv1) = %lu\n", sizeof(JEEFSFileHeaderv1));
 
     char dir[1000];
-    getcwd(dir, sizeof(dir));
+    assert(getcwd(dir, sizeof(dir)) != NULL);
     debug("TEST_DIR: %s TEST_FILENAME: %s TEST_EEPROM_PATH: %s TEST_EEPROM_FILENAME: %s TEST_EEPROM_SIZE: %d\ncur_dir: "
           "%s\n",
           TEST_DIR, TEST_FILENAME, TEST_EEPROM_PATH, TEST_EEPROM_FILENAME, TEST_EEPROM_SIZE, dir);
