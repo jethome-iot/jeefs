@@ -33,7 +33,7 @@ int jeefs_header_detect_version(const uint8_t *data, size_t len) {
         return -1;
 
     const JEEPROMHeaderversion *hdr = (const JEEPROMHeaderversion *) data;
-    if (strncmp(hdr->magic, MAGIC, MAGIC_LENGTH) != 0)
+    if (strncmp(hdr->magic, JEEFS_MAGIC, JEEFS_MAGIC_LENGTH) != 0)
         return -1;
 
     int ver = hdr->version;
@@ -87,7 +87,7 @@ int jeefs_header_init(uint8_t *data, size_t len, int version) {
     memset(data, 0, (size_t) hdr_size);
 
     /* Set magic and version */
-    memcpy(data, MAGIC, MAGIC_LENGTH);
+    memcpy(data, JEEFS_MAGIC, JEEFS_MAGIC_LENGTH);
     data[8] = (uint8_t) version;
 
     /* v3-specific defaults */

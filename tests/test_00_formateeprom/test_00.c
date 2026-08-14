@@ -95,7 +95,7 @@ void test0(int version, int expected_header_size) {
     int8_t *buf = malloc(ep.eeprom_size);
     int8_t *buf2 = malloc(ep.eeprom_size);
     assert(buf != NULL && buf2 != NULL);
-    memset(buf, EEPROM_EMPTYBYTE, ep.eeprom_size);
+    memset(buf, JEEFS_EMPTYBYTE, ep.eeprom_size);
     lseek(ep.eeprom_fid, 0, SEEK_SET);
     assert(read(ep.eeprom_fid, buf2, ep.eeprom_size) == (ssize_t) ep.eeprom_size);
     printf("Check EEPROM data consistency (after header at offset %d)\n", expected_header_size);

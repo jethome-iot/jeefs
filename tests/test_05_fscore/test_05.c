@@ -90,7 +90,7 @@ static void test_format_and_header(void) {
 
 static void test_empty_fs_lists_zero(void) {
     EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 0);
     EEPROM_CloseEEPROM(ep);
     printf("  empty list: OK\n");
@@ -102,7 +102,7 @@ static void test_add_list_read(void) {
     assert(add_pattern(ep, "beta", 20, 2) == 20);
     assert(add_pattern(ep, "gamma", 30, 3) == 30);
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 3);
     assert(strcmp(names[0], "alpha") == 0);
     assert(strcmp(names[1], "beta") == 0);
@@ -122,7 +122,7 @@ static void test_add_list_read(void) {
     assert(strcmp(names[3], "abcdefghijklmno") == 0);
 
     // maxFiles above INT16_MAX must not be misread as negative
-    char big_list[4][FILE_NAME_LENGTH + 1];
+    char big_list[4][JEEFS_FILE_NAME_LENGTH + 1];
     (void) big_list;
     assert(EEPROM_ListFiles(ep, big_list, 65535) == 4);
 
@@ -159,7 +159,7 @@ static void test_overwrite(void) {
     assert_file(ep, "b", 40, 60);
     assert_file(ep, "a", 10, 1);
     assert_file(ep, "c", 30, 3);
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 3);
 
     // missing file
@@ -178,7 +178,7 @@ static void test_delete_chain_integrity(void) {
 
     assert(EEPROM_DeleteFile(ep, "D") == 1);
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 3);
     assert(strcmp(names[0], "A") == 0);
     assert(strcmp(names[1], "B") == 0);
@@ -205,7 +205,7 @@ static void test_delete_last_and_only(void) {
 
     // delete last: predecessor becomes terminal
     assert(EEPROM_DeleteFile(ep, "c") == 1);
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 2);
     assert_file(ep, "a", 10, 1);
     assert_file(ep, "b", 20, 2);
@@ -235,7 +235,7 @@ static void test_corrupted_chain_terminates(void) {
     // nextFileAddress field inside JEEFSFileHeaderv1 is 22.
     poke_le16(ep, HDR_V3 + 22, HDR_V3);
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
     uint8_t buf[64];
     assert(EEPROM_ReadFile(ep, "b", buf, sizeof(buf)) == EEPROMCORRUPTED);
@@ -252,7 +252,7 @@ static void test_oversized_datasize_rejected(void) {
     // dataSize inside JEEFSFileHeaderv1 is 16.
     poke_le16(ep, HDR_V3 + 16, 0xFF00);
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
     assert(EEPROM_DeleteFile(ep, "a") == EEPROMCORRUPTED);
     uint8_t buf[64];
@@ -272,7 +272,7 @@ static void test_link_to_eeprom_end_rejected(void) {
     poke_le16(ep, HDR_V3 + 16, IMG_SIZE - HDR_V3 - 24);
     poke_le16(ep, HDR_V3 + 22, IMG_SIZE);
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
     assert(EEPROM_DeleteFile(ep, "a") == EEPROMCORRUPTED);
     EEPROM_CloseEEPROM(ep);
@@ -303,7 +303,7 @@ static void test_erased_next_is_terminal(void) {
     uint16_t b_addr = HDR_V3 + 24 + 10;
     poke_le16(ep, b_addr + 22, 0xFFFF);
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 2);
     assert_file(ep, "b", 20, 2);
     // adding after an erased terminal keeps the chain intact
@@ -328,7 +328,7 @@ static void test_erased_free_space_0xff(void) {
     for (uint16_t off = HDR_V3; off < IMG_SIZE; off += sizeof(ff))
         poke(ep, off, ff, sizeof(ff));
 
-    char names[8][FILE_NAME_LENGTH + 1];
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(ep, names, 8) == 0);
     assert(add_pattern(ep, "a", 10, 1) == 10);
     assert(add_pattern(ep, "b", 20, 2) == 20);

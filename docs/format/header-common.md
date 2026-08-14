@@ -58,8 +58,8 @@ Used to detect the header version by reading only the first 12 bytes. The `versi
 | CPUID_LENGTH        | 32        | int    | CPUID field size in bytes               |
 | BOARDNAME_LENGTH    | 31        | int    | Max boardname chars (excluding null)    |
 | BOARDVERSION_LENGTH | 31        | int    | Max boardversion chars (excluding null) |
-| EEPROM_EMPTYBYTE    | 0x00      | byte   | Default empty byte marker               |
-| EEPROM_PARTITION_SIZE | 4096    | int    | Flash partition image size (4KB)        |
+| EMPTYBYTE           | 0x00      | byte   | Default empty byte marker               |
+| PARTITION_SIZE      | 4096      | int    | Flash partition image size (4KB)        |
 
 ## Union Type
 

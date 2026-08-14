@@ -109,7 +109,7 @@ static int16_t iter_step(EEPROMDescriptor ep, JEEFSIter *it) {
         return 0; // unwritten slot (0x00 or 0xFF): end of chain
 
     // A written header must carry a terminated name and a sane size.
-    if (hdr.name[FILE_NAME_LENGTH] != '\0')
+    if (hdr.name[JEEFS_FILE_NAME_LENGTH] != '\0')
         return EEPROMCORRUPTED;
     if (hdr.dataSize == 0 || hdr.dataSize == 0xFFFF)
         return EEPROMCORRUPTED;
@@ -156,7 +156,7 @@ static int16_t chain_walk(EEPROMDescriptor ep, const char *filename, JEEFSIter *
         if (++guard > max_files)
             return EEPROMCORRUPTED; // defense in depth, unreachable by invariant
         end = (uint32_t) it.addr + sizeof(JEEFSFileHeaderv1) + it.hdr.dataSize;
-        if (filename && strncmp(it.hdr.name, filename, FILE_NAME_LENGTH + 1) == 0) {
+        if (filename && strncmp(it.hdr.name, filename, JEEFS_FILE_NAME_LENGTH + 1) == 0) {
             hit = 1;
             if (found)
                 *found = it;
@@ -172,8 +172,8 @@ static int16_t chain_walk(EEPROMDescriptor ep, const char *filename, JEEFSIter *
 static bool filename_valid(const char *filename) {
     if (!filename)
         return false;
-    size_t len = strnlen(filename, FILE_NAME_LENGTH + 1);
-    return len > 0 && len <= FILE_NAME_LENGTH;
+    size_t len = strnlen(filename, JEEFS_FILE_NAME_LENGTH + 1);
+    return len > 0 && len <= JEEFS_FILE_NAME_LENGTH;
 }
 
 // Chunked copy of [src, src+count) to [dst, dst+count) with dst < src.
@@ -273,7 +273,8 @@ int16_t EEPROM_HeaderCheckConsistency(EEPROMDescriptor eeprom_descriptor) {
     return jeefs_header_verify_crc((const uint8_t *) &header, (size_t) header_size) == 0 ? 1 : 0;
 }
 
-int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FILE_NAME_LENGTH + 1], uint16_t maxFiles) {
+int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][JEEFS_FILE_NAME_LENGTH + 1],
+                         uint16_t maxFiles) {
     if (!fileList)
         return BUFFERNOTVALID;
 
@@ -286,8 +287,8 @@ int16_t EEPROM_ListFiles(EEPROMDescriptor eeprom_descriptor, char fileList[][FIL
     while ((ret = iter_step(eeprom_descriptor, &it)) == 1) {
         if ((uint16_t) count >= maxFiles)
             return count; // list full; the rest is still a valid chain
-        memcpy(fileList[count], it.hdr.name, FILE_NAME_LENGTH);
-        fileList[count][FILE_NAME_LENGTH] = '\0';
+        memcpy(fileList[count], it.hdr.name, JEEFS_FILE_NAME_LENGTH);
+        fileList[count][JEEFS_FILE_NAME_LENGTH] = '\0';
         count++;
     }
     return ret < 0 ? ret : count;
@@ -343,7 +344,7 @@ int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
     // Write the new file completely before linking it into the chain.
     JEEFSFileHeaderv1 hdr;
     memset(&hdr, 0, sizeof(hdr));
-    strncpy(hdr.name, filename, FILE_NAME_LENGTH);
+    strncpy(hdr.name, filename, JEEFS_FILE_NAME_LENGTH);
     hdr.dataSize = dataSize;
     hdr.crc32 = calculateCRC32(data, dataSize);
     hdr.nextFileAddress = 0;
@@ -403,7 +404,7 @@ int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
             if (file_hdr_write(descriptor, victim.prev, &prev_hdr) != 0)
                 return EEPROMWRITEERROR;
         }
-        ret = fill_bytes(descriptor, victim.addr, shift, EEPROM_EMPTYBYTE);
+        ret = fill_bytes(descriptor, victim.addr, shift, JEEFS_EMPTYBYTE);
         return ret < 0 ? ret : 1;
     }
 
@@ -430,7 +431,7 @@ int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
     }
 
     // Wipe the freed span at the old end of the chain.
-    ret = fill_bytes(descriptor, chain_end - shift, shift, EEPROM_EMPTYBYTE);
+    ret = fill_bytes(descriptor, chain_end - shift, shift, JEEFS_EMPTYBYTE);
     return ret < 0 ? ret : 1;
 }
 
@@ -487,7 +488,7 @@ int EEPROM_FormatEEPROM(EEPROMDescriptor ep, int version) {
 
     if (eeprom_write(ep, &header, (uint16_t) header_size, 0) != header_size)
         return EEPROMWRITEERROR;
-    return fill_bytes(ep, (uint32_t) header_size, ep.eeprom_size - (uint32_t) header_size, EEPROM_EMPTYBYTE);
+    return fill_bytes(ep, (uint32_t) header_size, ep.eeprom_size - (uint32_t) header_size, JEEFS_EMPTYBYTE);
 }
 
 static uint32_t calculateCRC32(const uint8_t *data, size_t length) { return crc32(0L, data, length); }
