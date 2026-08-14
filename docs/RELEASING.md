@@ -35,16 +35,21 @@ then — only if everything is green — the publish jobs:
 | `publish-crates` | `cargo publish --locked` for `jeefs-header` | `CRATES_TOKEN` repo secret |
 | `publish-release` | GitHub Release with generated notes, sdist/wheel and `.crate` attached | `GITHUB_TOKEN` |
 
+`publish-release` is gated on the test matrix only, so a registry
+conflict (version already published) cannot block the Release for an
+otherwise green tag.
+
 Every publish job independently verifies the tag against the package
 version it publishes; a mismatched tag fails before anything uploads.
 
 ## Backfill / recovery
 
 `publish-crates` also accepts `workflow_dispatch` for re-publishing a
-crate when a tag ran before the job existed (used for 0.2.0). PyPI and
-GitHub Releases have no dispatch path — retag (delete and push the tag
-again) only if nothing was published, since neither registry allows
-overwriting a released version.
+crate when a tag ran before the job existed (used for 0.2.0). PyPI has
+no dispatch path — retag (delete and push the tag again) only if
+nothing was published, since the registry does not allow overwriting a
+released version. A missing GitHub Release can also be created by hand
+with `gh release create v<X.Y.Z> --generate-notes` as a last resort.
 
 ## After the release
 
