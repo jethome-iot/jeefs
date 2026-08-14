@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "jeefs.h"
+#include "jeefs_generated.h"
 
 #ifdef __cplusplus
 extern "C" {
