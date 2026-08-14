@@ -67,6 +67,24 @@ def _pack_string(value: str, size: int) -> bytes:
     return encoded + b"\x00" * (size - len(encoded))
 
 
+def _pack_bounded(value: str, size: int) -> bytes:
+    """Encode a bounded string (RFC #13): all `size` bytes are usable.
+
+    The NUL terminator is optional — present (followed by zero padding)
+    only when the value is shorter than the field. Content validation
+    (printable ASCII) is the producer's concern, not the library's.
+
+    Args:
+        value: String to encode.
+        size: Field size in bytes.
+
+    Returns:
+        Bytes of exactly `size` length.
+    """
+    encoded = value.encode("utf-8")[:size]
+    return encoded + b"\x00" * (size - len(encoded))
+
+
 def _unpack_string(data: bytes) -> str:
     """Decode null-terminated string from bytes.
 
@@ -157,13 +175,15 @@ class EEPROMHeaderV3:
         elif self.signature and len(self.signature) > 0:
             errors.append("Signature provided but signature_algorithm is NONE")
 
-        # Validate string field lengths (must fit in 31 bytes UTF-8 + null)
+        # String field lengths: boardname/boardversion are NUL-terminated
+        # (31 usable bytes); serial/usid/cpuid are bounded strings (RFC #13,
+        # all 32 bytes usable, NUL optional at full length)
         for field_name, max_bytes in [
             ("boardname", 31),
             ("boardversion", 31),
-            ("serial", 31),
-            ("usid", 31),
-            ("cpuid", 31),
+            ("serial", 32),
+            ("usid", 32),
+            ("cpuid", 32),
         ]:
             value = getattr(self, field_name)
             if value and len(value.encode("utf-8")) > max_bytes:
@@ -220,13 +240,13 @@ class EEPROMHeaderV3:
         eeprom[off : off + sz] = _pack_string(self.boardversion, sz)
 
         off, sz = EEPROM_FIELDS["serial"]
-        eeprom[off : off + sz] = _pack_string(self.serial, sz)
+        eeprom[off : off + sz] = _pack_bounded(self.serial, sz)
 
         off, sz = EEPROM_FIELDS["usid"]
-        eeprom[off : off + sz] = _pack_string(self.usid, sz)
+        eeprom[off : off + sz] = _pack_bounded(self.usid, sz)
 
         off, sz = EEPROM_FIELDS["cpuid"]
-        eeprom[off : off + sz] = _pack_string(self.cpuid, sz)
+        eeprom[off : off + sz] = _pack_bounded(self.cpuid, sz)
 
         # MAC: 6 raw bytes (offset 172)
         if self.mac:
