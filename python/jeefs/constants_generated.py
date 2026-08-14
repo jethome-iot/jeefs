@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
-"""EEPROM format constants — auto-generated from docs/format/*.md.
+"""EEPROM format constants — GENERATED FILE, DO NOT EDIT BY HAND.
 
-DO NOT EDIT — regenerate with:
+Source of truth: docs/format/*.md (see docs/CODEGEN.md for the policy).
+Manual edits are rejected: the codegen-check CI job and the local prek
+hook diff this file against the specs on every change.
+
+Regenerate with:
     python -m jeefs_codegen --specs docs/format/*.md --py-output python/jeefs/constants_generated.py
 """
 

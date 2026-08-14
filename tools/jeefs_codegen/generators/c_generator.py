@@ -8,8 +8,12 @@ from ..models import ConstantDef, EnumDef, FormatSpec, StructDef, UnionDef
 
 def _generate_banner() -> str:
     return """\
-// DO NOT EDIT — auto-generated from docs/format/*.md by tools/jeefs_codegen
+// GENERATED FILE — DO NOT EDIT BY HAND.
 // SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
+//
+// Source of truth: docs/format/*.md (see docs/CODEGEN.md for the policy).
+// Manual edits are rejected: the codegen-check CI job and the local prek
+// hook diff this file against the specs on every change.
 //
 // Regenerate with:
 //   python -m jeefs_codegen --specs docs/format/*.md --c-output include/jeefs_generated.h
