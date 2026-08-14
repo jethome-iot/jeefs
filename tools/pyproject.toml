@@ -12,3 +12,7 @@ authors = [{name = "Viacheslav Bocharov", email = "vb@jethome.com"}]
 
 [project.scripts]
 jeefs-codegen = "jeefs_codegen.__main__:main"
+
+[tool.uv]
+# Supply-chain cooldown (#22): ignore releases younger than 7 days
+exclude-newer = "7 days"
