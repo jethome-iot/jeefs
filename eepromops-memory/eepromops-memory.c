@@ -59,6 +59,7 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
         desc.eeprom_size = eeprom_getsize(desc);
         if (!desc.eeprom_size) {
             debug("eeprom_getsize failed\n");
+            close(desc.eeprom_fid);
             desc.eeprom_fid = -1;
             return desc;
         }
@@ -68,14 +69,18 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
     }
 
     uint8_t *buffer = (uint8_t *) malloc(desc.eeprom_size);
-    if (!buffer)
-        return desc; // handle error
+    if (!buffer) {
+        close(desc.eeprom_fid);
+        desc.eeprom_fid = -1;
+        return desc;
+    }
 
     lseek(desc.eeprom_fid, 0, SEEK_SET);
     ssize_t got = read(desc.eeprom_fid, buffer, desc.eeprom_size);
     if (got < 0 || (size_t) got != desc.eeprom_size) {
         debug("eeprom_open: short read %zd of %lu\n", got, desc.eeprom_size);
         free(buffer);
+        close(desc.eeprom_fid);
         desc.eeprom_fid = -1;
         return desc;
     }
@@ -83,7 +88,9 @@ EEPROMDescriptor eeprom_open(const char *pathname, uint16_t eeprom_size) {
     EEPROMBlock *block = create_eeprom_block(desc.eeprom_fid, desc.eeprom_size);
     if (!block) {
         free(buffer);
-        return desc; // handle error
+        close(desc.eeprom_fid);
+        desc.eeprom_fid = -1;
+        return desc;
     }
 
     memcpy(block->data, buffer, desc.eeprom_size);
