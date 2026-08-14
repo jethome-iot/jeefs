@@ -8,6 +8,7 @@ matching .bin (raw binary header) next to it.
 Usage:
     python generate_vectors.py              # generate all
     python generate_vectors.py v3_header_nosig  # generate one
+    python generate_vectors.py --check      # verify committed .bin match
 """
 
 from __future__ import annotations
@@ -132,13 +133,16 @@ def generate_binary(spec: dict) -> bytes:
 
 
 def main() -> None:
-    filter_name = sys.argv[1] if len(sys.argv) > 1 else None
+    check_mode = "--check" in sys.argv[1:]
+    args = [a for a in sys.argv[1:] if a != "--check"]
+    filter_name = args[0] if args else None
 
     json_files = sorted(VECTORS_DIR.glob("*.json"))
     if not json_files:
         print(f"No .json files found in {VECTORS_DIR}")
         sys.exit(1)
 
+    drifted = []
     for json_path in json_files:
         stem = json_path.stem
         if filter_name and stem != filter_name:
@@ -149,8 +153,20 @@ def main() -> None:
 
         bin_data = generate_binary(spec)
         bin_path = json_path.with_suffix(".bin")
-        bin_path.write_bytes(bin_data)
-        print(f"  {stem}: {len(bin_data)} bytes -> {bin_path.name}")
+        if check_mode:
+            committed = bin_path.read_bytes() if bin_path.exists() else None
+            if committed != bin_data:
+                drifted.append(bin_path.name)
+                print(f"  {stem}: DRIFT — committed {bin_path.name} does not match its .json")
+            else:
+                print(f"  {stem}: OK")
+        else:
+            bin_path.write_bytes(bin_data)
+            print(f"  {stem}: {len(bin_data)} bytes -> {bin_path.name}")
+
+    if check_mode and drifted:
+        print(f"{len(drifted)} committed vector(s) drifted; regenerate with: python generate_vectors.py")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
