@@ -1,0 +1,29 @@
+# Local validation hooks. Run with prek (https://github.com/j178/prek):
+#   prek install          # once, registers the git hook
+#   prek run --all-files  # full pass
+# The config is pre-commit compatible.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=256]
+        # committed binary test vectors stay small; anything bigger is a mistake
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      - id: sync-version-check
+        name: version.json is in sync with generated version files
+        entry: python3 tools/sync_version.py --check
+        language: system
+        pass_filenames: false
+        files: ^(version\.json|include/jeefs_version\.h|python/pyproject\.toml|rust/jeefs-header/Cargo\.toml)$

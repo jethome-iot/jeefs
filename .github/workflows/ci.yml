@@ -48,7 +48,7 @@ jobs:
 
       - name: Show test results
         if: always()
-        run: cat build/Testing/Temporary/LastTest.log >> $GITHUB_STEP_SUMMARY
+        run: cat build/Testing/Temporary/LastTest.log >> "$GITHUB_STEP_SUMMARY"
 
   # ── Rust unit tests ──
   rust-tests:
