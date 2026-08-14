@@ -4,6 +4,7 @@
  * Author: Viacheslav Bocharov <v@baodeep.com>
  */
 
+#include <stddef.h>
 #include <string.h>
 #include <zlib.h>
 
@@ -11,6 +12,7 @@
 
 #include "debug.h"
 #include "eepromerr.h"
+#include "jeefs_endian.h"
 #include "jeefs_header.h"
 
 /*
@@ -35,6 +37,44 @@
 static uint32_t calculateCRC32(const uint8_t *data, size_t length);
 static int EEPROM_GetHeaderSize_read(EEPROMDescriptor eeprom_descriptor);
 static inline bool EEPROM_ByteIsEmpty(char var);
+
+// File headers cross the wire little-endian; the in-memory struct is
+// filled through explicit LE accessors so the core works on big-endian
+// hosts too (offsets via offsetof on the packed struct).
+static void file_hdr_from_bytes(const uint8_t *raw, JEEFSFileHeaderv1 *hdr) {
+  memcpy(hdr->name, raw, sizeof(hdr->name));
+  hdr->dataSize = jeefs_get_le16(raw + offsetof(JEEFSFileHeaderv1, dataSize));
+  hdr->crc32 = jeefs_get_le32(raw + offsetof(JEEFSFileHeaderv1, crc32));
+  hdr->nextFileAddress =
+      jeefs_get_le16(raw + offsetof(JEEFSFileHeaderv1, nextFileAddress));
+}
+
+static void file_hdr_to_bytes(const JEEFSFileHeaderv1 *hdr, uint8_t *raw) {
+  memcpy(raw, hdr->name, sizeof(hdr->name));
+  jeefs_put_le16(raw + offsetof(JEEFSFileHeaderv1, dataSize), hdr->dataSize);
+  jeefs_put_le32(raw + offsetof(JEEFSFileHeaderv1, crc32), hdr->crc32);
+  jeefs_put_le16(raw + offsetof(JEEFSFileHeaderv1, nextFileAddress),
+                 hdr->nextFileAddress);
+}
+
+// Read/write a file header at an absolute address through the LE codec.
+static int file_hdr_read(EEPROMDescriptor ep, uint16_t addr,
+                         JEEFSFileHeaderv1 *hdr) {
+  uint8_t raw[sizeof(JEEFSFileHeaderv1)];
+  if (eeprom_read(ep, raw, sizeof(raw), addr) != sizeof(raw))
+    return -1;
+  file_hdr_from_bytes(raw, hdr);
+  return 0;
+}
+
+static int file_hdr_write(EEPROMDescriptor ep, uint16_t addr,
+                          const JEEFSFileHeaderv1 *hdr) {
+  uint8_t raw[sizeof(JEEFSFileHeaderv1)];
+  file_hdr_to_bytes(hdr, raw);
+  if (eeprom_write(ep, raw, sizeof(raw), addr) != sizeof(raw))
+    return -1;
+  return 0;
+}
 
 // Validated chain iterator.
 typedef struct {
@@ -66,7 +106,7 @@ static int16_t iter_step(EEPROMDescriptor ep, JEEFSIter *it) {
     return 0; // no room for another header: clean end
 
   JEEFSFileHeaderv1 hdr;
-  if (eeprom_read(ep, &hdr, sizeof(hdr), (uint16_t)start) != sizeof(hdr))
+  if (file_hdr_read(ep, (uint16_t)start, &hdr) != 0)
     return EEPROMREADERROR;
 
   if (EEPROM_ByteIsEmpty(hdr.name[0]))
@@ -339,8 +379,7 @@ int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
   hdr.nextFileAddress = 0;
 
   uint16_t new_addr = (uint16_t)chain_end;
-  if (eeprom_write(eeprom_descriptor, &hdr, sizeof(hdr), new_addr) !=
-      sizeof(hdr))
+  if (file_hdr_write(eeprom_descriptor, new_addr, &hdr) != 0)
     return EEPROMWRITEERROR;
   if (eeprom_write(eeprom_descriptor, (void *)data, dataSize,
                    new_addr + sizeof(hdr)) != dataSize)
@@ -363,8 +402,7 @@ int16_t EEPROM_AddFile(EEPROMDescriptor eeprom_descriptor, const char *filename,
     if (ret < 0)
       return ret;
     tail.hdr.nextFileAddress = new_addr;
-    if (eeprom_write(eeprom_descriptor, &tail.hdr, sizeof(tail.hdr),
-                     tail.addr) != sizeof(tail.hdr))
+    if (file_hdr_write(eeprom_descriptor, tail.addr, &tail.hdr) != 0)
       return EEPROMWRITEERROR;
   }
 
@@ -390,12 +428,10 @@ int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
     // Victim is the last file: terminate the predecessor and wipe.
     if (victim.prev != 0) {
       JEEFSFileHeaderv1 prev_hdr;
-      if (eeprom_read(descriptor, &prev_hdr, sizeof(prev_hdr), victim.prev) !=
-          sizeof(prev_hdr))
+      if (file_hdr_read(descriptor, victim.prev, &prev_hdr) != 0)
         return EEPROMREADERROR;
       prev_hdr.nextFileAddress = 0;
-      if (eeprom_write(descriptor, &prev_hdr, sizeof(prev_hdr), victim.prev) !=
-          sizeof(prev_hdr))
+      if (file_hdr_write(descriptor, victim.prev, &prev_hdr) != 0)
         return EEPROMWRITEERROR;
     }
     ret = fill_bytes(descriptor, victim.addr, shift, EEPROM_EMPTYBYTE);
@@ -413,13 +449,13 @@ int16_t EEPROM_DeleteFile(EEPROMDescriptor descriptor, const char *filename) {
   uint16_t addr = victim.addr;
   while (addr != 0) {
     JEEFSFileHeaderv1 hdr;
-    if (eeprom_read(descriptor, &hdr, sizeof(hdr), addr) != sizeof(hdr))
+    if (file_hdr_read(descriptor, addr, &hdr) != 0)
       return EEPROMREADERROR;
     if (hdr.nextFileAddress == 0 || hdr.nextFileAddress == 0xFFFF) {
       break; // terminal link (0 or erased) needs no rewrite
     }
     hdr.nextFileAddress = (uint16_t)(hdr.nextFileAddress - shift);
-    if (eeprom_write(descriptor, &hdr, sizeof(hdr), addr) != sizeof(hdr))
+    if (file_hdr_write(descriptor, addr, &hdr) != 0)
       return EEPROMWRITEERROR;
     addr = hdr.nextFileAddress;
   }
@@ -452,8 +488,7 @@ int16_t EEPROM_WriteFile(EEPROMDescriptor eeprom_descriptor,
         dataSize)
       return EEPROMWRITEERROR;
     found.hdr.crc32 = calculateCRC32(data, dataSize);
-    if (eeprom_write(eeprom_descriptor, &found.hdr, sizeof(found.hdr),
-                     found.addr) != sizeof(found.hdr))
+    if (file_hdr_write(eeprom_descriptor, found.addr, &found.hdr) != 0)
       return EEPROMWRITEERROR;
     return (int16_t)dataSize;
   }

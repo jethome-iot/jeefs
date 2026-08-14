@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "eepromerr.h"
 #include "jeefs.h"
@@ -387,6 +388,40 @@ static void test_consistency_detects_bad_crc(void) {
     printf("  consistency detects bad CRC: OK\n");
 }
 
+// Wire-format lock: multi-byte fields are little-endian on the medium
+// regardless of host byte order. On an LE host this passes with or without
+// LE accessors in the core — it turns RED on big-endian targets running
+// the pre-fix code (the BE CI job is issue #20/#24 scope).
+static void test_wire_format_is_le(void) {
+    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    const uint8_t data[3] = {0xAA, 0xBB, 0xCC};
+    assert(EEPROM_AddFile(ep, "wire", data, 3) == 3);
+    assert(add_pattern(ep, "second", 8, 7) == 8);
+
+    // file header of "wire": dataSize @16 LE, crc32 @18 LE, next @22 LE
+    uint8_t raw[24];
+    assert(eeprom_read(ep, raw, sizeof(raw), HDR_V3) == sizeof(raw));
+    assert(raw[16] == 0x03 && raw[17] == 0x00);
+    uint32_t expect_crc = (uint32_t)crc32(0L, data, 3);
+    assert(raw[18] == (expect_crc & 0xFF));
+    assert(raw[19] == ((expect_crc >> 8) & 0xFF));
+    assert(raw[20] == ((expect_crc >> 16) & 0xFF));
+    assert(raw[21] == ((expect_crc >> 24) & 0xFF));
+    // next = 256 + 24 + 3 = 283 = 0x011B
+    assert(raw[22] == 0x1B && raw[23] == 0x01);
+
+    // v3 header CRC field @252 is the LE encoding of crc32(bytes 0..251)
+    uint8_t hdr[256];
+    assert(EEPROM_GetHeader(ep, hdr, sizeof(hdr)) == 0);
+    uint32_t hdr_crc = (uint32_t)crc32(0L, hdr, 252);
+    assert(hdr[252] == (hdr_crc & 0xFF));
+    assert(hdr[253] == ((hdr_crc >> 8) & 0xFF));
+    assert(hdr[254] == ((hdr_crc >> 16) & 0xFF));
+    assert(hdr[255] == ((hdr_crc >> 24) & 0xFF));
+    EEPROM_CloseEEPROM(ep);
+    printf("  wire format is LE: OK\n");
+}
+
 static void test_consistency_read_error(void) {
     // an image too small to even hold the version block: read failure, not
     // "inconsistent"
@@ -427,6 +462,7 @@ int main(void) {
     test_nospace_is_atomic();
     test_set_header_roundtrip();
     test_consistency_detects_bad_crc();
+    test_wire_format_is_le();
     test_consistency_read_error();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");
