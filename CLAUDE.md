@@ -115,7 +115,7 @@ See `docs/format/*.md` (canonical) and `EEPROM_FORMAT.md` (overview) for field-b
 
 **C (include/jeefs.h):**
 
-- `JEEPROMHeaderv1` (512B) / `JEEPROMHeaderv2` (256B) / `JEEPROMHeaderv3` (256B) — device identity headers
+- `JEEPROMHeaderv1` (512B) / `JEEPROMHeaderv2` / `JEEPROMHeaderv3` / `JEEPROMHeaderv4` (256B) — board identity headers (device identity = `DeviceIdentityV1`, file `device.id`)
 - `JEEPROMHeader` — union of all header versions + `JEEPROMHeaderversion` (12-byte version-detect struct)
 - `JEEFSSignatureAlgorithm` — enum: `JEEFS_SIG_NONE` (0), `JEEFS_SIG_SECP192R1` (1), `JEEFS_SIG_SECP256R1` (2)
 - `JEEFSFileHeaderv1` (24B) — file entry: name (15 chars max), dataSize, CRC32, nextFileAddress
@@ -125,7 +125,7 @@ See `docs/format/*.md` (canonical) and `EEPROM_FORMAT.md` (overview) for field-b
 
 - `EEPROMHeaderV3` — dataclass with `to_bytes()`, `from_bytes()`, `verify_crc()`, `validate()`, `to_partition_image()`
 - `SignatureAlgorithm` — IntEnum: `NONE` (0), `SECP192R1` (1), `SECP256R1` (2)
-- Constants: `EEPROM_FIELDS` (offset/size dict), `EEPROM_MAGIC`, `SIGNATURE_SIZES`
+- Constants: `EEPROM_FIELDS` (v4, current) / `EEPROM_FIELDS_V3` etc. (offset/size dicts), `EEPROM_MAGIC`, `SIGNATURE_SIZES`
 
 ### Error Codes (include/eepromerr.h)
 
@@ -133,7 +133,8 @@ Negative return values are errors defined in `EEPROMError` enum: `FILEEXISTS`, `
 
 ### Known Issues / TODOs in Code
 
-- Go and TypeScript implementations planned, not yet started (Rust exists in `rust/jeefs-header/`)
+- Go and TypeScript implementations planned, not yet started (C, C++, Python and Rust are live with an NxN cross-language test matrix)
+- Header v4 (board-scoped) and the DeviceIdentityV1 record have generated structs; full parser/tooling coverage is tracked in issues #58 and #60
 
 ## CMake Options
 
@@ -158,10 +159,11 @@ src/
 eepromops-memory/    # In-memory EEPROM backend
 python/
   jeefs/             # Python package: constants.py, header.py
-  tests/             # pytest suite (58 tests)
+  tests/             # pytest suite (62 tests)
   pyproject.toml     # Package config (jeefs)
 tests/               # C test suite (ctest)
-docs/format/         # Canonical machine-readable format specs (codegen source)
+docs/format/         # Canonical machine-readable format specs (codegen source):
+                     #   header v1-v4, device-identity-v1, filesystem-v1, common
 docs/CODEGEN.md      # Generated-files policy
 tools/jeefs_codegen/ # Spec parser + C/Python/Rust generators
 EEPROM_FORMAT.md     # Human-readable format overview
