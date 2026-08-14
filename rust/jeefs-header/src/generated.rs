@@ -17,7 +17,7 @@ pub const BOARDVERSION_LENGTH: usize = 31;
 pub const CPUID_LENGTH: usize = 32;
 pub const EMPTYBYTE: u8 = 0x00;
 pub const FILE_NAME_LENGTH: usize = 15;
-pub const HEADER_VERSION: usize = 3;
+pub const HEADER_VERSION: usize = 4;
 pub const MAC_LENGTH: usize = 6;
 pub const MAGIC: &[u8; 8] = b"JETHOME\0";
 pub const MAGIC_LENGTH: usize = 8;
@@ -188,6 +188,49 @@ impl core::fmt::Debug for JeepromHeaderV3 {
     }
 }
 
+/// JEEPROMHeaderv4 (256 bytes)
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct JeepromHeaderV4 {
+    pub magic: [u8; 8],  // "JETHOME\0" (null-terminated string)
+    pub version: u8,  // Header version = 4
+    pub signature_version: u8,  // Signature algorithm (see enums)
+    pub header_reserved: [u8; 2],  // Reserved (zeros)
+    pub boardname: [u8; 32],  // Board name, null-terminated
+    pub boardversion: [u8; 32],  // Board version, null-terminated
+    pub board_serial: [u8; 32],  // Board serial number (bounded string)
+    pub usid: [u8; 32],  // Board CPU/eFuse USID, if available
+    pub cpuid: [u8; 32],  // Board CPU ID, if available
+    pub mac: [u8; 6],  // MAC address (6 raw bytes)
+    pub reserved2: [u8; 2],  // Reserved (alignment)
+    pub signature: [u8; 64],  // ECDSA signature (r‖s, zero-padded)
+    pub timestamp: i64,  // Header creation/signing time (Unix s)
+    pub crc32: u32,  // CRC32 of bytes 0-251
+}
+
+const _: () = assert!(core::mem::size_of::<JeepromHeaderV4>() == 256);
+
+impl core::fmt::Debug for JeepromHeaderV4 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("JeepromHeaderV4")
+            .field("magic", &self.magic)
+            .field("version", &{ self.version })
+            .field("signature_version", &{ self.signature_version })
+            .field("header_reserved", &self.header_reserved)
+            .field("boardname", &self.boardname)
+            .field("boardversion", &self.boardversion)
+            .field("board_serial", &self.board_serial)
+            .field("usid", &self.usid)
+            .field("cpuid", &self.cpuid)
+            .field("mac", &self.mac)
+            .field("reserved2", &self.reserved2)
+            .field("signature", &&self.signature[..])
+            .field("timestamp", &{ self.timestamp })
+            .field("crc32", &{ self.crc32 })
+            .finish()
+    }
+}
+
 /// JEEFSFileHeaderv1 (24 bytes)
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
@@ -205,4 +248,5 @@ const _: () = assert!(core::mem::size_of::<JeefsFileHeaderV1>() == 24);
 // JEEPROMHeaderv1 -> JeepromHeaderV1
 // JEEPROMHeaderv2 -> JeepromHeaderV2
 // JEEPROMHeaderv3 -> JeepromHeaderV3
+// JEEPROMHeaderv4 -> JeepromHeaderV4
 // JEEFSFileHeaderv1 -> JeefsFileHeaderV1

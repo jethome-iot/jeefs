@@ -32,7 +32,7 @@ repos:
         entry: sh tools/check_codegen_sync.sh
         language: system
         pass_filenames: false
-        files: ^(docs/format/(header-common|header-v1|header-v2|header-v3|filesystem-v1)\.md|include/jeefs_generated\.h|python/jeefs/constants_generated\.py|rust/jeefs-header/src/generated\.rs|tools/jeefs_codegen/.*)$
+        files: ^(docs/format/(header-common|header-v1|header-v2|header-v3|header-v4|filesystem-v1)\.md|include/jeefs_generated\.h|python/jeefs/constants_generated\.py|rust/jeefs-header/src/generated\.rs|tools/jeefs_codegen/.*)$
       - id: vectors-sync-check
         name: committed test vectors match their json specs
         entry: python3 test-vectors/generate_vectors.py --check

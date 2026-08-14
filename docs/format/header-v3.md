@@ -1,4 +1,4 @@
-# JEEPROMHeaderv3 (256 bytes) — Current Production Format
+# JEEPROMHeaderv3 (256 bytes) — Fielded Production Format (superseded by v4)
 
 <!-- STRUCT: JEEPROMHeaderv3 -->
 <!-- SIZE: 256 -->
@@ -35,5 +35,5 @@
   is optional and appears only when the value is shorter than the field, so
   all 32 bytes are usable. Content validation is the producer's concern,
   not the library's. `serial` is board-scoped: it identifies this board,
-  not the device (device identity is RFC #26); renaming the field itself
-  to `board_serial` is a header-v4 candidate.
+  not the device (device identity is RFC #26); header v4
+  ([header-v4.md](header-v4.md)) renames the field to `board_serial`.

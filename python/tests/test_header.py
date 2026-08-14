@@ -19,7 +19,7 @@ import time
 import pytest
 from jeefs import (
     EEPROM_CRC_COVERAGE,
-    EEPROM_FIELDS,
+    EEPROM_FIELDS_V3,
     EEPROM_HEADER_SIZE,
     EEPROM_MAGIC,
     EEPROM_PARTITION_SIZE,
@@ -145,11 +145,11 @@ class TestFieldOffsets:
             "timestamp",
             "crc32",
         }
-        assert set(EEPROM_FIELDS.keys()) == expected_fields
+        assert set(EEPROM_FIELDS_V3.keys()) == expected_fields
 
     def test_offsets_cover_256_bytes(self):
         coverage = [False] * EEPROM_HEADER_SIZE
-        for name, (offset, size) in EEPROM_FIELDS.items():
+        for name, (offset, size) in EEPROM_FIELDS_V3.items():
             for i in range(offset, offset + size):
                 assert not coverage[i], f"Overlap at byte {i} ({name})"
                 coverage[i] = True
@@ -157,18 +157,18 @@ class TestFieldOffsets:
 
     def test_specific_offsets(self):
         """Verify critical offsets match C struct layout."""
-        assert EEPROM_FIELDS["magic"] == (0, 8)
-        assert EEPROM_FIELDS["version"] == (8, 1)
-        assert EEPROM_FIELDS["signature_version"] == (9, 1)
-        assert EEPROM_FIELDS["boardname"] == (12, 32)
-        assert EEPROM_FIELDS["boardversion"] == (44, 32)
-        assert EEPROM_FIELDS["serial"] == (76, 32)
-        assert EEPROM_FIELDS["usid"] == (108, 32)
-        assert EEPROM_FIELDS["cpuid"] == (140, 32)
-        assert EEPROM_FIELDS["mac"] == (172, 6)
-        assert EEPROM_FIELDS["signature"] == (180, 64)
-        assert EEPROM_FIELDS["timestamp"] == (244, 8)
-        assert EEPROM_FIELDS["crc32"] == (252, 4)
+        assert EEPROM_FIELDS_V3["magic"] == (0, 8)
+        assert EEPROM_FIELDS_V3["version"] == (8, 1)
+        assert EEPROM_FIELDS_V3["signature_version"] == (9, 1)
+        assert EEPROM_FIELDS_V3["boardname"] == (12, 32)
+        assert EEPROM_FIELDS_V3["boardversion"] == (44, 32)
+        assert EEPROM_FIELDS_V3["serial"] == (76, 32)
+        assert EEPROM_FIELDS_V3["usid"] == (108, 32)
+        assert EEPROM_FIELDS_V3["cpuid"] == (140, 32)
+        assert EEPROM_FIELDS_V3["mac"] == (172, 6)
+        assert EEPROM_FIELDS_V3["signature"] == (180, 64)
+        assert EEPROM_FIELDS_V3["timestamp"] == (244, 8)
+        assert EEPROM_FIELDS_V3["crc32"] == (252, 4)
 
 
 # --- Header generation (to_bytes) ---
@@ -195,7 +195,7 @@ class TestHeaderToBytes:
     def test_boardname(self, sample_data):
         header = EEPROMHeaderV3(**sample_data)
         result = header.to_bytes()
-        off, sz = EEPROM_FIELDS["boardname"]
+        off, sz = EEPROM_FIELDS_V3["boardname"]
         name = result[off : off + sz].split(b"\x00")[0].decode()
         assert name == "JXD-CPU-E1ETH"
 
@@ -593,7 +593,7 @@ class TestBoundedStrings:
         full = "S" * 32
         hdr = self._mk(serial=full, usid="u" * 32, cpuid="c" * 32)
         raw = hdr.to_bytes()
-        off, sz = EEPROM_FIELDS["serial"]
+        off, sz = EEPROM_FIELDS_V3["serial"]
         assert raw[off : off + sz] == b"S" * 32  # no NUL stolen
         back = EEPROMHeaderV3.from_bytes(raw)
         assert back.serial == full
@@ -603,7 +603,7 @@ class TestBoundedStrings:
     def test_short_serial_is_nul_terminated_and_padded(self):
         hdr = self._mk(serial="SN-42")
         raw = hdr.to_bytes()
-        off, sz = EEPROM_FIELDS["serial"]
+        off, sz = EEPROM_FIELDS_V3["serial"]
         field = raw[off : off + sz]
         assert field[:5] == b"SN-42"
         assert field[5:] == b"\x00" * (sz - 5)

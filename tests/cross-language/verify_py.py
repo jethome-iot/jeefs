@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "python"))
 
 from jeefs.constants_generated import (  # noqa: E402
-    EEPROM_FIELDS,
+    EEPROM_FIELDS_V3,
     EEPROM_FIELDS_V1,
     EEPROM_FIELDS_V2,
 )
@@ -26,7 +26,7 @@ from jeefs.constants_generated import (  # noqa: E402
 VERSION_FIELDS = {
     1: EEPROM_FIELDS_V1,
     2: EEPROM_FIELDS_V2,
-    3: EEPROM_FIELDS,
+    3: EEPROM_FIELDS_V3,
 }
 
 VERSION_HEADER_SIZES = {1: 512, 2: 256, 3: 256}

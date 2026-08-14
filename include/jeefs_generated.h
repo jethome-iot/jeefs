@@ -24,7 +24,7 @@ extern "C" {
 #define JEEFS_CPUID_LENGTH 32
 #define JEEFS_EMPTYBYTE '\x00'
 #define JEEFS_FILE_NAME_LENGTH 15
-#define JEEFS_HEADER_VERSION 3
+#define JEEFS_HEADER_VERSION 4
 #define JEEFS_MAC_LENGTH 6
 #define JEEFS_MAGIC "JETHOME"
 #define JEEFS_MAGIC_LENGTH 8
@@ -100,6 +100,24 @@ typedef struct {
     uint32_t crc32;  // 4B, offset 252, CRC32 of bytes 0-251
 } JEEPROMHeaderv3;
 
+// JEEPROMHeaderv4 (256 bytes)
+typedef struct {
+    char magic[8];  // 8B, offset 0, "JETHOME\0" (null-terminated string)
+    uint8_t version;  // 1B, offset 8, Header version = 4
+    uint8_t signature_version;  // 1B, offset 9, Signature algorithm (see enums)
+    uint8_t header_reserved[2];  // 2B, offset 10, Reserved (zeros)
+    char boardname[32];  // 32B, offset 12, Board name, null-terminated
+    char boardversion[32];  // 32B, offset 44, Board version, null-terminated
+    uint8_t board_serial[32];  // 32B, offset 76, Board serial number (bounded string)
+    uint8_t usid[32];  // 32B, offset 108, Board CPU/eFuse USID, if available
+    uint8_t cpuid[32];  // 32B, offset 140, Board CPU ID, if available
+    uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
+    uint8_t reserved2[2];  // 2B, offset 178, Reserved (alignment)
+    uint8_t signature[64];  // 64B, offset 180, ECDSA signature (r‖s, zero-padded)
+    int64_t timestamp;  // 8B, offset 244, Header creation/signing time (Unix s)
+    uint32_t crc32;  // 4B, offset 252, CRC32 of bytes 0-251
+} JEEPROMHeaderv4;
+
 // JEEFSFileHeaderv1 (24 bytes)
 typedef struct {
     char name[16];  // 16B, offset 0, Filename, null-terminated (max 15 ch.)
@@ -114,6 +132,7 @@ union JEEPROMHeader {
     JEEPROMHeaderv1 v1;  // Full v1 header (512B)
     JEEPROMHeaderv2 v2;  // Full v2 header (256B)
     JEEPROMHeaderv3 v3;  // Full v3 header (256B)
+    JEEPROMHeaderv4 v4;  // Full v4 header (256B)
 };
 
 #pragma pack(pop)
@@ -128,6 +147,7 @@ JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderversion) == 12, "sizeof(JEEPROMHeaderver
 JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv1) == 512, "sizeof(JEEPROMHeaderv1) must be 512");
 JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv2) == 256, "sizeof(JEEPROMHeaderv2) must be 256");
 JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv3) == 256, "sizeof(JEEPROMHeaderv3) must be 256");
+JEEFS_STATIC_ASSERT(sizeof(JEEPROMHeaderv4) == 256, "sizeof(JEEPROMHeaderv4) must be 256");
 JEEFS_STATIC_ASSERT(sizeof(JEEFSFileHeaderv1) == 24, "sizeof(JEEFSFileHeaderv1) must be 24");
 #undef JEEFS_STATIC_ASSERT
 
