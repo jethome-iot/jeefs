@@ -90,13 +90,13 @@ def _generate_constants(constants: list[ConstantDef]) -> str:
     return "\n".join(lines)
 
 
-def _generate_struct_fields(s: StructDef) -> str:
+def _generate_struct_fields(s: StructDef, current_version: int | None) -> str:
     """Generate EEPROM_FIELDS dict for a struct."""
     lines: list[str] = []
 
     # Determine dict name based on struct
     if s.version is not None:
-        if s.version == 3:
+        if s.version == current_version:
             # Current version gets the canonical name
             dict_name = "EEPROM_FIELDS"
             lines.append("")
@@ -120,7 +120,7 @@ def _generate_struct_fields(s: StructDef) -> str:
 
     # Size and CRC constants
     if s.version is not None:
-        if s.version == 3:
+        if s.version == current_version:
             prefix = "EEPROM"
         else:
             prefix = f"EEPROM_V{s.version}"
@@ -152,14 +152,16 @@ def generate_python_constants(spec: FormatSpec) -> str:
     # Struct field dicts (only for versioned header structs, sorted by version desc)
     header_structs = [s for s in spec.structs if s.version is not None]
     header_structs.sort(key=lambda s: -(s.version or 0))
+    # The newest header version gets the canonical EEPROM_FIELDS name
+    current_version = max((s.version for s in header_structs), default=None)
 
     for s in header_structs:
-        sections.append(_generate_struct_fields(s))
+        sections.append(_generate_struct_fields(s, current_version))
 
     # Non-versioned structs (filesystem)
     fs_structs = [s for s in spec.structs if s.version is None]
     for s in fs_structs:
-        sections.append(_generate_struct_fields(s))
+        sections.append(_generate_struct_fields(s, current_version))
 
     sections.append("")
     return "\n".join(sections)
