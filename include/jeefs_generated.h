@@ -57,8 +57,8 @@ typedef struct {
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-term.
     uint8_t serial[32];  // 32B, offset 76, Board serial (bounded str.)
-    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID
-    uint8_t cpuid[32];  // 32B, offset 140, CPU ID
+    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID (bounded)
+    uint8_t cpuid[32];  // 32B, offset 140, CPU ID (bounded string)
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved for extended MAC
     uint16_t modules[16];  // 32B, offset 180, 16 module IDs
@@ -74,8 +74,8 @@ typedef struct {
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-term.
     uint8_t serial[32];  // 32B, offset 76, Board serial (bounded str.)
-    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID
-    uint8_t cpuid[32];  // 32B, offset 140, CPU ID
+    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID (bounded)
+    uint8_t cpuid[32];  // 32B, offset 140, CPU ID (bounded string)
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved for extended MAC
     uint8_t reserved3[72];  // 72B, offset 180, Reserved for future use

@@ -75,8 +75,8 @@ pub struct JeepromHeaderV1 {
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-term.
     pub serial: [u8; 32],  // Board serial (bounded str.)
-    pub usid: [u8; 32],  // CPU eFuse USID
-    pub cpuid: [u8; 32],  // CPU ID
+    pub usid: [u8; 32],  // CPU eFuse USID (bounded)
+    pub cpuid: [u8; 32],  // CPU ID (bounded string)
     pub mac: [u8; 6],  // MAC address (6 raw bytes)
     pub reserved2: [u8; 2],  // Reserved for extended MAC
     pub modules: [u16; 16],  // 16 module IDs
@@ -116,8 +116,8 @@ pub struct JeepromHeaderV2 {
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-term.
     pub serial: [u8; 32],  // Board serial (bounded str.)
-    pub usid: [u8; 32],  // CPU eFuse USID
-    pub cpuid: [u8; 32],  // CPU ID
+    pub usid: [u8; 32],  // CPU eFuse USID (bounded)
+    pub cpuid: [u8; 32],  // CPU ID (bounded string)
     pub mac: [u8; 6],  // MAC address (6 raw bytes)
     pub reserved2: [u8; 2],  // Reserved for extended MAC
     pub reserved3: [u8; 72],  // Reserved for future use
