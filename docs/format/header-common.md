@@ -11,8 +11,9 @@ This file defines constants, enumerations, and shared properties used across all
 - **Emptiness (two domains, RFC #14):** *inside structures* (headers, file
   headers, the device-identity record) empty/reserved bytes are always
   `0x00`; *unmanaged medium space* past the last written structure reads
-  `0xFF` when erased (`0x00` after an explicit clear is equally legal — the
-  library never rewrites free space). Validity of written data is decided by
+  `0xFF` when erased, `0x00` where the library has zero-filled spans it
+  freed (delete, format) — both are legal empty space, and virgin erased
+  space is never proactively rewritten. Validity of written data is decided by
   magic, CRC and bounds checks — never by content heuristics; the one
   emptiness heuristic (an unwritten file slot) MUST accept both `0x00` and
   `0xFF`, and an erased 16-bit link (`0xFFFF`) terminates the file chain
