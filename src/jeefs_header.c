@@ -23,6 +23,8 @@ int jeefs_header_size(int version) {
             return (int) sizeof(JEEPROMHeaderv2);
         case 3:
             return (int) sizeof(JEEPROMHeaderv3);
+        case 4:
+            return (int) sizeof(JEEPROMHeaderv4);
         default:
             return -1;
     }

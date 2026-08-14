@@ -62,6 +62,12 @@ int main() {
     printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v3) - "
            "passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 
+    // Test v4 format (byte layout identical to v3, version byte = 4)
+    prepare_eeprom_file();
+    test0(4, sizeof(JEEPROMHeaderv4));
+    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n Test 0 (v4) - "
+           "passed\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+
     // Re-format with v1 for subsequent tests (test_01, test_02)
     prepare_eeprom_file();
     EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
