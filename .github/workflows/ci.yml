@@ -32,11 +32,6 @@ jobs:
           key: rust-${{ runner.os }}-${{ hashFiles('rust/jeefs-header/Cargo.lock', 'rust/jeefs-header/Cargo.toml') }}
           restore-keys: rust-${{ runner.os }}-
 
-      - name: Create EEPROM test file
-        run: |
-          mkdir -p build/tests/common
-          dd if=/dev/zero of=build/tests/common/eeprom.bin bs=1 count=8192
-
       - name: CMake configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
@@ -150,10 +145,74 @@ jobs:
             --rs-output /tmp/generated.rs
           diff -u ../rust/jeefs-header/src/generated.rs /tmp/generated.rs
 
+  # ── ASan/UBSan: full ctest under sanitizers (#20) ──
+  sanitizers:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake zlib1g-dev python3
+
+      - name: Configure with ASan/UBSan
+        run: >
+          cmake -B build-asan -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"
+
+      - name: Build
+        run: cmake --build build-asan
+
+      - name: Run ctest under sanitizers
+        run: cd build-asan && ctest --output-on-failure
+
+  # ── Strict warnings: the tree must build with -Wall -Wextra -Wvla -Werror (#20) ──
+  strict-warnings:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake zlib1g-dev python3
+
+      - name: Configure with strict warnings
+        run: >
+          cmake -B build-strict -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_FLAGS="-Wall -Wextra -Wvla -Werror"
+          -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wvla -Werror"
+
+      - name: Build
+        run: cmake --build build-strict
+
+  # ── clang-format: committed sources match .clang-format (#20) ──
+  format-check:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      # Same major as the tree was formatted with; generated header excluded —
+      # its layout is owned by the code generator (docs/CODEGEN.md).
+      - name: Install pinned clang-format
+        run: pip install clang-format==22.1.8
+
+      - name: Check formatting
+        run: |
+          git ls-files '*.c' '*.h' '*.hpp' '*.cpp' \
+            | grep -v '^include/jeefs_generated\.h$' \
+            | xargs clang-format --dry-run --Werror
+
   # ── Publish to crates.io (on tag push, or manual dispatch for backfill) ──
   publish-crates:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [build-and-test, rust-tests, python-tests, codegen-check]
+    needs: [build-and-test, rust-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     steps:
@@ -178,7 +237,7 @@ jobs:
   # ── Publish to PyPI (on tag push only) ──
   publish-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-and-test, rust-tests, python-tests, codegen-check]
+    needs: [build-and-test, rust-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     permissions:
