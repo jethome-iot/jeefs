@@ -39,23 +39,25 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 | 8       | 1    | record_version    | uint8_t     | -             | Record version = 1                         |
 | 9       | 1    | signature_version | uint8_t     | -             | Signature algorithm (same enum as header)  |
 | 10-11   | 2    | reserved1         | uint8_t[2]  | -             | Reserved (zeros)                           |
-| 12-43   | 32   | device_model      | char[32]    | -             | Device model name, null-terminated         |
-| 44-75   | 32   | device_serial     | char[32]    | -             | Device serial number, null-terminated      |
-| 76-91   | 16   | hw_revision       | char[16]    | -             | Device hardware revision, null-terminated  |
-| 92-93   | 2    | flags             | uint16_t    | little-endian | Reserved flags (zeros)                     |
+| 12-43   | 32   | device_model      | char[32]    | -             | Device model name (bounded string)         |
+| 44-75   | 32   | device_serial     | char[32]    | -             | Device serial number (bounded string)      |
+| 76-91   | 16   | hw_revision       | char[16]    | -             | Device hardware revision (bounded string)  |
+| 92-93   | 2    | flags             | uint16_t    | little-endian | Flags: all bits reserved (see below)       |
 | 94-179  | 86   | reserved2         | uint8_t[86] | -             | Reserved for future use (zeros)            |
 | 180-243 | 64   | signature         | uint8_t[64] | -             | ECDSA signature (r‖s, zero-padded)         |
-| 244-251 | 8    | timestamp         | int64_t     | little-endian | Unix timestamp (seconds)                   |
+| 244-251 | 8    | timestamp         | int64_t     | little-endian | Record creation/signing time (Unix s)      |
 | 252-255 | 4    | crc32             | uint32_t    | little-endian | CRC32 of bytes 0-251                       |
 
 - CRC32: IEEE 802.3 polynomial, same convention as headers.
 - The record size matches the v2/v3 header size (256 bytes), and the tail
   layout is **byte-identical to header v3**: `signature` at offset 180,
   `timestamp` at 244, `crc32` at 252, CRC coverage 0-251. The offset
-  arithmetic and CRC/signature conventions are shared with header v3, so the
-  header handling code is reusable for the record — with a record-aware
-  dispatch (the existing functions gate on the "JETHOME\0" magic and the
-  header version table, so they do not accept the record as-is). The 86-byte
+  arithmetic and CRC/signature conventions are shared with header v3. Note
+  for implementers: only the CRC32 helper and the little-endian accessors are
+  reusable as-is — all public `jeefs_header_*` entry points gate on the
+  "JETHOME\0" magic and the version 1-3 size table, so record support means
+  parameterizing them or adding a parallel record module, not calling the
+  existing functions. The 86-byte
   reserve leaves room for future fields (or a longer signature via a new
   `record_version`) without another size change.
 - The record deliberately carries **no MAC fields**: board MACs are provisioned
@@ -74,11 +76,28 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
   part number, manufacture date, vendor, per-unit UUID) are deliberately NOT
   stored: the record carries only what the device itself needs without
   database access.
-- String semantics follow the outcome of the raw-vs-string RFC
-  ([#13](https://github.com/jethome-iot/jeefs/issues/13)); the draft assumes
-  null-terminated UTF-8, zero-padded.
+- `device_model`, `device_serial` and `hw_revision` are **bounded strings**
+  per the settled RFC [#13](https://github.com/jethome-iot/jeefs/issues/13)
+  semantics: printable ASCII (0x20-0x7E), zero-padded, the NUL terminator is
+  optional and appears only when the value is shorter than the field — every
+  byte of the field is usable. Content validation is the producer's concern,
+  not the library's.
 - Versioning: a parser encountering an unknown `record_version` returns an
-  error. No forward-compatibility guessing.
+  error, and an unknown `signature_version` value (outside the enum) with a
+  known `record_version` is equally a parse error. No forward-compatibility
+  guessing.
+- Reserved space (`reserved1`, `reserved2`, all `flags` bits): writers MUST
+  write zeros; readers MUST ignore the content — never reject a record with
+  non-zero reserved bytes as corrupt. Future `record_version` values are the
+  only way reserved space gains meaning; `flags` bit semantics likewise
+  arrive only with a new `record_version`.
+- Erased storage needs no special case at the record layer: an all-`0x00` or
+  all-`0xFF` buffer (both are "empty" per
+  [header-common.md](header-common.md)) fails the magic check — "no record",
+  not "corrupt record". When the record is read as the `device.id` file, the
+  JEEFS file CRC32 gates the payload first; the record's own magic/CRC are a
+  second, standalone check for tooling that only ever sees the extracted
+  256 bytes — the double CRC is deliberate.
 
 ## Reserved file name
 
@@ -95,11 +114,13 @@ peripheral supports exactly P-192 and P-256 with eFuse-resident keys; Ed25519
 would be software-only with no eFuse key integration. A future algorithm, if
 ever needed, arrives as a new `signature_version` value, not a layout change.
 
-## Open questions (for RFC #26)
+## Resolved questions (RFC #26)
 
-- Whether `flags` should encode "identity locked" / provisioning state.
-- Terminology: [header-v3.md](header-v3.md) describes the `serial` field as
-  "Device serial number", while in multi-board products it is board-scoped —
-  the header specs' field descriptions need aligning once this RFC settles.
-- Interaction with the `0xFF is empty` rule
-  ([#14](https://github.com/jethome-iot/jeefs/issues/14)) for unwritten records.
+- `flags` semantics: stays a named field; all bits reserved (zero on write,
+  ignored on read) until a future `record_version` defines them. Whether an
+  "identity locked" state exists is firmware policy, outside the format.
+- `serial` terminology: the header specs now describe the field as
+  board-scoped (board serial); renaming the field itself to `board_serial`
+  is a header-v4 candidate.
+- Erased-storage interaction: no record-layer special case (see the layout
+  notes above).
