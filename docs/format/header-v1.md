@@ -14,8 +14,8 @@
 | 12-43   | 32   | boardname    | char[32]      | -             | Board name, null-terminated |
 | 44-75   | 32   | boardversion | char[32]      | -             | Board version, null-term.   |
 | 76-107  | 32   | serial       | uint8_t[32]   | -             | Board serial (bounded str.) |
-| 108-139 | 32   | usid         | uint8_t[32]   | -             | CPU eFuse USID              |
-| 140-171 | 32   | cpuid        | uint8_t[32]   | -             | CPU ID                      |
+| 108-139 | 32   | usid         | uint8_t[32]   | -             | CPU eFuse USID (bounded)    |
+| 140-171 | 32   | cpuid        | uint8_t[32]   | -             | CPU ID (bounded string)     |
 | 172-177 | 6    | mac          | uint8_t[6]    | -             | MAC address (6 raw bytes)   |
 | 178-179 | 2    | reserved2    | uint8_t[2]    | -             | Reserved for extended MAC   |
 | 180-211 | 32   | modules      | uint16_t[16]  | little-endian | 16 module IDs               |
