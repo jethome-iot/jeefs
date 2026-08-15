@@ -71,7 +71,12 @@ FIELDS_V1 = [
     ("crc32", 508, 4),
 ]
 
-VERSION_FIELDS = {1: FIELDS_V1, 2: FIELDS_V2, 3: FIELDS_V3}
+FIELDS_V4 = [
+    (name if name != "serial" else "board_serial", off, size)
+    for name, off, size in FIELDS_V3
+]
+
+VERSION_FIELDS = {1: FIELDS_V1, 2: FIELDS_V2, 3: FIELDS_V3, 4: FIELDS_V4}
 
 
 def _pack_string(value: str, size: int) -> bytes:
@@ -86,7 +91,7 @@ def _pack_bounded(value: str, size: int) -> bytes:
 
 # serial/usid/cpuid are bounded strings; boardname/boardversion stay
 # NUL-terminated (RFC #13)
-BOUNDED_FIELDS = {"serial", "usid", "cpuid"}
+BOUNDED_FIELDS = {"serial", "board_serial", "usid", "cpuid"}
 
 
 def _parse_mac(mac_str: str) -> bytes:
@@ -106,8 +111,9 @@ def generate_binary(spec: dict) -> bytes:
     buf[0:8] = b"JETHOME\x00"
     buf[8] = version
 
-    # Fill string fields
-    for field_name in ("boardname", "boardversion", "serial", "usid", "cpuid"):
+    # Fill string fields (v4 names the serial slot board_serial)
+    serial_key = "board_serial" if version == 4 else "serial"
+    for field_name in ("boardname", "boardversion", serial_key, "usid", "cpuid"):
         value = data.get(field_name, "")
         pack = _pack_bounded if field_name in BOUNDED_FIELDS else _pack_string
         for name, offset, size in fields_layout:
@@ -123,8 +129,8 @@ def generate_binary(spec: dict) -> bytes:
                 buf[offset : offset + size] = _parse_mac(mac_str)
                 break
 
-    # V3-specific fields
-    if version == 3:
+    # V3/V4 tail fields (identical layout)
+    if version in (3, 4):
         buf[9] = data.get("signature_version", 0)
 
         sig_hex = data.get("signature_hex", "")

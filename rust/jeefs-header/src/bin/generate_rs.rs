@@ -76,7 +76,9 @@ fn main() {
     if let Some(s) = fields["boardversion"].as_str() {
         pack_string(&mut buf, 44, 32, s);
     }
-    if let Some(s) = fields["serial"].as_str() {
+    // v4 names the serial slot board_serial (same offset)
+    let serial_key = if version == 4 { "board_serial" } else { "serial" };
+    if let Some(s) = fields[serial_key].as_str() {
         pack_bounded(&mut buf, 76, 32, s);
     }
     if let Some(s) = fields["usid"].as_str() {
@@ -92,8 +94,8 @@ fn main() {
         }
     }
 
-    // V3-specific fields
-    if version == 3 {
+    // V3/V4 tail fields (identical layout)
+    if version == 3 || version == 4 {
         if let Some(v) = fields["signature_version"].as_u64() {
             buf[9] = v as u8;
         }

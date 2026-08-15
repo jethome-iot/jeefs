@@ -218,6 +218,40 @@ impl JeepromHeaderV3 {
     }
 }
 
+impl JeepromHeaderV4 {
+    pub fn from_bytes(data: &[u8]) -> Option<&Self> {
+        if data.len() < core::mem::size_of::<Self>() {
+            return None;
+        }
+        Some(unsafe { &*(data.as_ptr() as *const Self) })
+    }
+
+    pub fn boardname_str(&self) -> &str {
+        str_from_bytes(&self.boardname)
+    }
+
+    pub fn boardversion_str(&self) -> &str {
+        str_from_bytes(&self.boardversion)
+    }
+
+    /// This board's serial (the v4 name of the v3 `serial` slot).
+    pub fn board_serial_str(&self) -> &str {
+        str_from_bytes(&self.board_serial)
+    }
+
+    pub fn usid_str(&self) -> &str {
+        str_from_bytes(&self.usid)
+    }
+
+    pub fn cpuid_str(&self) -> &str {
+        str_from_bytes(&self.cpuid)
+    }
+
+    pub fn signature_algorithm(&self) -> Result<SignatureAlgorithm, u8> {
+        SignatureAlgorithm::from_u8(self.signature_version)
+    }
+}
+
 impl JeefsFileHeaderV1 {
     pub fn from_bytes(data: &[u8]) -> Option<&Self> {
         if data.len() < core::mem::size_of::<Self>() {

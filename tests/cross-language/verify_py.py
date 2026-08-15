@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT / "python"))
 
 from jeefs.constants_generated import (  # noqa: E402
+    EEPROM_FIELDS,
     EEPROM_FIELDS_V3,
     EEPROM_FIELDS_V1,
     EEPROM_FIELDS_V2,
@@ -27,9 +28,10 @@ VERSION_FIELDS = {
     1: EEPROM_FIELDS_V1,
     2: EEPROM_FIELDS_V2,
     3: EEPROM_FIELDS_V3,
+    4: EEPROM_FIELDS,
 }
 
-VERSION_HEADER_SIZES = {1: 512, 2: 256, 3: 256}
+VERSION_HEADER_SIZES = {1: 512, 2: 256, 3: 256, 4: 256}
 
 
 def _unpack_string(data: bytes) -> str:
@@ -87,8 +89,9 @@ def verify(bin_path: str, json_path: str) -> int:
     else:
         print(f"  OK: CRC32 = 0x{stored_crc:08x}")
 
-    # Check string fields
-    for field_name in ("boardname", "boardversion", "serial", "usid", "cpuid"):
+    # Check string fields (v4 names the serial slot board_serial)
+    serial_key = "board_serial" if version == 4 else "serial"
+    for field_name in ("boardname", "boardversion", serial_key, "usid", "cpuid"):
         expected = json_fields.get(field_name, "")
         if field_name in fields_map:
             off, sz = fields_map[field_name]
@@ -111,8 +114,8 @@ def verify(bin_path: str, json_path: str) -> int:
         else:
             print(f"  OK: mac = {mac_actual}")
 
-    # V3-specific
-    if version == 3:
+    # V3/V4 tail (identical layout)
+    if version in (3, 4):
         sig_ver = json_fields.get("signature_version", 0)
         actual_sig_ver = bin_data[9]
         if actual_sig_ver != sig_ver:

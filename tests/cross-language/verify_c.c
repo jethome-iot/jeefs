@@ -189,8 +189,10 @@ int main(int argc, char *argv[]) {
     if (json_get_string(json, "boardversion", expected_str, sizeof(expected_str)) == 0) {
         check_string("boardversion", (const char *) (bin_data + 44), expected_str);
     }
-    if (json_get_string(json, "serial", expected_str, sizeof(expected_str)) == 0) {
-        check_bounded("serial", bin_data + 76, 32, expected_str);
+    /* v4 names the serial slot board_serial (same offset) */
+    const char *serial_key = (detected_version == 4) ? "board_serial" : "serial";
+    if (json_get_string(json, serial_key, expected_str, sizeof(expected_str)) == 0) {
+        check_bounded(serial_key, bin_data + 76, 32, expected_str);
     }
     if (json_get_string(json, "usid", expected_str, sizeof(expected_str)) == 0) {
         check_bounded("usid", bin_data + 108, 32, expected_str);
@@ -202,8 +204,8 @@ int main(int argc, char *argv[]) {
         check_mac("mac", bin_data + 172, expected_str);
     }
 
-    /* V3-specific: signature_version, timestamp */
-    if (detected_version == 3) {
+    /* V3/V4 tail: signature_version, timestamp */
+    if (detected_version == 3 || detected_version == 4) {
         int expected_sig_ver = 0;
         if (json_get_int(json, "signature_version", &expected_sig_ver) == 0) {
             check_int("signature_version", bin_data[9], expected_sig_ver);

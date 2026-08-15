@@ -145,7 +145,9 @@ int main(int argc, char *argv[]) {
     if (json_get_string(json, "boardversion", str_val, sizeof(str_val)) == 0)
         pack_string(buf + 44, 32, str_val);
 
-    if (json_get_string(json, "serial", str_val, sizeof(str_val)) == 0)
+    /* v4 names the serial slot board_serial (same offset) */
+    const char *serial_key = (version == 4) ? "board_serial" : "serial";
+    if (json_get_string(json, serial_key, str_val, sizeof(str_val)) == 0)
         pack_bounded(buf + 76, 32, str_val);
 
     if (json_get_string(json, "usid", str_val, sizeof(str_val)) == 0)
@@ -160,8 +162,8 @@ int main(int argc, char *argv[]) {
             memcpy(buf + 172, mac, 6);
     }
 
-    /* V3-specific fields */
-    if (version == 3) {
+    /* V3/V4 tail fields (identical layout) */
+    if (version == 3 || version == 4) {
         int sig_ver = 0;
         if (json_get_int(json, "signature_version", &sig_ver) == 0)
             buf[9] = (uint8_t) sig_ver;

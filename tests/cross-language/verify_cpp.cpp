@@ -148,8 +148,11 @@ int main(int argc, char *argv[]) {
         check_sv("boardname", hdr.boardname(), expected_str);
     if (json_get_string(json, "boardversion", expected_str, sizeof(expected_str)) == 0)
         check_sv("boardversion", hdr.boardversion(), expected_str);
-    if (json_get_string(json, "serial", expected_str, sizeof(expected_str)) == 0)
-        check_sv("serial", hdr.serial(), expected_str);
+    /* v4 names the serial slot board_serial (same offset/view) */
+    const bool is_v4 = ver && *ver == 4;
+    const char *serial_key = is_v4 ? "board_serial" : "serial";
+    if (json_get_string(json, serial_key, expected_str, sizeof(expected_str)) == 0)
+        check_sv(serial_key, is_v4 ? hdr.board_serial() : hdr.serial(), expected_str);
     if (json_get_string(json, "usid", expected_str, sizeof(expected_str)) == 0)
         check_sv("usid", hdr.usid(), expected_str);
     if (json_get_string(json, "cpuid", expected_str, sizeof(expected_str)) == 0)
@@ -157,11 +160,15 @@ int main(int argc, char *argv[]) {
     if (json_get_string(json, "mac", expected_str, sizeof(expected_str)) == 0)
         check_mac("mac", hdr.mac(), expected_str);
 
-    /* V3-specific via direct struct access */
+    /* V3/V4 tail via direct struct access (identical layout) */
     if (ver && *ver == 3) {
         int expected_sig_ver = 0;
         if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
             check_int("signature_version", hdr.as_v3().signature_version, expected_sig_ver);
+    } else if (is_v4) {
+        int expected_sig_ver = 0;
+        if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
+            check_int("signature_version", hdr.as_v4().signature_version, expected_sig_ver);
     }
 
     printf("\nResult: %d failure(s)\n", failures);
