@@ -656,3 +656,8 @@ class TestHeaderV4:
         assert d["version"] == 4
         assert d["board_serial"] == "BS-0001"
         assert "serial" not in d
+
+    def test_repr_names_the_class_and_slot(self):
+        r = repr(self._mk())
+        assert r.startswith("EEPROMHeaderV4(")
+        assert "board_serial=BS-0001" in r
