@@ -78,6 +78,45 @@ FIELDS_V4 = [
 
 VERSION_FIELDS = {1: FIELDS_V1, 2: FIELDS_V2, 3: FIELDS_V3, 4: FIELDS_V4}
 
+# DeviceIdentityV1 record (docs/format/device-identity-v1.md) — its own
+# layout, not a header version
+FIELDS_DEVID = [
+    ("magic", 0, 8),
+    ("record_version", 8, 1),
+    ("signature_version", 9, 1),
+    ("reserved1", 10, 2),
+    ("device_model", 12, 32),
+    ("device_serial", 44, 32),
+    ("hw_revision", 76, 16),
+    ("flags", 92, 2),
+    ("reserved2", 94, 86),
+    ("signature", 180, 64),
+    ("timestamp", 244, 8),
+    ("crc32", 252, 4),
+]
+
+
+def generate_record(spec: dict) -> bytes:
+    """Build a DeviceIdentityV1 record from a .json description."""
+    data = spec["fields"]
+    buf = bytearray(256)
+    buf[0:8] = b"JHDEVID\x00"
+    buf[8] = spec.get("record_version", 1)
+    buf[9] = data.get("signature_version", 0)
+    for name in ("device_model", "device_serial", "hw_revision"):
+        for fname, offset, size in FIELDS_DEVID:
+            if fname == name:
+                buf[offset : offset + size] = _pack_bounded(data.get(name, ""), size)
+                break
+    sig_hex = data.get("signature_hex", "")
+    if sig_hex:
+        sig = bytes.fromhex(sig_hex)
+        buf[180 : 180 + len(sig)] = sig
+    struct.pack_into("<q", buf, 244, data.get("timestamp", 0))
+    crc = binascii.crc32(bytes(buf[:252])) & 0xFFFFFFFF
+    struct.pack_into("<I", buf, 252, crc)
+    return bytes(buf)
+
 
 def _pack_string(value: str, size: int) -> bytes:
     encoded = value.encode("utf-8")[: size - 1]
@@ -170,7 +209,10 @@ def main() -> None:
         with open(json_path) as f:
             spec = json.load(f)
 
-        bin_data = generate_binary(spec)
+        if spec.get("struct") == "DeviceIdentityV1":
+            bin_data = generate_record(spec)
+        else:
+            bin_data = generate_binary(spec)
         bin_path = json_path.with_suffix(".bin")
         if check_mode:
             committed = bin_path.read_bytes() if bin_path.exists() else None

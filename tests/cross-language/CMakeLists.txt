@@ -79,6 +79,9 @@ if(CARGO)
 endif()
 
 file(GLOB VECTOR_JSONS "${VECTORS_DIR}/*.json")
+# The devid_* record vectors have their own layout and per-language tests —
+# the header generator/verifier matrix skips them.
+list(FILTER VECTOR_JSONS EXCLUDE REGEX "devid_")
 foreach(json_file ${VECTOR_JSONS})
     get_filename_component(stem ${json_file} NAME_WE)
 
