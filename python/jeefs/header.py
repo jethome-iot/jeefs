@@ -423,3 +423,37 @@ class EEPROMHeaderV3:
             f"mac={self.mac}, "
             f"sig={sig_info})"
         )
+
+
+class EEPROMHeaderV4(EEPROMHeaderV3):
+    """JEEPROMHeaderv4 -- board-scoped identity header (RFC #56).
+
+    The byte layout is identical to v3; the version byte carries the
+    semantic break. The v3 ``serial`` slot is named ``board_serial``:
+    it identifies this board, never the device (device identity lives
+    in the ``device.id`` record). The inherited ``serial`` attribute
+    remains as storage; ``board_serial`` is the canonical v4 name.
+    """
+
+    VERSION = 4
+
+    def __init__(self, *args, board_serial: str | None = None, **kwargs):
+        if board_serial is not None:
+            if "serial" in kwargs:
+                raise TypeError("pass either board_serial or serial, not both")
+            kwargs["serial"] = board_serial
+        super().__init__(*args, **kwargs)
+
+    @property
+    def board_serial(self) -> str:
+        """This board's serial number (the v4 name of the serial slot)."""
+        return self.serial
+
+    @board_serial.setter
+    def board_serial(self, value: str) -> None:
+        self.serial = value
+
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        d["board_serial"] = d.pop("serial")
+        return d

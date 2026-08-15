@@ -18,7 +18,9 @@ import time
 
 import pytest
 from jeefs import (
+    EEPROMHeaderV4,
     EEPROM_CRC_COVERAGE,
+    EEPROM_FIELDS,
     EEPROM_FIELDS_V3,
     EEPROM_HEADER_SIZE,
     EEPROM_MAGIC,
@@ -617,3 +619,40 @@ class TestBoundedStrings:
         errs = self._mk(boardname="B" * 32).validate()
         assert any("boardname" in e for e in errs)
         assert self._mk(boardname="B" * 31).validate() == []
+
+
+class TestHeaderV4:
+    """Header v4: layout identical to v3, board-scoped semantics,
+    the serial slot is named board_serial (RFC #56)."""
+
+    def _mk(self, **kw):
+        defaults = dict(boardname="JetHub-D2", boardversion="2.1",
+                        board_serial="BS-0001", usid="U", cpuid="C")
+        defaults.update(kw)
+        return EEPROMHeaderV4(**defaults)
+
+    def test_version_byte_and_layout(self):
+        raw = self._mk().to_bytes()
+        assert raw[8] == 4
+        off, sz = EEPROM_FIELDS["board_serial"]
+        assert raw[off : off + sz].split(b"\x00")[0] == b"BS-0001"
+        assert (off, sz) == EEPROM_FIELDS_V3["serial"]  # same slot as v3
+
+    def test_round_trip(self):
+        hdr = self._mk(board_serial="S" * 32)
+        back = EEPROMHeaderV4.from_bytes(hdr.to_bytes())
+        assert back.board_serial == "S" * 32
+        assert back.VERSION == 4
+        assert back.verify_crc(hdr.to_bytes())
+
+    def test_rejects_v3_bytes(self):
+        v3 = EEPROMHeaderV3(boardname="b", boardversion="1",
+                            serial="s", usid="u", cpuid="c")
+        with pytest.raises(ValueError, match="version"):
+            EEPROMHeaderV4.from_bytes(v3.to_bytes())
+
+    def test_to_dict_uses_board_serial(self):
+        d = self._mk().to_dict()
+        assert d["version"] == 4
+        assert d["board_serial"] == "BS-0001"
+        assert "serial" not in d
