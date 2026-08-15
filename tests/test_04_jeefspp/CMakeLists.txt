@@ -2,6 +2,9 @@
 
 add_executable(test_04 test_04.cpp)
 
+target_compile_definitions(test_04 PRIVATE
+        VECTORS_DIR="${jeefs_SOURCE_DIR}/test-vectors/vectors")
+
 target_link_libraries(test_04 jeefspp jeefs_headerpp)
 target_compile_features(test_04 PRIVATE cxx_std_17)
 
