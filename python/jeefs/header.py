@@ -412,14 +412,17 @@ class EEPROMHeaderV3:
             "crc32": None,  # Calculated on to_bytes()
         }
 
+    # The v4 subclass renames the serial slot; repr and to_dict use this label
+    SERIAL_LABEL = "serial"
+
     def __repr__(self) -> str:
         sig_info = (
             f"{self.signature_algorithm.name}({len(self.signature)}B)" if self.signature else "none"
         )
         return (
-            f"EEPROMHeaderV3("
+            f"{type(self).__name__}("
             f"board={self.boardname}/{self.boardversion}, "
-            f"serial={self.serial}, "
+            f"{self.SERIAL_LABEL}={self.serial}, "
             f"mac={self.mac}, "
             f"sig={sig_info})"
         )
@@ -432,10 +435,13 @@ class EEPROMHeaderV4(EEPROMHeaderV3):
     semantic break. The v3 ``serial`` slot is named ``board_serial``:
     it identifies this board, never the device (device identity lives
     in the ``device.id`` record). The inherited ``serial`` attribute
-    remains as storage; ``board_serial`` is the canonical v4 name.
+    remains as storage; ``board_serial`` is the canonical v4 name. Note:
+    ``dataclasses.asdict``/``astuple`` reflect the storage field ``serial``
+    — use ``to_dict()`` for the canonical v4 naming.
     """
 
     VERSION = 4
+    SERIAL_LABEL = "board_serial"
 
     def __init__(self, *args, board_serial: str | None = None, **kwargs):
         if board_serial is not None:
