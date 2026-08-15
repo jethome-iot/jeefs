@@ -102,17 +102,15 @@ _HEADER_SIZES = {1: 512, 2: 256, 3: 256, 4: 256}
 def detect_version(data: bytes) -> int | None:
     """Detect the header version of a raw buffer.
 
-    Mirrors the C/Rust detect functions: magic plus a known version byte.
-    Returns the version (1-4) or None — an erased or foreign buffer is
-    "no header", not an error.
+    Mirrors the C/Rust detect functions: a 12-byte probe (magic plus a
+    known version byte) is enough — full-header validation is the
+    parser's job. Returns the version (1-4) or None: an erased or
+    foreign buffer is "no header", not an error.
     """
     if len(data) < 12 or data[0:8] != EEPROM_MAGIC:
         return None
     version = data[8]
-    size = _HEADER_SIZES.get(version)
-    if size is None or len(data) < size:
-        return None
-    return version
+    return version if version in _HEADER_SIZES else None
 
 
 @dataclass
@@ -161,7 +159,7 @@ class EEPROMHeaderV3:
     signature: bytes = field(default_factory=bytes)
     signature_algorithm: SignatureAlgorithm = SignatureAlgorithm.NONE
 
-    # Timestamp (Unix epoch, 0 or None = use current time on serialization)
+    # Timestamp (Unix epoch, written verbatim; 0/None serialize as 0)
     timestamp: int | None = None
 
     def __post_init__(self) -> None:
