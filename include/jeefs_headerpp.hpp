@@ -53,6 +53,9 @@ namespace jeefs {
         /// Board serial (bounded string at offset 76: all 32 bytes usable, RFC #13).
         std::string_view serial() const { return string_at(76, 32); }
 
+        /// The v4 name of the same slot (header v4 renames serial to board_serial).
+        std::string_view board_serial() const { return string_at(76, 32); }
+
         /// CPU eFuse USID (bounded string at offset 108, RFC #13).
         std::string_view usid() const { return string_at(108, 32); }
 
@@ -79,6 +82,9 @@ namespace jeefs {
 
         /// Direct access: v3 header.
         const JEEPROMHeaderv3 &as_v3() const { return *reinterpret_cast<const JEEPROMHeaderv3 *>(data_); }
+
+        /// Direct access: v4 header (board-scoped; layout identical to v3).
+        const JEEPROMHeaderv4 &as_v4() const { return *reinterpret_cast<const JEEPROMHeaderv4 *>(data_); }
 
         /// Raw data pointer.
         const uint8_t *data() const { return data_; }
@@ -123,6 +129,9 @@ namespace jeefs {
 
         /// Mutable access to v3 struct (caller must ensure version == 3).
         JEEPROMHeaderv3 &as_v3() { return *reinterpret_cast<JEEPROMHeaderv3 *>(buf_.data()); }
+
+        /// Mutable access to v4 struct (caller must ensure version == 4).
+        JEEPROMHeaderv4 &as_v4() { return *reinterpret_cast<JEEPROMHeaderv4 *>(buf_.data()); }
 
         /// Mutable access to v2 struct.
         JEEPROMHeaderv2 &as_v2() { return *reinterpret_cast<JEEPROMHeaderv2 *>(buf_.data()); }

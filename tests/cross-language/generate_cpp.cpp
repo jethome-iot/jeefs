@@ -184,6 +184,31 @@ int main(int argc, char *argv[]) {
 
         if (json_get_string(json, "signature_hex", str_val, sizeof(str_val)) == 0)
             hex_to_bytes(str_val, hdr.signature, sizeof(hdr.signature));
+    } else if (version == 4) {
+        auto &hdr = buf.as_v4();
+        if (json_get_string(json, "boardname", str_val, sizeof(str_val)) == 0)
+            pack_string(hdr.boardname, sizeof(hdr.boardname), str_val);
+        if (json_get_string(json, "boardversion", str_val, sizeof(str_val)) == 0)
+            pack_string(hdr.boardversion, sizeof(hdr.boardversion), str_val);
+        if (json_get_string(json, "board_serial", str_val, sizeof(str_val)) == 0)
+            pack_bounded(hdr.board_serial, sizeof(hdr.board_serial), str_val);
+        if (json_get_string(json, "usid", str_val, sizeof(str_val)) == 0)
+            pack_bounded(hdr.usid, sizeof(hdr.usid), str_val);
+        if (json_get_string(json, "cpuid", str_val, sizeof(str_val)) == 0)
+            pack_bounded(hdr.cpuid, sizeof(hdr.cpuid), str_val);
+        if (json_get_string(json, "mac", str_val, sizeof(str_val)) == 0)
+            parse_mac(str_val, hdr.mac);
+
+        int sig_ver = 0;
+        if (json_get_int(json, "signature_version", &sig_ver) == 0)
+            hdr.signature_version = static_cast<uint8_t>(sig_ver);
+
+        long long ts = 0;
+        if (json_get_long(json, "timestamp", &ts) == 0)
+            hdr.timestamp = static_cast<int64_t>(ts);
+
+        if (json_get_string(json, "signature_hex", str_val, sizeof(str_val)) == 0)
+            hex_to_bytes(str_val, hdr.signature, sizeof(hdr.signature));
     }
 
     buf.update_crc();

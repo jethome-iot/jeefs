@@ -185,8 +185,38 @@ fn main() {
                 }
             }
         }
+        4 => {
+            if let Some(hdr) = JeepromHeaderV4::from_bytes(&bin_data) {
+                if let Some(s) = fields["boardname"].as_str() {
+                    check_str("boardname", hdr.boardname_str(), s);
+                }
+                if let Some(s) = fields["boardversion"].as_str() {
+                    check_str("boardversion", hdr.boardversion_str(), s);
+                }
+                if let Some(s) = fields["board_serial"].as_str() {
+                    check_str("board_serial", hdr.board_serial_str(), s);
+                }
+                if let Some(s) = fields["usid"].as_str() {
+                    check_str("usid", hdr.usid_str(), s);
+                }
+                if let Some(s) = fields["cpuid"].as_str() {
+                    check_str("cpuid", hdr.cpuid_str(), s);
+                }
+                if let Some(s) = fields["mac"].as_str() {
+                    check_mac("mac", &hdr.mac, s);
+                }
+                if let Some(sig_ver) = fields["signature_version"].as_i64() {
+                    check_int(
+                        "signature_version",
+                        hdr.signature_version as i64,
+                        sig_ver,
+                    );
+                }
+            }
+        }
         _ => {
             eprintln!("  FAIL: unsupported version {}", ver_num);
+
             unsafe { FAILURES += 1 };
         }
     }
