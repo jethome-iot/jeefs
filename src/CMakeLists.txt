@@ -4,8 +4,10 @@ find_package(ZLIB REQUIRED)
 
 add_library(jeefs_header STATIC
         jeefs_header.c
+        jeefs_devid.c
         ../include/jeefs.h
         ../include/jeefs_header.h
+        ../include/jeefs_devid.h
 )
 target_link_libraries(jeefs_header ZLIB::ZLIB)
 
