@@ -1,0 +1,13 @@
+{
+    "struct": "DeviceIdentityV1",
+    "record_version": 1,
+    "record_size": 256,
+    "crc_coverage": 252,
+    "fields": {
+        "device_model": "JetHub-D2",
+        "device_serial": "DSN-2026-000042",
+        "hw_revision": "1.2a",
+        "signature_version": 0,
+        "timestamp": 1755200000
+    }
+}

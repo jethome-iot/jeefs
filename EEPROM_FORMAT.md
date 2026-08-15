@@ -248,6 +248,19 @@ crc32_value = binascii.crc32(bytes(eeprom[0:252])) & 0xFFFFFFFF
 struct.pack_into("<I", eeprom, 252, crc32_value)
 ```
 
+## Device Identity Record (device.id)
+
+**Device** identity (model, serial, hardware revision) never lives in headers —
+it is a self-contained 256-byte signed record **DeviceIdentityV1**
+(magic `"JHDEVID\0"`, own record_version and CRC32) stored as the reserved
+JEEFS file **`device.id`**. The tail (signature @ 180, timestamp @ 244,
+crc32 @ 252, coverage 0-251) is byte-identical to header v3. All three string
+fields are bounded; reserved space is zeroed by writers and ignored by
+readers; unknown `record_version`/`signature_version` values are parse
+errors. Canonical spec: [device-identity-v1.md](docs/format/device-identity-v1.md);
+parsers exist in C (`jeefs_devid.h`), C++ (`DeviceIdView`/`DeviceIdBuffer`),
+Python (`jeefs.DeviceIdentityV1`) and Rust (`devid_*` + accessors).
+
 ## Verification
 
 After EEPROM programming, device firmware should:
