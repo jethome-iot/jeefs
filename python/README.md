@@ -87,7 +87,7 @@ image = header.to_partition_image()  # 4096-byte flash image
 | `mac` | `str` | MAC address ("AA:BB:CC:DD:EE:FF") |
 | `signature` | `bytes` | ECDSA signature (raw r\|\|s) |
 | `signature_algorithm` | `SignatureAlgorithm` | NONE / SECP192R1 / SECP256R1 |
-| `timestamp` | `int \| None` | Unix timestamp (auto-set if None/0) |
+| `timestamp` | `int \| None` | Unix timestamp, written verbatim (0/None serialize as 0) |
 
 ### `SignatureAlgorithm` enum
 

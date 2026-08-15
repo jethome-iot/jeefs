@@ -697,3 +697,8 @@ class TestTimestampRoundTrip:
         raw = hdr.to_bytes()
         assert raw[244:252] == b"\x00" * 8
         assert hdr.to_bytes() == raw  # stable across calls
+
+    def test_twelve_byte_probe_suffices(self):
+        # C/Rust detect only need the 12-byte version-detect struct
+        assert detect_version(b"JETHOME\x00\x03\x00\x00\x00") == 3
+        assert detect_version(b"JETHOME\x00\x04\x00\x00\x00") == 4
