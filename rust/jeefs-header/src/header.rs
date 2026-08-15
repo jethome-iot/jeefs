@@ -114,7 +114,7 @@ pub fn update_crc(data: &mut [u8]) -> bool {
 }
 
 /// Extract a null-terminated string from a byte slice.
-fn str_from_bytes(bytes: &[u8]) -> &str {
+pub(crate) fn str_from_bytes(bytes: &[u8]) -> &str {
     let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
     core::str::from_utf8(&bytes[..end]).unwrap_or("")
 }

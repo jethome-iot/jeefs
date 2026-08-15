@@ -6,8 +6,10 @@
 
 #![no_std]
 
+pub mod devid;
 pub mod generated;
 pub mod header;
 
+pub use devid::*;
 pub use generated::*;
 pub use header::*;
