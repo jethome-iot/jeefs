@@ -1,4 +1,8 @@
-# JEEPROMHeaderv1 (512 bytes) — Legacy
+# JEEPROMHeaderv1 (512 bytes) — Obsolete
+
+> **Status: obsolete.** Never written by new production; no devices in the
+> field carry it. Kept fully specified and parseable per the wire-stability
+> policy, and available as a basis for deriving future formats.
 
 <!-- STRUCT: JEEPROMHeaderv1 -->
 <!-- SIZE: 512 -->

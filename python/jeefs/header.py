@@ -10,7 +10,6 @@ from __future__ import annotations
 import binascii
 import logging
 import struct
-import time as time_module
 from dataclasses import dataclass, field
 
 from .constants import (
@@ -95,6 +94,25 @@ def _unpack_string(data: bytes) -> str:
         Decoded string (up to first null byte).
     """
     return data.split(b"\x00")[0].decode("utf-8", errors="replace")
+
+
+_HEADER_SIZES = {1: 512, 2: 256, 3: 256, 4: 256}
+
+
+def detect_version(data: bytes) -> int | None:
+    """Detect the header version of a raw buffer.
+
+    Mirrors the C/Rust detect functions: magic plus a known version byte.
+    Returns the version (1-4) or None — an erased or foreign buffer is
+    "no header", not an error.
+    """
+    if len(data) < 12 or data[0:8] != EEPROM_MAGIC:
+        return None
+    version = data[8]
+    size = _HEADER_SIZES.get(version)
+    if size is None or len(data) < size:
+        return None
+    return version
 
 
 @dataclass
@@ -265,11 +283,10 @@ class EEPROMHeaderV3:
             off = EEPROM_FIELDS_V3["signature"][0]
             eeprom[off : off + len(sig_data)] = sig_data
 
-        # Timestamp (offset 244, int64 little-endian)
-        ts = self.timestamp
-        if ts is None or ts == 0:
-            ts = int(time_module.time())
-        struct.pack_into("<q", eeprom, EEPROM_FIELDS_V3["timestamp"][0], ts)
+        # Timestamp (offset 244, int64 little-endian). Written verbatim:
+        # replacing 0 with "now" made round-trips unstable and ts=0
+        # unwritable (#16); producers set the signing time explicitly.
+        struct.pack_into("<q", eeprom, EEPROM_FIELDS_V3["timestamp"][0], self.timestamp or 0)
 
         # CRC32 (offset 252, uint32 little-endian, covers bytes 0-251)
         crc32_value = binascii.crc32(bytes(eeprom[:EEPROM_CRC_COVERAGE])) & 0xFFFFFFFF
