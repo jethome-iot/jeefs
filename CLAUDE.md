@@ -165,6 +165,7 @@ tests/               # C test suite (ctest)
 docs/format/         # Canonical machine-readable format specs (codegen source):
                      #   header v1-v4, device-identity-v1, filesystem-v1, common
 docs/CODEGEN.md      # Generated-files policy
+docs/IMPLEMENTATION_CONTRACT.md  # Per-language behavioral contract + conformance suite
 tools/jeefs_codegen/ # Spec parser + C/Python/Rust generators
 EEPROM_FORMAT.md     # Human-readable format overview
 ```
