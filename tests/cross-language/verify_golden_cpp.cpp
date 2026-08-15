@@ -43,10 +43,11 @@ static void check_int(const char *name, int actual, int expected) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <eeprom_full.bin>\n", argv[0]);
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "Usage: %s <eeprom_full.bin> [expected_version]\n", argv[0]);
         return 2;
     }
+    int expected_ver = (argc == 3) ? atoi(argv[2]) : 3;
 
     std::ifstream bf(argv[1], std::ios::binary);
     if (!bf) {
@@ -68,7 +69,7 @@ int main(int argc, char *argv[]) {
 
     /* Version detection */
     auto ver = hdr.detect_version();
-    check_int("header_version", ver.value_or(-1), 3);
+    check_int("header_version", ver.value_or(-1), expected_ver);
 
     /* CRC */
     if (!hdr.verify_crc()) {

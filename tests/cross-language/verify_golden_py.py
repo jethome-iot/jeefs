@@ -62,8 +62,9 @@ def verify(bin_path: str, json_path: str) -> int:
         print(f"  OK: CRC32 = 0x{stored_crc:08x}")
 
     # String fields
-    for field in ("boardname", "boardversion", "serial", "usid", "cpuid"):
-        off, sz = EEPROM_FIELDS[field]
+    serial_key = "board_serial" if header_spec["version"] == 4 else "serial"
+    for field in ("boardname", "boardversion", serial_key, "usid", "cpuid"):
+        off, sz = EEPROM_FIELDS["serial" if field == "board_serial" else field]
         actual = eeprom[off : off + sz].split(b"\x00")[0].decode("utf-8")
         expected = header_spec[field]
         if actual != expected:

@@ -42,10 +42,11 @@ static void check_int(const char *name, int actual, int expected) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <eeprom_full.bin>\n", argv[0]);
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "Usage: %s <eeprom_full.bin> [expected_version]\n", argv[0]);
         return 2;
     }
+    int expected_ver = (argc == 3) ? atoi(argv[2]) : 3;
 
     FILE *f = fopen(argv[1], "rb");
     if (!f) {
@@ -65,7 +66,7 @@ int main(int argc, char *argv[]) {
 
     /* Detect and verify header */
     int ver = jeefs_header_detect_version(eeprom, EEPROM_SIZE);
-    check_int("header_version", ver, 3);
+    check_int("header_version", ver, expected_ver);
 
     int crc_ok = jeefs_header_verify_crc(eeprom, EEPROM_SIZE);
     if (crc_ok != 0) {
