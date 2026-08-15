@@ -6,8 +6,8 @@
 >
 > - [Header v4 (256B, board-scoped, current)](docs/format/header-v4.md)
 > - [Header v3 (256B, fielded production)](docs/format/header-v3.md)
-> - [Header v2 (256B, legacy)](docs/format/header-v2.md)
-> - [Header v1 (512B, legacy)](docs/format/header-v1.md)
+> - [Header v2 (256B, obsolete)](docs/format/header-v2.md)
+> - [Header v1 (512B, obsolete)](docs/format/header-v1.md)
 > - [Device identity record (256B, device.id file)](docs/format/device-identity-v1.md)
 > - [Common properties, constants, enums](docs/format/header-common.md)
 > - [Filesystem v1 (file storage format)](docs/format/filesystem-v1.md)
@@ -16,7 +16,7 @@
 
 Human-readable overview of the JEEFS formats; the machine-parseable specs in `docs/format/` are canonical and feed the code generator.
 
-Each board EEPROM carries a structured **board-scoped** header followed by optional file system data. Four header versions exist: **v4** is current (explicitly board-scoped), **v3** is the fielded production format. **Device** identity lives in the `device.id` record, not in headers (RFC #26).
+Each board EEPROM carries a structured **board-scoped** header followed by optional file system data. Four header versions exist: **v4** is current (explicitly board-scoped), **v3** is the fielded production format; **v1/v2 are obsolete** — never written anew, kept parseable and available as a basis for future formats. **Device** identity lives in the `device.id` record, not in headers (RFC #26).
 
 ### Common Properties (All Versions)
 

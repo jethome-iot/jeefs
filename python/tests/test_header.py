@@ -14,11 +14,11 @@ Tests cover:
 
 import binascii
 import struct
-import time
 
 import pytest
 from jeefs import (
     EEPROMHeaderV4,
+    detect_version,
     EEPROM_CRC_COVERAGE,
     EEPROM_FIELDS,
     EEPROM_FIELDS_V3,
@@ -213,14 +213,12 @@ class TestHeaderToBytes:
         expected_crc = binascii.crc32(result[:EEPROM_CRC_COVERAGE]) & 0xFFFFFFFF
         assert stored_crc == expected_crc
 
-    def test_timestamp_default_current_time(self, sample_data):
-        before = int(time.time())
+    def test_timestamp_unset_writes_zero(self, sample_data):
+        # ts is written verbatim (#16): no silent "now" substitution
         header = EEPROMHeaderV3(**sample_data)
         result = header.to_bytes()
-        after = int(time.time())
-
         ts = struct.unpack("<q", result[244:252])[0]
-        assert before <= ts <= after
+        assert ts == 0
 
     def test_timestamp_explicit(self, sample_data):
         header = EEPROMHeaderV3(**sample_data, timestamp=1734264000)
@@ -661,3 +659,41 @@ class TestHeaderV4:
         r = repr(self._mk())
         assert r.startswith("EEPROMHeaderV4(")
         assert "board_serial=BS-0001" in r
+
+
+class TestDetectVersion:
+    """Module-level detect_version — the cross-version entry point."""
+
+    def test_detects_all_versions(self):
+        v3 = EEPROMHeaderV3(boardname="b", boardversion="1",
+                            serial="s", usid="u", cpuid="c")
+        assert detect_version(v3.to_bytes()) == 3
+        v4 = EEPROMHeaderV4(boardname="b", boardversion="1",
+                            board_serial="s", usid="u", cpuid="c")
+        assert detect_version(v4.to_bytes()) == 4
+
+    def test_erased_and_garbage_are_none(self):
+        assert detect_version(b"\x00" * 512) is None
+        assert detect_version(b"\xff" * 512) is None
+        assert detect_version(b"JETHOME\x00\x07" + b"\x00" * 500) is None  # unknown version
+        assert detect_version(b"JETHOME") is None  # too short
+
+    def test_committed_vectors(self):
+        from pathlib import Path
+
+        vectors = Path(__file__).resolve().parents[2] / "test-vectors" / "vectors"
+        for stem, expected in (("v1_header_minimal", 1), ("v2_header_minimal", 2),
+                               ("v3_header_nosig", 3), ("v4_header_minimal", 4)):
+            raw = (vectors / f"{stem}.bin").read_bytes()
+            assert detect_version(raw) == expected, stem
+
+
+class TestTimestampRoundTrip:
+    def test_zero_timestamp_stays_zero(self):
+        # Regression: to_bytes silently replaced ts==0 with current time —
+        # round-trip unstable and ts=0 unwritable (#16).
+        hdr = EEPROMHeaderV3(boardname="b", boardversion="1",
+                             serial="s", usid="u", cpuid="c", timestamp=0)
+        raw = hdr.to_bytes()
+        assert raw[244:252] == b"\x00" * 8
+        assert hdr.to_bytes() == raw  # stable across calls
