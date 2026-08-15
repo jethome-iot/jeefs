@@ -31,10 +31,15 @@ fn parse_mac(mac_str: &str) -> Option<[u8; 6]> {
     Some([parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]])
 }
 
-fn hex_to_bytes(hex: &str) -> Vec<u8> {
+/// Decode a hex string; `None` on odd length or a bad digit — the caller
+/// exits with a message instead of panicking on a slice out of range.
+fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
+    if hex.len() % 2 != 0 {
+        return None;
+    }
     (0..hex.len())
         .step_by(2)
-        .filter_map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
         .collect()
 }
 
@@ -105,7 +110,10 @@ fn main() {
         }
 
         if let Some(hex) = fields["signature_hex"].as_str() {
-            let sig_bytes = hex_to_bytes(hex);
+            let sig_bytes = hex_to_bytes(hex).unwrap_or_else(|| {
+                eprintln!("Invalid signature_hex: {}", hex);
+                process::exit(2);
+            });
             let len = sig_bytes.len().min(64);
             buf[180..180 + len].copy_from_slice(&sig_bytes[..len]);
         }

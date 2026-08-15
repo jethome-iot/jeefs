@@ -72,7 +72,13 @@ fn main() {
     }
 
     // Header fields via Rust API
-    let hdr = JeepromHeaderV3::from_bytes(&eeprom).unwrap();
+    let hdr = match JeepromHeaderV3::from_bytes(&eeprom) {
+        Some(h) => h,
+        None => {
+            eprintln!("FAIL: image too short for a header");
+            process::exit(1);
+        }
+    };
     check_str("boardname", hdr.boardname_str(), "JetHub-D1p");
     check_str("boardversion", hdr.boardversion_str(), "2.0");
     check_str("serial", hdr.serial_str(), "SN-GOLDEN-001");
@@ -111,8 +117,17 @@ fn main() {
             next,
         );
 
-        // Verify file data CRC
+        // Verify file data CRC; a corrupted size must fail, not panic
         let data_start = offset as usize + core::mem::size_of::<JeefsFileHeaderV1>();
+        if data_start + data_size > eeprom.len() {
+            eprintln!(
+                "  FAIL: file '{}' dataSize {} runs past the image",
+                fh.name_str(),
+                data_size
+            );
+            unsafe { FAILURES += 1 };
+            break;
+        }
         let file_data = &eeprom[data_start..data_start + data_size];
         let calc_crc = crc32fast::hash(file_data);
         if calc_crc != stored_crc {
