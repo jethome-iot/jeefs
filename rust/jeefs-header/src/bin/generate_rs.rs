@@ -34,7 +34,9 @@ fn parse_mac(mac_str: &str) -> Option<[u8; 6]> {
 /// Decode a hex string; `None` on odd length or a bad digit — the caller
 /// exits with a message instead of panicking on a slice out of range.
 fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
-    if hex.len() % 2 != 0 {
+    // ASCII gate first: byte-indexed slicing below panics on a
+    // multi-byte character boundary otherwise
+    if !hex.is_ascii() || hex.len() % 2 != 0 {
         return None;
     }
     (0..hex.len())
