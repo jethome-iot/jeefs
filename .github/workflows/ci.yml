@@ -49,6 +49,34 @@ jobs:
         if: always()
         run: cat build/Testing/Temporary/LastTest.log >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Install and build an external consumer (#23)
+        run: |
+          cmake --install build --prefix "$RUNNER_TEMP/jeefs-prefix"
+          mkdir -p "$RUNNER_TEMP/consumer"
+          cat > "$RUNNER_TEMP/consumer/use.c" <<'EOC'
+          #include <jeefs_header.h>
+          #include <jeefs_devid.h>
+          int main(void) {
+              unsigned char h[256], r[256];
+              jeefs_header_init(h, sizeof(h), 4);
+              jeefs_devid_init(r, sizeof(r));
+              return jeefs_header_verify_crc(h, sizeof(h)) || jeefs_devid_verify_crc(r, sizeof(r));
+          }
+          EOC
+          cat > "$RUNNER_TEMP/consumer/CMakeLists.txt" <<'EOC'
+          cmake_minimum_required(VERSION 3.19)
+          project(consumer C)
+          find_package(jeefs REQUIRED)
+          add_executable(use use.c)
+          target_link_libraries(use jeefs::header)
+          EOC
+          cmake -S "$RUNNER_TEMP/consumer" -B "$RUNNER_TEMP/consumer/build" \
+                -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/jeefs-prefix"
+          cmake --build "$RUNNER_TEMP/consumer/build"
+          "$RUNNER_TEMP/consumer/build/use"
+          PKG_CONFIG_PATH="$RUNNER_TEMP/jeefs-prefix/lib/pkgconfig" \
+            pkg-config --exists --print-errors jeefs jeefs-header
+
   # ── Rust unit tests ──
   rust-tests:
     runs-on: [self-hosted, amd64]

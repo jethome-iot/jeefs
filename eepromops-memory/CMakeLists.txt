@@ -1,15 +1,16 @@
-# add CMakefilelist for eepromops-memory add_library
+# In-memory EEPROM backend (POSIX file mirror of an in-RAM block list)
 
-project(eepromops-memory)
-
-# List your source files here
-set(SOURCES
+add_library(eepromops-memory STATIC
         eepromops-memory.c
 )
+add_library(jeefs::eepromops_memory ALIAS eepromops-memory)
+set_target_properties(eepromops-memory PROPERTIES EXPORT_NAME eepromops_memory)
+target_include_directories(eepromops-memory PUBLIC
+        $<BUILD_INTERFACE:${jeefs_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-# Create a static library
-add_library(eepromops-memory STATIC ${SOURCES})
-
-# If you have any include directories, you can specify them like this
-target_include_directories(eepromops-memory PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
+if(JEEFS_INSTALL)
+    install(TARGETS eepromops-memory
+            EXPORT jeefsTargets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endif()
