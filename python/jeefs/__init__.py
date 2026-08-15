@@ -16,10 +16,11 @@ from .constants import (
     SIGNATURE_SIZES,
     SignatureAlgorithm,
 )
-from .header import EEPROMHeaderV3, parse_mac_string
+from .header import EEPROMHeaderV3, EEPROMHeaderV4, parse_mac_string
 
 __all__ = [
     "EEPROMHeaderV3",
+    "EEPROMHeaderV4",
     "SignatureAlgorithm",
     "SIGNATURE_SIZES",
     "EEPROM_FIELDS",
