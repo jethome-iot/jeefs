@@ -17,6 +17,7 @@
 #include <vector>
 
 extern "C" {
+#include "jeefs_devid.h"
 #include "jeefs_generated.h"
 #include "jeefs_header.h"
 }
@@ -149,6 +150,77 @@ namespace jeefs {
         size_t size() const { return buf_.size(); }
 
         /// Check if buffer is valid (non-empty).
+        bool valid() const { return !buf_.empty(); }
+
+    private:
+        std::vector<uint8_t> buf_;
+    };
+
+    /// Non-owning, read-only view of a DeviceIdentityV1 record buffer.
+    class DeviceIdView {
+    public:
+        explicit DeviceIdView(const uint8_t *data, size_t size) : data_(data), size_(size) {}
+        explicit DeviceIdView(const std::vector<uint8_t> &v) : data_(v.data()), size_(v.size()) {}
+
+        /// Record version (currently 1), or nullopt when this is no record.
+        std::optional<int> detect() const {
+            int v = jeefs_devid_detect(data_, size_);
+            return v >= 0 ? std::optional(v) : std::nullopt;
+        }
+
+        /// Verify the stored CRC32.
+        bool verify_crc() const { return jeefs_devid_verify_crc(data_, size_) == 0; }
+
+        /// Device model name (bounded string at offset 12).
+        std::string_view device_model() const { return string_at(12, 32); }
+
+        /// Device serial number (bounded string at offset 44).
+        std::string_view device_serial() const { return string_at(44, 32); }
+
+        /// Hardware revision, e.g. "1.2a" (bounded string at offset 76).
+        std::string_view hw_revision() const { return string_at(76, 16); }
+
+        /// Direct access (caller must check detect() first).
+        const DeviceIdentityV1 &record() const { return *reinterpret_cast<const DeviceIdentityV1 *>(data_); }
+
+        const uint8_t *data() const { return data_; }
+        size_t size() const { return size_; }
+
+    private:
+        const uint8_t *data_;
+        size_t size_;
+
+        std::string_view string_at(size_t offset, size_t max_len) const {
+            if (offset + max_len > size_)
+                return {};
+            const char *p = reinterpret_cast<const char *>(data_ + offset);
+            size_t len = strnlen(p, max_len);
+            return {p, len};
+        }
+    };
+
+    /// Owning DeviceIdentityV1 buffer with mutable operations.
+    class DeviceIdBuffer {
+    public:
+        /// Create an initialized empty record.
+        DeviceIdBuffer() : buf_(sizeof(DeviceIdentityV1)) { jeefs_devid_init(buf_.data(), buf_.size()); }
+
+        /// Create from existing data (copies).
+        explicit DeviceIdBuffer(const uint8_t *data, size_t size) : buf_(data, data + size) {}
+        explicit DeviceIdBuffer(const std::vector<uint8_t> &v) : buf_(v) {}
+
+        /// Recalculate and store the CRC32.
+        bool update_crc() { return jeefs_devid_update_crc(buf_.data(), buf_.size()) == 0; }
+
+        /// Read-only view.
+        DeviceIdView view() const { return DeviceIdView(buf_); }
+
+        /// Mutable record access.
+        DeviceIdentityV1 &record() { return *reinterpret_cast<DeviceIdentityV1 *>(buf_.data()); }
+
+        uint8_t *data() { return buf_.data(); }
+        const uint8_t *data() const { return buf_.data(); }
+        size_t size() const { return buf_.size(); }
         bool valid() const { return !buf_.empty(); }
 
     private:

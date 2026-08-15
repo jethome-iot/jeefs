@@ -35,8 +35,45 @@ static void make_blank_image(const char *path = kPath, uint16_t size = kSize) {
     fclose(f);
 }
 
+static void test_device_id_record() {
+    // DeviceIdBuffer/DeviceIdView over the C record API (issue #60):
+    // init -> fill -> re-CRC -> parse round-trip, stored as a JEEFS file.
+    jeefs::DeviceIdBuffer rec;
+    assert(rec.valid());
+    auto &r = rec.record();
+    memcpy(r.device_model, "JetHub-D2", 9);
+    memcpy(r.device_serial, "DSN-0001", 8);
+    memcpy(r.hw_revision, "1.2a", 4);
+    assert(rec.update_crc());
+
+    jeefs::DeviceIdView v = rec.view();
+    assert(v.detect().value_or(-1) == 1);
+    assert(v.verify_crc());
+    assert(v.device_model() == "JetHub-D2");
+    assert(v.device_serial() == "DSN-0001");
+    assert(v.hw_revision() == "1.2a");
+
+    // The record travels as the reserved JEEFS file name
+    static_assert(sizeof(JEEFS_DEVICE_ID_FILENAME) - 1 <= JEEFS_FILE_NAME_LENGTH,
+                  "reserved name must fit the file name limit");
+
+    // Committed cross-language vector (expectations mirror its .json)
+    FILE *f = fopen(VECTORS_DIR "/devid_record_v1.bin", "rb");
+    assert(f != nullptr);
+    std::vector<uint8_t> raw(256);
+    assert(fread(raw.data(), 1, raw.size(), f) == raw.size());
+    fclose(f);
+    jeefs::DeviceIdView cv(raw);
+    assert(cv.detect().value_or(-1) == 1);
+    assert(cv.verify_crc());
+    assert(cv.device_model() == "JetHub-D2");
+    assert(cv.device_serial() == "DSN-2026-000042");
+    assert(cv.hw_revision() == "1.2a");
+}
+
 int main() {
     make_blank_image();
+    test_device_id_record();
 
     // C symbols visible in the same TU (fails to compile on guard collision).
     static_assert(JEEFS_FILE_NAME_LENGTH == 15, "C macro must be visible");
