@@ -4,9 +4,9 @@
 #ifndef JEEFS_VERSION_H
 #define JEEFS_VERSION_H
 
-#define JEEFS_VERSION "0.3.0"
+#define JEEFS_VERSION "0.4.0"
 #define JEEFS_VERSION_MAJOR 0
-#define JEEFS_VERSION_MINOR 3
+#define JEEFS_VERSION_MINOR 4
 #define JEEFS_VERSION_PATCH 0
 
 #ifdef __cplusplus
