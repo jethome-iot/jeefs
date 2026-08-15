@@ -37,11 +37,12 @@ fn check_int(name: &str, actual: i64, expected: i64) {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: {} <eeprom_full.bin>", args[0]);
+    if args.len() < 2 || args.len() > 3 {
+        eprintln!("Usage: {} <eeprom_full.bin> [expected_version]", args[0]);
         process::exit(2);
     }
 
+    let expected_ver: i64 = if args.len() == 3 { args[2].parse().unwrap_or(3) } else { 3 };
     let eeprom = fs::read(&args[1]).unwrap_or_else(|e| {
         eprintln!("{}: {}", args[1], e);
         process::exit(2);
@@ -60,7 +61,7 @@ fn main() {
 
     // Version detection
     let ver = detect_version(&eeprom);
-    check_int("header_version", ver.map(|v| v as i64).unwrap_or(-1), 3);
+    check_int("header_version", ver.map(|v| v as i64).unwrap_or(-1), expected_ver);
 
     // CRC
     if !verify_crc(&eeprom) {

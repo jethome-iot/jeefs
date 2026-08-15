@@ -110,6 +110,8 @@ target_link_libraries(verify_golden_cpp jeefs_headerpp ZLIB::ZLIB)
 
 set(GOLDEN_BIN ${CMAKE_SOURCE_DIR}/test-vectors/reference/eeprom_full.bin)
 set(GOLDEN_JSON ${CMAKE_SOURCE_DIR}/test-vectors/reference/eeprom_full.json)
+set(GOLDEN_BIN_V4 ${CMAKE_SOURCE_DIR}/test-vectors/reference/eeprom_full_v4.bin)
+set(GOLDEN_JSON_V4 ${CMAKE_SOURCE_DIR}/test-vectors/reference/eeprom_full_v4.json)
 
 add_test(
     NAME golden_c_verify
@@ -117,8 +119,18 @@ add_test(
 )
 
 add_test(
+    NAME golden_c_verify_v4
+    COMMAND verify_golden_c ${GOLDEN_BIN_V4} 4
+)
+
+add_test(
     NAME golden_cpp_verify
     COMMAND verify_golden_cpp ${GOLDEN_BIN}
+)
+
+add_test(
+    NAME golden_cpp_verify_v4
+    COMMAND verify_golden_cpp ${GOLDEN_BIN_V4} 4
 )
 
 if(Python3_FOUND)
@@ -127,6 +139,13 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/verify_golden_py.py
             ${GOLDEN_BIN} ${GOLDEN_JSON}
+    )
+
+    add_test(
+        NAME golden_py_verify_v4
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_golden_py.py
+            ${GOLDEN_BIN_V4} ${GOLDEN_JSON_V4}
     )
 
     # The committed test-vectors/vectors/*.bin must match their .json
@@ -142,5 +161,10 @@ if(CARGO)
     add_test(
         NAME golden_rs_verify
         COMMAND ${VERIFY_GOLDEN_RS} ${GOLDEN_BIN}
+    )
+
+    add_test(
+        NAME golden_rs_verify_v4
+        COMMAND ${VERIFY_GOLDEN_RS} ${GOLDEN_BIN_V4} 4
     )
 endif()

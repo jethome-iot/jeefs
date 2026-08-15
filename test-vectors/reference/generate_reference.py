@@ -25,6 +25,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 JSON_PATH = SCRIPT_DIR / "eeprom_full.json"
 BIN_PATH = SCRIPT_DIR / "eeprom_full.bin"
+JSON_PATH_V4 = SCRIPT_DIR / "eeprom_full_v4.json"
+BIN_PATH_V4 = SCRIPT_DIR / "eeprom_full_v4.bin"
 
 
 def _pack_string(value: str, size: int) -> bytes:
@@ -32,12 +34,18 @@ def _pack_string(value: str, size: int) -> bytes:
     return encoded + b"\x00" * (size - len(encoded))
 
 
+def _pack_bounded(value: str, size: int) -> bytes:
+    """Bounded string (RFC #13): all bytes usable, NUL only when shorter."""
+    encoded = value.encode("utf-8")[:size]
+    return encoded + b"\x00" * (size - len(encoded))
+
+
 def _parse_mac(mac_str: str) -> bytes:
     return bytes.fromhex(mac_str.replace(":", "").replace("-", ""))
 
 
-def generate() -> bytes:
-    spec = json.loads(JSON_PATH.read_text())
+def generate(json_path: Path = JSON_PATH) -> bytes:
+    spec = json.loads(json_path.read_text())
     eeprom_size = spec["eeprom_size"]
     header_spec = spec["header"]
     files_spec = spec["files"]
@@ -52,9 +60,11 @@ def generate() -> bytes:
 
     buf[12:44] = _pack_string(header_spec["boardname"], 32)
     buf[44:76] = _pack_string(header_spec["boardversion"], 32)
-    buf[76:108] = _pack_string(header_spec["serial"], 32)
-    buf[108:140] = _pack_string(header_spec["usid"], 32)
-    buf[140:172] = _pack_string(header_spec["cpuid"], 32)
+    # v4 names the serial slot board_serial; serial-like fields are bounded
+    serial_key = "board_serial" if header_spec["version"] == 4 else "serial"
+    buf[76:108] = _pack_bounded(header_spec[serial_key], 32)
+    buf[108:140] = _pack_bounded(header_spec["usid"], 32)
+    buf[140:172] = _pack_bounded(header_spec["cpuid"], 32)
     buf[172:178] = _parse_mac(header_spec["mac"])
 
     timestamp = header_spec.get("timestamp", 0)
@@ -97,9 +107,10 @@ def generate() -> bytes:
 
 
 def main() -> None:
-    data = generate()
-    BIN_PATH.write_bytes(data)
-    print(f"Generated: {BIN_PATH} ({len(data)} bytes)")
+    for json_path, bin_path in ((JSON_PATH, BIN_PATH), (JSON_PATH_V4, BIN_PATH_V4)):
+        data = generate(json_path)
+        bin_path.write_bytes(data)
+        print(f"Generated: {bin_path} ({len(data)} bytes)")
 
     # Print layout summary
     spec = json.loads(JSON_PATH.read_text())
