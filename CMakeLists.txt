@@ -55,7 +55,8 @@ if (JEEFS_INSTALL)
     include(CMakePackageConfigHelpers)
 
     install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-            FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+            FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+            PATTERN "debug.h" EXCLUDE)
 
     install(EXPORT jeefsTargets
             NAMESPACE jeefs::
@@ -68,7 +69,7 @@ if (JEEFS_INSTALL)
     write_basic_package_version_file(
             ${CMAKE_CURRENT_BINARY_DIR}/jeefsConfigVersion.cmake
             VERSION ${PROJECT_VERSION}
-            COMPATIBILITY SameMajorVersion)
+            COMPATIBILITY SameMinorVersion)
     install(FILES
             ${CMAKE_CURRENT_BINARY_DIR}/jeefsConfig.cmake
             ${CMAKE_CURRENT_BINARY_DIR}/jeefsConfigVersion.cmake
