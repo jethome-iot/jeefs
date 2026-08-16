@@ -126,7 +126,8 @@ target_compile_features(your_target PRIVATE cxx_std_17)
 ```
 
 `jeefspp` is an INTERFACE library that bundles the compiled `jeefs` FS
-library (and its eepromops backend). Combine with `jeefs_headerpp` to
+library over a caller-owned image (the class loads the file itself and
+persists after every successful mutation). Combine with `jeefs_headerpp` to
 parse the header bytes returned by `readHeader()`.
 
 ### API
@@ -145,7 +146,7 @@ parse the header bytes returned by `readHeader()`.
 | `readHeader()` | `std::optional<std::vector<uint8_t>>` | Header bytes, exactly header-sized |
 | `setHeader(ptr)` | `int` | 0 on success |
 | `lastError()` | `int` | Last non-positive C return code |
-| `descriptor()` | `EEPROMDescriptor` | Escape hatch to the C API |
+| `data()` / `size()` | `uint8_t *` / `uint16_t` | The owned image, for direct C API calls |
 
 Error codes are `EEPROMError` values from `eepromerr.h`.
 

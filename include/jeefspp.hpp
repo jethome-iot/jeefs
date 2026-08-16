@@ -58,8 +58,22 @@ namespace jeefs {
 
         FileSystem(const FileSystem &) = delete;
         FileSystem &operator=(const FileSystem &) = delete;
-        FileSystem(FileSystem &&) noexcept = default;
-        FileSystem &operator=(FileSystem &&) noexcept = default;
+
+        // Explicit moves: the moved-from object must read as invalid, and a
+        // moved-from std::vector is only guaranteed "valid but unspecified".
+        FileSystem(FileSystem &&other) noexcept :
+            path_(std::move(other.path_)), image_(std::move(other.image_)), last_error_(other.last_error_) {
+            other.image_.clear();
+        }
+        FileSystem &operator=(FileSystem &&other) noexcept {
+            if (this != &other) {
+                path_ = std::move(other.path_);
+                image_ = std::move(other.image_);
+                last_error_ = other.last_error_;
+                other.image_.clear();
+            }
+            return *this;
+        }
 
         /// True if the image was loaded successfully.
         bool valid() const { return !image_.empty(); }
@@ -225,8 +239,9 @@ namespace jeefs {
                 return EEPROMWRITEERROR;
             }
             size_t put = std::fwrite(image_.data(), 1, image_.size(), f);
-            std::fclose(f);
-            if (put != image_.size()) {
+            // fclose can surface a delayed write failure — check it too
+            int close_err = std::fclose(f);
+            if (put != image_.size() || close_err != 0) {
                 last_error_ = EEPROMWRITEERROR;
                 return EEPROMWRITEERROR;
             }
