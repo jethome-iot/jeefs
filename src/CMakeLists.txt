@@ -1,6 +1,3 @@
-# find zlib as required
-find_package(ZLIB REQUIRED)
-
 # Public include dir: build tree for in-tree consumers (add_subdirectory),
 # the installed include dir for exported targets.
 set(JEEFS_PUBLIC_INCLUDES
@@ -11,6 +8,7 @@ set(JEEFS_PUBLIC_INCLUDES
 add_library(jeefs_header STATIC
         jeefs_header.c
         jeefs_devid.c
+        jeefs_crc32.c
         ../include/jeefs.h
         ../include/jeefs_header.h
         ../include/jeefs_devid.h
@@ -18,7 +16,6 @@ add_library(jeefs_header STATIC
 add_library(jeefs::header ALIAS jeefs_header)
 set_target_properties(jeefs_header PROPERTIES EXPORT_NAME header)
 target_include_directories(jeefs_header PUBLIC ${JEEFS_PUBLIC_INCLUDES})
-target_link_libraries(jeefs_header PUBLIC ZLIB::ZLIB)
 
 # --- FS layer ---
 add_library(jeefsstatic STATIC
@@ -56,7 +53,6 @@ endif()
 foreach(tgt IN LISTS JEEFS_FS_TARGETS)
     # The FS layer builds its header operations on the pure header library.
     target_link_libraries(${tgt} PUBLIC jeefs_header)
-    target_link_libraries(${tgt} PRIVATE ZLIB::ZLIB)
 endforeach()
 
 # --- Header-only C++ wrappers ---

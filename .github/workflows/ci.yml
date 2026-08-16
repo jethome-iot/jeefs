@@ -243,6 +243,35 @@ jobs:
       - name: Build
         run: cmake --build build-strict
 
+  # ── Freestanding smoke: the core compiles for bare targets (#24) ──
+  freestanding-smoke:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install cross toolchains
+        # No-op on a provisioned runner: skips apt (and its lock) entirely.
+        run: |
+          dpkg -s gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu >/dev/null 2>&1 || {
+            sudo apt-get -o DPkg::Lock::Timeout=600 update
+            sudo apt-get -o DPkg::Lock::Timeout=600 install -y gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu
+          }
+
+      - name: Compile the core freestanding (aarch64, riscv64)
+        # Compile-only with -ffreestanding: proves the libraries carry no
+        # hosted assumptions (POSIX, stdio, zlib). The deployment targets
+        # are all little-endian; the required libc surface (memcpy & co)
+        # is documented in docs/PORTING.md.
+        run: |
+          for cc in aarch64-linux-gnu-gcc riscv64-linux-gnu-gcc; do
+            for src in src/jeefs_header.c src/jeefs_devid.c src/jeefs_crc32.c src/jeefs.c; do
+              "$cc" -c -ffreestanding -Os -Wall -Wextra -Wvla -Werror \
+                -Iinclude -o /tmp/jeefs_smoke.o "$src"
+            done
+            echo "$cc: OK"
+          done
+
   # ── clang-format: committed sources match .clang-format (#20) ──
   format-check:
     runs-on: [self-hosted, amd64]

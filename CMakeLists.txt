@@ -22,6 +22,10 @@ include(GNUInstallDirs)
 # committed and checked against docs/format/*.md by CI and the prek hook.
 # Regeneration is a manual step — see docs/CODEGEN.md.
 
+# zlib: only tests and cross-language tools use it directly now — the
+# libraries default to the built-in CRC32 (include/jeefs_port.h, #24).
+find_package(ZLIB REQUIRED)
+
 # Python is still needed by the cross-language test matrix.
 find_package(Python3 COMPONENTS Interpreter)
 

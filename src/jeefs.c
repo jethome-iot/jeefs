@@ -7,13 +7,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <zlib.h>
 
 #include "jeefs.h"
 
 #include "eepromerr.h"
 #include "jeefs_endian.h"
 #include "jeefs_header.h"
+#include "jeefs_port.h"
 
 /*
  * Every operation works on a caller-owned image buffer (#25, variant A):
@@ -420,6 +420,6 @@ int EEPROM_FormatEEPROM(uint8_t *image, uint16_t imageSize, int version) {
     return 0;
 }
 
-static uint32_t calculateCRC32(const uint8_t *data, size_t length) { return crc32(0L, data, length); }
+static uint32_t calculateCRC32(const uint8_t *data, size_t length) { return jeefs_crc32(data, length); }
 
 static inline bool EEPROM_ByteIsEmpty(char var) { return var == '\xFF' || var == '\0'; }

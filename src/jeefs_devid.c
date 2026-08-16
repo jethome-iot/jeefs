@@ -9,9 +9,9 @@
 #include "jeefs_devid.h"
 
 #include <string.h>
-#include <zlib.h>
 
 #include "jeefs_endian.h"
+#include "jeefs_port.h"
 
 #define DEVID_SIZE sizeof(DeviceIdentityV1)
 #define DEVID_CRC_OFFSET (DEVID_SIZE - sizeof(uint32_t))
@@ -41,7 +41,7 @@ int jeefs_devid_verify_crc(const uint8_t *data, size_t len) {
         return -1;
 
     uint32_t stored = jeefs_get_le32(data + DEVID_CRC_OFFSET);
-    uint32_t calc = (uint32_t) crc32(0L, data, DEVID_CRC_OFFSET);
+    uint32_t calc = jeefs_crc32(data, DEVID_CRC_OFFSET);
     return stored == calc ? 0 : -1;
 }
 
@@ -49,7 +49,7 @@ int jeefs_devid_update_crc(uint8_t *data, size_t len) {
     if (jeefs_devid_detect(data, len) < 0)
         return -1;
 
-    uint32_t calc = (uint32_t) crc32(0L, data, DEVID_CRC_OFFSET);
+    uint32_t calc = jeefs_crc32(data, DEVID_CRC_OFFSET);
     jeefs_put_le32(data + DEVID_CRC_OFFSET, calc);
     return 0;
 }
