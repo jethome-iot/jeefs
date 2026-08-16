@@ -18,28 +18,19 @@
 #include "eepromerr.h"
 #include "jeefs.h"
 
-#define IMG TEST_DIR "/test_05_eeprom.bin"
 #define IMG_SIZE 8192
 #define HDR_V3 256
 
-static void make_image(const char *path, uint16_t size, uint8_t fill) {
-    FILE *f = fopen(path, "wb");
-    assert(f != NULL);
-    uint8_t *buf = malloc(size);
-    assert(buf != NULL);
-    memset(buf, fill, size);
-    size_t written = fwrite(buf, 1, size, f);
-    assert(written == size);
-    free(buf);
-    fclose(f);
-}
+/* The image is a plain caller-owned buffer (#25 variant A): tests fill,
+ * corrupt and inspect it directly — no files, no descriptors. */
+static uint8_t image[IMG_SIZE];
+static uint16_t image_size = IMG_SIZE;
 
-static EEPROMDescriptor fresh_fs(uint16_t size, int version) {
-    make_image(IMG, size, 0x00);
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(IMG, size);
-    assert(ep.eeprom_fid != -1);
-    assert(EEPROM_FormatEEPROM(ep, version) == 0);
-    return ep;
+static uint8_t *fresh_fs(uint16_t size, int version) {
+    memset(image, 0x00, sizeof(image));
+    image_size = size;
+    assert(EEPROM_FormatEEPROM(image, size, version) == 0);
+    return image;
 }
 
 static void fill_pattern(uint8_t *buf, uint16_t n, uint8_t seed) {
@@ -47,217 +38,207 @@ static void fill_pattern(uint8_t *buf, uint16_t n, uint8_t seed) {
         buf[i] = (uint8_t) (seed + i);
 }
 
-static int16_t add_pattern(EEPROMDescriptor ep, const char *name, uint16_t n, uint8_t seed) {
+static int16_t add_pattern(const char *name, uint16_t n, uint8_t seed) {
     uint8_t buf[512];
     assert(n <= sizeof(buf));
     fill_pattern(buf, n, seed);
-    return EEPROM_AddFile(ep, name, buf, n);
+    return EEPROM_AddFile(image, image_size, name, buf, n);
 }
 
-static void assert_file(EEPROMDescriptor ep, const char *name, uint16_t n, uint8_t seed) {
+static void assert_file(const char *name, uint16_t n, uint8_t seed) {
     uint8_t expect[512], got[512];
     assert(n <= sizeof(expect));
     fill_pattern(expect, n, seed);
-    int16_t r = EEPROM_ReadFile(ep, name, got, sizeof(got));
+    int16_t r = EEPROM_ReadFile(image, image_size, name, got, sizeof(got));
     assert(r == (int16_t) n);
     assert(memcmp(expect, got, n) == 0);
 }
 
 // Raw corruption helper: overwrite bytes at an absolute offset.
-static void poke(EEPROMDescriptor ep, uint16_t off, const void *data, uint16_t n) {
-    assert(eeprom_write(ep, (void *) data, n, off) == n);
-}
+static void poke(uint16_t off, const void *data, uint16_t n) { memcpy(image + off, data, n); }
 
 // Wire fields are little-endian: encode explicitly so the corruption
 // scenarios stay identical on a big-endian host.
-static void poke_le16(EEPROMDescriptor ep, uint16_t off, uint16_t v) {
+static void poke_le16(uint16_t off, uint16_t v) {
     uint8_t le[2] = {(uint8_t) (v & 0xFF), (uint8_t) (v >> 8)};
-    poke(ep, off, le, 2);
+    poke(off, le, 2);
 }
 
 static void test_format_and_header(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(EEPROM_HeaderCheckConsistency(ep) == 1);
+    fresh_fs(IMG_SIZE, 3);
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
     uint8_t hdr[HDR_V3];
-    assert(EEPROM_GetHeader(ep, hdr, sizeof(hdr)) == 0);
+    assert(EEPROM_GetHeader(image, image_size, hdr, sizeof(hdr)) == 0);
     assert(memcmp(hdr, "JETHOME\0", 8) == 0);
     // buffer smaller than the header must be rejected
     uint8_t small[64];
-    assert(EEPROM_GetHeader(ep, small, sizeof(small)) < 0);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_GetHeader(image, image_size, small, sizeof(small)) < 0);
     printf("  format/header: OK\n");
 }
 
 static void test_empty_fs_lists_zero(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    fresh_fs(IMG_SIZE, 3);
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 0);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 0);
     printf("  empty list: OK\n");
 }
 
 static void test_add_list_read(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "alpha", 10, 1) == 10);
-    assert(add_pattern(ep, "beta", 20, 2) == 20);
-    assert(add_pattern(ep, "gamma", 30, 3) == 30);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("alpha", 10, 1) == 10);
+    assert(add_pattern("beta", 20, 2) == 20);
+    assert(add_pattern("gamma", 30, 3) == 30);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 3);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 3);
     assert(strcmp(names[0], "alpha") == 0);
     assert(strcmp(names[1], "beta") == 0);
     assert(strcmp(names[2], "gamma") == 0);
 
-    assert_file(ep, "alpha", 10, 1);
-    assert_file(ep, "beta", 20, 2);
-    assert_file(ep, "gamma", 30, 3);
+    assert_file("alpha", 10, 1);
+    assert_file("beta", 20, 2);
+    assert_file("gamma", 30, 3);
 
     // duplicate add: 0, content untouched
-    assert(add_pattern(ep, "beta", 20, 99) == 0);
-    assert_file(ep, "beta", 20, 2);
+    assert(add_pattern("beta", 20, 99) == 0);
+    assert_file("beta", 20, 2);
 
     // 15-char name round-trips NUL-terminated
-    assert(add_pattern(ep, "abcdefghijklmno", 8, 4) == 8);
-    assert(EEPROM_ListFiles(ep, names, 8) == 4);
+    assert(add_pattern("abcdefghijklmno", 8, 4) == 8);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 4);
     assert(strcmp(names[3], "abcdefghijklmno") == 0);
 
     // maxFiles above INT16_MAX must not be misread as negative
     char big_list[4][JEEFS_FILE_NAME_LENGTH + 1];
     (void) big_list;
-    assert(EEPROM_ListFiles(ep, big_list, 65535) == 4);
+    assert(EEPROM_ListFiles(image, image_size, big_list, 65535) == 4);
 
     // invalid names
     uint8_t d[4] = {1, 2, 3, 4};
-    assert(EEPROM_AddFile(ep, NULL, d, 4) == FILENAMENOTVALID);
-    assert(EEPROM_AddFile(ep, "", d, 4) == FILENAMENOTVALID);
-    assert(EEPROM_AddFile(ep, "abcdefghijklmnop", d, 4) == FILENAMENOTVALID);
+    assert(EEPROM_AddFile(image, image_size, NULL, d, 4) == FILENAMENOTVALID);
+    assert(EEPROM_AddFile(image, image_size, "", d, 4) == FILENAMENOTVALID);
+    assert(EEPROM_AddFile(image, image_size, "abcdefghijklmnop", d, 4) == FILENAMENOTVALID);
     // invalid data
-    assert(EEPROM_AddFile(ep, "x", NULL, 4) == BUFFERNOTVALID);
-    assert(EEPROM_AddFile(ep, "x", d, 0) == BUFFERNOTVALID);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_AddFile(image, image_size, "x", NULL, 4) == BUFFERNOTVALID);
+    assert(EEPROM_AddFile(image, image_size, "x", d, 0) == BUFFERNOTVALID);
     printf("  add/list/read: OK\n");
 }
 
 static void test_overwrite(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
-    assert(add_pattern(ep, "b", 20, 2) == 20);
-    assert(add_pattern(ep, "c", 30, 3) == 30);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
+    assert(add_pattern("b", 20, 2) == 20);
+    assert(add_pattern("c", 30, 3) == 30);
 
     // same size: in-place
     uint8_t nb[20];
     fill_pattern(nb, 20, 50);
-    assert(EEPROM_WriteFile(ep, "b", nb, 20) == 20);
-    assert_file(ep, "b", 20, 50);
-    assert_file(ep, "a", 10, 1);
-    assert_file(ep, "c", 30, 3);
+    assert(EEPROM_WriteFile(image, image_size, "b", nb, 20) == 20);
+    assert_file("b", 20, 50);
+    assert_file("a", 10, 1);
+    assert_file("c", 30, 3);
 
     // different size: delete + add, siblings intact
     uint8_t wb[40];
     fill_pattern(wb, 40, 60);
-    assert(EEPROM_WriteFile(ep, "b", wb, 40) == 40);
-    assert_file(ep, "b", 40, 60);
-    assert_file(ep, "a", 10, 1);
-    assert_file(ep, "c", 30, 3);
+    assert(EEPROM_WriteFile(image, image_size, "b", wb, 40) == 40);
+    assert_file("b", 40, 60);
+    assert_file("a", 10, 1);
+    assert_file("c", 30, 3);
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 3);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 3);
 
     // missing file
-    assert(EEPROM_WriteFile(ep, "nope", nb, 20) == FILENOTFOUND);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_WriteFile(image, image_size, "nope", nb, 20) == FILENOTFOUND);
     printf("  overwrite: OK\n");
 }
 
 // The audit's data-loss reproduction: A -> D -> B -> C, delete D, then add.
 static void test_delete_chain_integrity(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "A", 16, 1) == 16);
-    assert(add_pattern(ep, "D", 24, 2) == 24);
-    assert(add_pattern(ep, "B", 32, 3) == 32);
-    assert(add_pattern(ep, "C", 48, 4) == 48);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("A", 16, 1) == 16);
+    assert(add_pattern("D", 24, 2) == 24);
+    assert(add_pattern("B", 32, 3) == 32);
+    assert(add_pattern("C", 48, 4) == 48);
 
-    assert(EEPROM_DeleteFile(ep, "D") == 1);
+    assert(EEPROM_DeleteFile(image, image_size, "D") == 1);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 3);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 3);
     assert(strcmp(names[0], "A") == 0);
     assert(strcmp(names[1], "B") == 0);
     assert(strcmp(names[2], "C") == 0);
-    assert_file(ep, "A", 16, 1);
-    assert_file(ep, "B", 32, 3);
-    assert_file(ep, "C", 48, 4);
+    assert_file("A", 16, 1);
+    assert_file("B", 32, 3);
+    assert_file("C", 48, 4);
 
     // adding after the delete must not clobber surviving files
-    assert(add_pattern(ep, "E", 8, 5) == 8);
-    assert(EEPROM_ListFiles(ep, names, 8) == 4);
-    assert_file(ep, "B", 32, 3);
-    assert_file(ep, "C", 48, 4);
-    assert_file(ep, "E", 8, 5);
-    EEPROM_CloseEEPROM(ep);
+    assert(add_pattern("E", 8, 5) == 8);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 4);
+    assert_file("B", 32, 3);
+    assert_file("C", 48, 4);
+    assert_file("E", 8, 5);
     printf("  delete chain integrity: OK\n");
 }
 
 static void test_delete_last_and_only(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
-    assert(add_pattern(ep, "b", 20, 2) == 20);
-    assert(add_pattern(ep, "c", 30, 3) == 30);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
+    assert(add_pattern("b", 20, 2) == 20);
+    assert(add_pattern("c", 30, 3) == 30);
 
     // delete last: predecessor becomes terminal
-    assert(EEPROM_DeleteFile(ep, "c") == 1);
+    assert(EEPROM_DeleteFile(image, image_size, "c") == 1);
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 2);
-    assert_file(ep, "a", 10, 1);
-    assert_file(ep, "b", 20, 2);
-    assert(add_pattern(ep, "d", 12, 4) == 12);
-    assert(EEPROM_ListFiles(ep, names, 8) == 3);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
+    assert_file("a", 10, 1);
+    assert_file("b", 20, 2);
+    assert(add_pattern("d", 12, 4) == 12);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 3);
 
     // delete down to empty
-    assert(EEPROM_DeleteFile(ep, "a") == 1);
-    assert(EEPROM_DeleteFile(ep, "b") == 1);
-    assert(EEPROM_DeleteFile(ep, "d") == 1);
-    assert(EEPROM_ListFiles(ep, names, 8) == 0);
-    assert(add_pattern(ep, "fresh", 10, 7) == 10);
-    assert(EEPROM_ListFiles(ep, names, 8) == 1);
-    assert_file(ep, "fresh", 10, 7);
+    assert(EEPROM_DeleteFile(image, image_size, "a") == 1);
+    assert(EEPROM_DeleteFile(image, image_size, "b") == 1);
+    assert(EEPROM_DeleteFile(image, image_size, "d") == 1);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 0);
+    assert(add_pattern("fresh", 10, 7) == 10);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+    assert_file("fresh", 10, 7);
 
-    assert(EEPROM_DeleteFile(ep, "nope") == FILENOTFOUND);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_DeleteFile(image, image_size, "nope") == FILENOTFOUND);
     printf("  delete last/only: OK\n");
 }
 
 static void test_corrupted_chain_terminates(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
-    assert(add_pattern(ep, "b", 20, 2) == 20);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
+    assert(add_pattern("b", 20, 2) == 20);
 
     // nextFileAddress of "a" points back at "a": a cycle. Offset of the
     // nextFileAddress field inside JEEFSFileHeaderv1 is 22.
-    poke_le16(ep, HDR_V3 + 22, HDR_V3);
+    poke_le16(HDR_V3 + 22, HDR_V3);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
     uint8_t buf[64];
-    assert(EEPROM_ReadFile(ep, "b", buf, sizeof(buf)) == EEPROMCORRUPTED);
-    assert(EEPROM_DeleteFile(ep, "b") == EEPROMCORRUPTED);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ReadFile(image, image_size, "b", buf, sizeof(buf)) == EEPROMCORRUPTED);
+    assert(EEPROM_DeleteFile(image, image_size, "b") == EEPROMCORRUPTED);
     printf("  corrupted chain terminates: OK\n");
 }
 
 static void test_oversized_datasize_rejected(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
 
     // dataSize of "a" -> 0xFF00: out of bounds for an 8K image. Offset of
     // dataSize inside JEEFSFileHeaderv1 is 16.
-    poke_le16(ep, HDR_V3 + 16, 0xFF00);
+    poke_le16(HDR_V3 + 16, 0xFF00);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
-    assert(EEPROM_DeleteFile(ep, "a") == EEPROMCORRUPTED);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
+    assert(EEPROM_DeleteFile(image, image_size, "a") == EEPROMCORRUPTED);
     uint8_t buf[64];
-    assert(EEPROM_ReadFile(ep, "a", buf, sizeof(buf)) == EEPROMCORRUPTED);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ReadFile(image, image_size, "a", buf, sizeof(buf)) == EEPROMCORRUPTED);
     printf("  oversized dataSize rejected: OK\n");
 }
 
@@ -265,139 +246,127 @@ static void test_oversized_datasize_rejected(void) {
 // link to the exact EEPROM end passes naive contiguity but has no room for
 // a successor — corrupted, and must not send DeleteFile into a relink loop.
 static void test_link_to_eeprom_end_rejected(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
 
     // dataSize of "a" -> spans to EEPROM end; next -> exactly eeprom_size
-    poke_le16(ep, HDR_V3 + 16, IMG_SIZE - HDR_V3 - 24);
-    poke_le16(ep, HDR_V3 + 22, IMG_SIZE);
+    poke_le16(HDR_V3 + 16, IMG_SIZE - HDR_V3 - 24);
+    poke_le16(HDR_V3 + 22, IMG_SIZE);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
-    assert(EEPROM_DeleteFile(ep, "a") == EEPROMCORRUPTED);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
+    assert(EEPROM_DeleteFile(image, image_size, "a") == EEPROMCORRUPTED);
     printf("  link to EEPROM end rejected: OK\n");
 }
 
 static void test_data_crc_checked_on_read(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 32, 1) == 32);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 32, 1) == 32);
 
     // flip one data byte (data starts right after the 24-byte file header)
     uint8_t evil = 0xEE;
-    poke(ep, HDR_V3 + 24 + 5, &evil, 1);
+    poke(HDR_V3 + 24 + 5, &evil, 1);
 
     uint8_t buf[64];
-    assert(EEPROM_ReadFile(ep, "a", buf, sizeof(buf)) == EEPROMCORRUPTED);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ReadFile(image, image_size, "a", buf, sizeof(buf)) == EEPROMCORRUPTED);
     printf("  data CRC on read: OK\n");
 }
 
 // RFC #14: an erased (0xFFFF) nextFileAddress terminates the chain like 0.
 static void test_erased_next_is_terminal(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
-    assert(add_pattern(ep, "b", 20, 2) == 20);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
+    assert(add_pattern("b", 20, 2) == 20);
 
     // erase the link of "b" (the last file): 0xFFFF instead of 0
     uint16_t b_addr = HDR_V3 + 24 + 10;
-    poke_le16(ep, b_addr + 22, 0xFFFF);
+    poke_le16(b_addr + 22, 0xFFFF);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 2);
-    assert_file(ep, "b", 20, 2);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
+    assert_file("b", 20, 2);
     // adding after an erased terminal keeps the chain intact
-    assert(add_pattern(ep, "c", 8, 3) == 8);
-    assert(EEPROM_ListFiles(ep, names, 8) == 3);
-    assert_file(ep, "b", 20, 2);
-    assert_file(ep, "c", 8, 3);
-    EEPROM_CloseEEPROM(ep);
+    assert(add_pattern("c", 8, 3) == 8);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 3);
+    assert_file("b", 20, 2);
+    assert_file("c", 8, 3);
     printf("  erased next is terminal: OK\n");
 }
 
 static void test_erased_free_space_0xff(void) {
     // Erased medium: everything after the formatted header reads 0xFF.
-    make_image(IMG, IMG_SIZE, 0xFF);
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(IMG, IMG_SIZE);
-    assert(ep.eeprom_fid != -1);
-    assert(EEPROM_FormatEEPROM(ep, 3) == 0);
+    memset(image, 0xFF, sizeof(image));
+    image_size = IMG_SIZE;
+    assert(EEPROM_FormatEEPROM(image, image_size, 3) == 0);
     // Re-erase the file area to 0xFF (format may have zero-filled it; both
     // fills are legal empty space per issue #14).
     uint8_t ff[64];
     memset(ff, 0xFF, sizeof(ff));
     for (uint16_t off = HDR_V3; off < IMG_SIZE; off += sizeof(ff))
-        poke(ep, off, ff, sizeof(ff));
+        poke(off, ff, sizeof(ff));
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == 0);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
-    assert(add_pattern(ep, "b", 20, 2) == 20);
-    assert(EEPROM_ListFiles(ep, names, 8) == 2);
-    assert_file(ep, "a", 10, 1);
-    assert_file(ep, "b", 20, 2);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 0);
+    assert(add_pattern("a", 10, 1) == 10);
+    assert(add_pattern("b", 20, 2) == 20);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
+    assert_file("a", 10, 1);
+    assert_file("b", 20, 2);
     printf("  0xFF erased free space: OK\n");
 }
 
 // A written name with an empty dataSize (0x0000 or 0xFFFF) is corruption,
 // not an empty slot (RFC #14: validity is decided by checks, not content).
 static void test_empty_datasize_is_corruption(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(add_pattern(ep, "a", 10, 1) == 10);
-    poke_le16(ep, HDR_V3 + 16, 0x0000);
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
+    poke_le16(HDR_V3 + 16, 0x0000);
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
-    assert(EEPROM_ListFiles(ep, names, 8) == EEPROMCORRUPTED);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
     printf("  empty dataSize is corruption: OK\n");
 }
 
 static void test_nospace_is_atomic(void) {
     // 512-byte image, v2 header (256): room for one ~200-byte file.
-    make_image(IMG, 512, 0x00);
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(IMG, 512);
-    assert(ep.eeprom_fid != -1);
-    assert(EEPROM_FormatEEPROM(ep, 2) == 0);
+    fresh_fs(512, 2);
 
     uint8_t big[300];
     fill_pattern(big, sizeof(big), 9);
-    assert(add_pattern(ep, "f", 200, 1) == 200);
-    assert(EEPROM_AddFile(ep, "g", big, sizeof(big)) == NOTENOUGHSPACE);
+    assert(add_pattern("f", 200, 1) == 200);
+    assert(EEPROM_AddFile(image, image_size, "g", big, sizeof(big)) == NOTENOUGHSPACE);
 
     // growing "f" beyond free space must not destroy it
-    assert(EEPROM_WriteFile(ep, "f", big, sizeof(big)) == NOTENOUGHSPACE);
-    assert_file(ep, "f", 200, 1);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_WriteFile(image, image_size, "f", big, sizeof(big)) == NOTENOUGHSPACE);
+    assert_file("f", 200, 1);
     printf("  NOTENOUGHSPACE atomicity: OK\n");
 }
 
 static void test_set_header_roundtrip(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    fresh_fs(IMG_SIZE, 3);
     uint8_t hdr[HDR_V3];
-    assert(EEPROM_GetHeader(ep, hdr, sizeof(hdr)) == 0);
+    assert(EEPROM_GetHeader(image, image_size, hdr, sizeof(hdr)) == 0);
     // boardname lives at offset 12
     memcpy(hdr + 12, "test-board", 11);
-    assert(EEPROM_SetHeader(ep, hdr) == 0);
+    assert(EEPROM_SetHeader(image, image_size, hdr) == 0);
 
     uint8_t back[HDR_V3];
-    assert(EEPROM_GetHeader(ep, back, sizeof(back)) == 0);
+    assert(EEPROM_GetHeader(image, image_size, back, sizeof(back)) == 0);
     assert(memcmp(back + 12, "test-board", 11) == 0);
-    assert(EEPROM_HeaderCheckConsistency(ep) == 1);
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
 
     // bad magic is rejected
     uint8_t junk[HDR_V3];
     memset(junk, 0xAB, sizeof(junk));
-    assert(EEPROM_SetHeader(ep, junk) < 0);
-    EEPROM_CloseEEPROM(ep);
+    assert(EEPROM_SetHeader(image, image_size, junk) < 0);
     printf("  SetHeader roundtrip: OK\n");
 }
 
 static void test_consistency_detects_bad_crc(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
-    assert(EEPROM_HeaderCheckConsistency(ep) == 1);
+    fresh_fs(IMG_SIZE, 3);
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
     uint8_t evil = 0x5A;
-    poke(ep, 253, &evil, 1); // inside the v3 crc32 field (252-255)
-    assert(EEPROM_HeaderCheckConsistency(ep) == 0);
-    EEPROM_CloseEEPROM(ep);
+    poke(253, &evil, 1); // inside the v3 crc32 field (252-255)
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 0);
     printf("  consistency detects bad CRC: OK\n");
 }
 
@@ -406,14 +375,13 @@ static void test_consistency_detects_bad_crc(void) {
 // LE accessors in the core — it turns RED on big-endian targets running
 // the pre-fix code (the BE CI job is issue #20/#24 scope).
 static void test_wire_format_is_le(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    fresh_fs(IMG_SIZE, 3);
     const uint8_t data[3] = {0xAA, 0xBB, 0xCC};
-    assert(EEPROM_AddFile(ep, "wire", data, 3) == 3);
-    assert(add_pattern(ep, "second", 8, 7) == 8);
+    assert(EEPROM_AddFile(image, image_size, "wire", data, 3) == 3);
+    assert(add_pattern("second", 8, 7) == 8);
 
     // file header of "wire": dataSize @16 LE, crc32 @18 LE, next @22 LE
-    uint8_t raw[24];
-    assert(eeprom_read(ep, raw, sizeof(raw), HDR_V3) == sizeof(raw));
+    const uint8_t *raw = image + HDR_V3;
     assert(raw[16] == 0x03 && raw[17] == 0x00);
     uint32_t expect_crc = (uint32_t) crc32(0L, data, 3);
     assert(raw[18] == (expect_crc & 0xFF));
@@ -425,36 +393,31 @@ static void test_wire_format_is_le(void) {
 
     // v3 header CRC field @252 is the LE encoding of crc32(bytes 0..251)
     uint8_t hdr[256];
-    assert(EEPROM_GetHeader(ep, hdr, sizeof(hdr)) == 0);
+    assert(EEPROM_GetHeader(image, image_size, hdr, sizeof(hdr)) == 0);
     uint32_t hdr_crc = (uint32_t) crc32(0L, hdr, 252);
     assert(hdr[252] == (hdr_crc & 0xFF));
     assert(hdr[253] == ((hdr_crc >> 8) & 0xFF));
     assert(hdr[254] == ((hdr_crc >> 16) & 0xFF));
     assert(hdr[255] == ((hdr_crc >> 24) & 0xFF));
-    EEPROM_CloseEEPROM(ep);
     printf("  wire format is LE: OK\n");
 }
 
-static void test_consistency_read_error(void) {
-    // an image too small to even hold the version block: read failure, not
-    // "inconsistent"
-    make_image(IMG, 8, 0x00);
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(IMG, 8);
-    assert(ep.eeprom_fid != -1);
-    assert(EEPROM_HeaderCheckConsistency(ep) == EEPROMREADERROR);
-    EEPROM_CloseEEPROM(ep);
-    printf("  consistency read error: OK\n");
+static void test_consistency_short_image(void) {
+    // an image too small to even hold the version block is simply
+    // inconsistent — with no I/O there is no read-error class (#25)
+    memset(image, 0x00, sizeof(image));
+    assert(EEPROM_HeaderCheckConsistency(image, 8) == 0);
+    printf("  consistency short image: OK\n");
 }
 
 static void test_oversized_payload_rejected(void) {
-    EEPROMDescriptor ep = fresh_fs(IMG_SIZE, 3);
+    fresh_fs(IMG_SIZE, 3);
     uint8_t *big = malloc(40000);
     assert(big != NULL);
     memset(big, 1, 40000);
     // int16_t cannot represent the byte count: reject up front
-    assert(EEPROM_AddFile(ep, "big", big, 40000) == BUFFERNOTVALID);
+    assert(EEPROM_AddFile(image, image_size, "big", big, 40000) == BUFFERNOTVALID);
     free(big);
-    EEPROM_CloseEEPROM(ep);
     printf("  oversized payload rejected: OK\n");
 }
 
@@ -477,7 +440,7 @@ int main(void) {
     test_set_header_roundtrip();
     test_consistency_detects_bad_crc();
     test_wire_format_is_le();
-    test_consistency_read_error();
+    test_consistency_short_image();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");
     return 0;

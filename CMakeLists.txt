@@ -9,7 +9,6 @@ project(jeefs VERSION ${JEEFS_VERSION} LANGUAGES C CXX)
 # --- Options ---
 option(JEEFS_BUILD_TESTS "Build tests" ON)
 option(JEEFS_USEDYNAMIC_FILES "Build the shared jeefs library in addition to the static one" ON)
-option(JEEFS_USE_EEPROMOPS_MEMORY "Use libeepromops with memory driver" ON)
 option(JEEFS_INSTALL "Generate install rules and package files" ON)
 
 # --- Compiler options ---
@@ -18,11 +17,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 include(GNUInstallDirs)
-
-# include sub-libraries
-add_subdirectory(eepromops-memory)
-# TODO: add_subdirectory(eepromops-file)
-
 
 # Code generation is never part of the build: the generated files are
 # committed and checked against docs/format/*.md by CI and the prek hook.

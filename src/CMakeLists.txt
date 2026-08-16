@@ -54,11 +54,6 @@ if(JEEFS_USEDYNAMIC_FILES)
 endif()
 
 foreach(tgt IN LISTS JEEFS_FS_TARGETS)
-    if(JEEFS_USE_EEPROMOPS_MEMORY)
-        target_link_libraries(${tgt} PUBLIC eepromops-memory)
-    else()
-        # TODO: eepromops-file backend
-    endif()
     # The FS layer builds its header operations on the pure header library.
     target_link_libraries(${tgt} PUBLIC jeefs_header)
     target_link_libraries(${tgt} PRIVATE ZLIB::ZLIB)

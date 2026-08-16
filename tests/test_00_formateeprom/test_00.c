@@ -7,6 +7,7 @@
 /* Tests must assert in every build type, including -DNDEBUG ones. */
 #undef NDEBUG
 #include <assert.h>
+#include <fcntl.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,8 @@
 #include "tests-common.h"
 
 void test0(int version, int expected_header_size);
+
+static uint8_t image[TEST_EEPROM_SIZE];
 
 static void prepare_eeprom_file(void) {
     int teeprom = open(TEST_FULL_EEPROM_FILENAME, O_CREAT | O_RDWR, 0666);
@@ -70,9 +73,9 @@ int main() {
 
     // Re-format with v1 for subsequent tests (test_01, test_02)
     prepare_eeprom_file();
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    EEPROM_FormatEEPROM(ep, 1);
-    EEPROM_CloseEEPROM(ep);
+    assert(image_load(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
+    EEPROM_FormatEEPROM(image, TEST_EEPROM_SIZE, 1);
+    assert(image_save(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
 
     return 0;
 }
@@ -81,35 +84,22 @@ int main() {
 void test0(int version, int expected_header_size) {
     printf("\n--- Testing format with header version %d (header size %d) ---\n", version, expected_header_size);
 
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    assert("Check eeprom_open result" && ep.eeprom_fid > 0);
-    assert("Check eeprom_open result size = 8192" && ep.eeprom_size == TEST_EEPROM_SIZE);
-    printf("EEPROM opened, size: %lu\n", ep.eeprom_size);
+    assert("Check image load" && image_load(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
 
-    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
+    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(image, TEST_EEPROM_SIZE);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
 
     assert("Check EEPROM_header non consistency on empty file" && EEPROM_consistency == 0);
-    EEPROM_FormatEEPROM(ep, version);
-    EEPROM_CloseEEPROM(ep);
+    EEPROM_FormatEEPROM(image, TEST_EEPROM_SIZE, version);
+    assert(image_save(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
 
-    ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
+    assert(image_load(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
+    EEPROM_consistency = EEPROM_HeaderCheckConsistency(image, TEST_EEPROM_SIZE);
     printf("test00: Check EEPROM_header (v%d): %i\n", version, EEPROM_consistency);
     assert("\nCheck EEPROM_header consistency failed" && EEPROM_consistency == 1);
 
-    int8_t *buf = malloc(ep.eeprom_size);
-    int8_t *buf2 = malloc(ep.eeprom_size);
-    assert(buf != NULL && buf2 != NULL);
-    memset(buf, JEEFS_EMPTYBYTE, ep.eeprom_size);
-    lseek(ep.eeprom_fid, 0, SEEK_SET);
-    assert(read(ep.eeprom_fid, buf2, ep.eeprom_size) == (ssize_t) ep.eeprom_size);
     printf("Check EEPROM data consistency (after header at offset %d)\n", expected_header_size);
-    for (size_t i = (size_t) expected_header_size; i < ep.eeprom_size; i++) {
-        assert("\nCheck EEPROM data consistency failed\n" && buf[i] == buf2[i]);
+    for (size_t i = (size_t) expected_header_size; i < TEST_EEPROM_SIZE; i++) {
+        assert("\nCheck EEPROM data consistency failed\n" && image[i] == JEEFS_EMPTYBYTE);
     }
-    free(buf);
-    free(buf2);
-
-    EEPROM_CloseEEPROM(ep);
 }

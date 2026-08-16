@@ -20,6 +20,8 @@
 #include "jeefs.h"
 #include "tests-common.h"
 
+static uint8_t image[TEST_EEPROM_SIZE];
+
 void test1();
 
 void test2();
@@ -46,21 +48,17 @@ int main() {
 
 
 void test1() {
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    assert("Check eeprom_open result" && ep.eeprom_fid > 0);
-    assert("Check eeprom_open result size = 8192" && ep.eeprom_size == TEST_EEPROM_SIZE);
-    printf("EEPROM opened, size: %lu\n", ep.eeprom_size);
+    assert("Check image load" && image_load(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
 
-    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
+    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(image, TEST_EEPROM_SIZE);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
-    EEPROM_FormatEEPROM(ep, 1);
+    EEPROM_FormatEEPROM(image, TEST_EEPROM_SIZE, 1);
     if (EEPROM_consistency < 0) {
         printf("EEPROM header is not consistent, format EEPROM\n");
         // TODO: check error code
-        EEPROM_FormatEEPROM(ep, 1);
+        EEPROM_FormatEEPROM(image, TEST_EEPROM_SIZE, 1);
     }
-    EEPROM_CloseEEPROM(ep);
-    ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
+
 
     char filename[100];
     uint8_t filedata[8192];
@@ -73,7 +71,7 @@ void test1() {
         filesize = strlen(test_files[i]) + 1;
         memcpy(filedata, test_files[i], filesize);
 
-        err = EEPROM_AddFile(ep, filename, filedata, strlen(test_files[i]) + 1);
+        err = EEPROM_AddFile(image, TEST_EEPROM_SIZE, filename, filedata, strlen(test_files[i]) + 1);
         printf("EEPROM_AddFile: %i\n", err);
         fflush(stdout);
         if (err == NOTENOUGHSPACE)
@@ -86,7 +84,9 @@ void test1() {
     printf("Files count:%zu\n", i);
     assert("Check adds stopped on NOTENOUGHSPACE" && err == NOTENOUGHSPACE);
     assert("Check the expected number of files fit" && i == 10);
-    int consistency = EEPROM_HeaderCheckConsistency(ep);
+    int consistency = EEPROM_HeaderCheckConsistency(image, TEST_EEPROM_SIZE);
     assert("Check EEPROM_header consistency after adds" && consistency == 1);
-    EEPROM_CloseEEPROM(ep);
+
+    // persist for test_02 (the fixture file carries state between binaries)
+    assert("Check image save" && image_save(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
 }
