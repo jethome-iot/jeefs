@@ -9,11 +9,12 @@
 #include "jeefs_header.h"
 
 #include <string.h>
-#include <zlib.h>
+
+#include "jeefs_port.h"
 
 #include "jeefs_endian.h"
 
-static uint32_t header_crc32(const uint8_t *data, size_t length) { return crc32(0L, data, length); }
+static uint32_t header_crc32(const uint8_t *data, size_t length) { return jeefs_crc32(data, length); }
 
 int jeefs_header_size(int version) {
     switch (version) {

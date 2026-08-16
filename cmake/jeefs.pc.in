@@ -5,6 +5,5 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 Name: jeefs
 Description: JEEFS EEPROM filesystem (headers + linked-list file storage)
 Version: @PROJECT_VERSION@
-Requires.private: zlib
 Libs: -L${libdir} -ljeefs -ljeefs_header
 Cflags: -I${includedir}
