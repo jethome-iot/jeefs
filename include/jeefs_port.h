@@ -30,6 +30,12 @@
 extern "C" {
 #endif
 
+/* The providers are mutually exclusive — a misconfigured port must fail
+ * loudly, not silently pick whichever branch comes first. */
+#if (defined(JEEFS_CRC32_ZLIB) + defined(JEEFS_CRC32_UBOOT) + defined(JEEFS_CRC32_KERNEL)) > 1
+#error "Define at most one JEEFS_CRC32_* provider"
+#endif
+
 #if defined(JEEFS_CRC32_ZLIB)
 
 #include <zlib.h>
