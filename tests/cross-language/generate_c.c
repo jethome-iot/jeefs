@@ -171,7 +171,9 @@ int main(int argc, char *argv[]) {
         long long ts = 0;
         if (json_get_long(json, "timestamp", &ts) == 0) {
             int64_t timestamp = (int64_t) ts;
-            memcpy(buf + 244, &timestamp, 8);
+            /* explicit LE like every other generator (wire is LE) */
+            for (int b = 0; b < 8; b++)
+                buf[244 + b] = (uint8_t) ((uint64_t) timestamp >> (8 * b));
         }
 
         if (json_get_string(json, "signature_hex", str_val, sizeof(str_val)) == 0) {
