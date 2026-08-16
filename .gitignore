@@ -73,7 +73,6 @@ python/.venv/
 
 # Test artifacts (generated eeprom images)
 **/eeprom.bin
-rust/jeefs-header/tests/
 
 # IDE
 .idea/**
