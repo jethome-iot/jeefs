@@ -69,22 +69,20 @@ uv venv .venv && uv pip install -e ".[test]"
 ┌───────────────────────────────────────────────┐
 │  Python package (python/jeefs/)               │  Native header parsing
 ├───────────────────────────────────────────────┤
-│  C++ wrappers (jeefspp, jeefs_headerpp)       │  header-only, std::vector-based
+│  C++ wrappers (jeefspp, jeefs_headerpp)       │  header-only; FileSystem owns the image
 ├───────────────────────────────────────────────┤
-│  Pure header API (jeefs_header.h/c)           │  Byte-buffer ops, no I/O
+│  Pure header/record API (jeefs_header, devid) │  Byte-buffer ops, no I/O
 ├───────────────────────────────────────────────┤
-│  JEEFS core C API (src/jeefs.c)               │  File ops + header mgmt
-├───────────────────────────────────────────────┤
-│  eepromops interface (include/eepromops.h)     │  Abstract read/write
-├───────────────────────────────────────────────┤
-│  eepromops-memory backend (eepromops-memory/)  │  In-memory EEPROM sim
+│  JEEFS FS core (src/jeefs.c)                  │  File ops over a caller image buffer
 └───────────────────────────────────────────────┘
+The library performs no I/O (#25 variant A): the environment reads the
+EEPROM itself and hands every API a `uint8_t *image, uint16_t size`.
 ```
 
 Two distinct APIs:
 
-- **`jeefs_header.h`** — pure functions on byte buffers (detect version, verify/update CRC, init header). No eepromops dependency. Suitable for standalone use or integration.
-- **`jeefs.h`** — full FS API (open/close EEPROM, format, list/read/write/add/delete files, header get/set). Depends on eepromops backend.
+- **`jeefs_header.h`** — pure functions on byte buffers (detect version, verify/update CRC, init header). No I/O dependency. Suitable for standalone use or integration.
+- **`jeefs.h`** — FS API over a caller-owned image buffer (format, list/read/write/add/delete files, header get/set). No I/O, no descriptors.
 
 ### EEPROM Binary Layout
 
@@ -119,7 +117,6 @@ See `docs/format/*.md` (canonical) and `EEPROM_FORMAT.md` (overview) for field-b
 - `JEEPROMHeader` — union of all header versions + `JEEPROMHeaderversion` (12-byte version-detect struct)
 - `JEEFSSignatureAlgorithm` — enum: `JEEFS_SIG_NONE` (0), `JEEFS_SIG_SECP192R1` (1), `JEEFS_SIG_SECP256R1` (2)
 - `JEEFSFileHeaderv1` (24B) — file entry: name (15 chars max), dataSize, CRC32, nextFileAddress
-- `EEPROMDescriptor` — opaque handle (file descriptor + EEPROM size)
 
 **Python (python/jeefs/):**
 
@@ -142,7 +139,6 @@ Negative return values are errors defined in `EEPROMError` enum: `FILEEXISTS`, `
 |---|---|---|
 | `JEEFS_BUILD_TESTS` | ON | Build test executables |
 | `JEEFS_USEDYNAMIC_FILES` | ON | Build shared library |
-| `JEEFS_USE_EEPROMOPS_MEMORY` | ON | Use in-memory EEPROM backend |
 
 ## Repository Structure
 
@@ -150,13 +146,11 @@ Negative return values are errors defined in `EEPROMError` enum: `FILEEXISTS`, `
 include/
   jeefs.h            # Core types, structs (v1/v2/v3), FS API declarations
   jeefs_header.h     # Pure header API (no I/O dependency)
-  eepromops.h        # Hardware abstraction interface
   eepromerr.h        # Error codes
   debug.h            # Debug macros
 src/
-  jeefs.c            # FS implementation + header management (uses eepromops)
+  jeefs.c            # FS implementation over a caller image buffer
   jeefs_header.c     # Pure header functions (uses zlib only)
-eepromops-memory/    # In-memory EEPROM backend
 python/
   jeefs/             # Python package: constants.py, header.py
   tests/             # pytest suite (62 tests)

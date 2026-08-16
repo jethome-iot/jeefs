@@ -7,6 +7,8 @@
 #ifndef JEEFS_TESTS_COMMON_H
 #define JEEFS_TESTS_COMMON_H
 
+#include <stdint.h>
+
 #ifndef TEST_DIR
 #define TEST_DIR "/tmp"
 #endif
@@ -53,6 +55,12 @@ int generate_files(const char *path, const char *basename, int num_files, int ma
  * @return
  */
 int delete_files(const char *path, const char *basename, int num_files);
+
+/* Load/save an EEPROM image file into a caller buffer — the tests play
+ * the environment role of the buffer-centric API (#25 variant A). Both
+ * return 0 on success, -1 on I/O failure or size mismatch. */
+int image_load(const char *path, uint8_t *buf, uint16_t size);
+int image_save(const char *path, const uint8_t *buf, uint16_t size);
 
 /* Each includer gets its own copy; not every one uses it (gcc -Wunused-variable). */
 static char *test_files[] __attribute__((unused)) = {

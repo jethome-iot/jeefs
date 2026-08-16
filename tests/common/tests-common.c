@@ -63,3 +63,21 @@ int delete_files(const char *path, const char *basename, int num_files) {
 
     return 0;
 }
+
+int image_load(const char *path, uint8_t *buf, uint16_t size) {
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL)
+        return -1;
+    size_t got = fread(buf, 1, size, fp);
+    fclose(fp);
+    return got == size ? 0 : -1;
+}
+
+int image_save(const char *path, const uint8_t *buf, uint16_t size) {
+    FILE *fp = fopen(path, "wb");
+    if (fp == NULL)
+        return -1;
+    size_t put = fwrite(buf, 1, size, fp);
+    fclose(fp);
+    return put == size ? 0 : -1;
+}

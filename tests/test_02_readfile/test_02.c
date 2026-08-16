@@ -20,6 +20,8 @@
 #include "jeefs.h"
 #include "tests-common.h"
 
+static uint8_t image[TEST_EEPROM_SIZE];
+
 void test1();
 
 void test2();
@@ -35,12 +37,9 @@ int main() {
 }
 
 void test2() {
-    EEPROMDescriptor ep = EEPROM_OpenEEPROM(TEST_FULL_EEPROM_FILENAME, 0);
-    assert("Check eeprom_open result" && ep.eeprom_fid > 0);
-    assert("Check eeprom_open result size = 8192" && ep.eeprom_size == TEST_EEPROM_SIZE);
-    printf("EEPROM opened, size: %lu\n", ep.eeprom_size);
+    assert("Check image load" && image_load(TEST_FULL_EEPROM_FILENAME, image, TEST_EEPROM_SIZE) == 0);
 
-    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(ep);
+    int EEPROM_consistency = EEPROM_HeaderCheckConsistency(image, TEST_EEPROM_SIZE);
     printf("Check EEPROM_header: %i\n", EEPROM_consistency);
     assert("Check EEPROM_header consistency" && EEPROM_consistency == 1);
 
@@ -55,14 +54,14 @@ void test2() {
         printf("!!!!++++ read file %s\n", filename);
         fflush(stdout);
 
-        err = EEPROM_ReadFile(ep, filename, filedata, 1);
+        err = EEPROM_ReadFile(image, TEST_EEPROM_SIZE, filename, filedata, 1);
         if (i < 10) {
             assert("Check EEPROM_ReadFile buffer size" && err == BUFFERNOTVALID);
         } else
             assert("Check file not exists" && err == FILENOTFOUND);
 
         memset(filedata, 0, sizeof(filedata));
-        err = EEPROM_ReadFile(ep, filename, filedata, sizeof(filedata));
+        err = EEPROM_ReadFile(image, TEST_EEPROM_SIZE, filename, filedata, sizeof(filedata));
 
         if (i < 10) {
             assert("Check file exists" && err > 0);
@@ -76,5 +75,4 @@ void test2() {
             assert("Check file not exists" && err == FILENOTFOUND);
         printf("File %zu: %s size:%i on eeprom:%i checked ok\n", i, filename, filesize, err);
     }
-    EEPROM_CloseEEPROM(ep);
 }
