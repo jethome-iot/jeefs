@@ -57,4 +57,6 @@ with `gh release create v<X.Y.Z> --generate-notes` as a last resort.
 - move remaining open issues to the next milestone and close the
   released one;
 - sync the Outline mirror to the released state (structure and style:
-  `.claude/rules/documentation.md`).
+  `.claude/rules/documentation.md`);
+- update the jeefs row (version, date) on the Outline project-list page
+  (linked in `.claude/rules/documentation.md`).
