@@ -272,6 +272,39 @@ jobs:
             echo "$cc: OK"
           done
 
+  # ── Fuzz smoke: bounded libFuzzer run over the buffer APIs ──
+  fuzz-smoke:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install clang
+        # No-op on a provisioned runner: skips apt (and its lock) entirely.
+        run: |
+          dpkg -s clang cmake >/dev/null 2>&1 || {
+            sudo apt-get -o DPkg::Lock::Timeout=600 update
+            sudo apt-get -o DPkg::Lock::Timeout=600 install -y clang cmake
+          }
+
+      - name: Build fuzzers
+        run: >
+          CC=clang CXX=clang++ cmake -B build-fuzz -DJEEFS_BUILD_FUZZERS=ON
+          -DJEEFS_BUILD_TESTS=OFF -DJEEFS_BUILD_EXAMPLES=OFF -DJEEFS_INSTALL=OFF
+          && cmake --build build-fuzz
+
+      - name: Fuzz (seeded, bounded)
+        # Committed goldens and vectors are the seed corpus; 60s per target
+        # keeps PR latency sane — this is a regression fuzz, not a campaign.
+        run: |
+          mkdir -p /tmp/corpus_fs /tmp/corpus_hdr /tmp/corpus_devid
+          cp test-vectors/reference/*.bin /tmp/corpus_fs/
+          cp test-vectors/vectors/v*.bin /tmp/corpus_hdr/
+          cp test-vectors/vectors/devid_*.bin /tmp/corpus_devid/
+          ./build-fuzz/fuzz/fuzz_fs -max_total_time=60 -max_len=8192 /tmp/corpus_fs
+          ./build-fuzz/fuzz/fuzz_header -max_total_time=60 -max_len=1024 /tmp/corpus_hdr
+          ./build-fuzz/fuzz/fuzz_devid -max_total_time=60 -max_len=512 /tmp/corpus_devid
+
   # ── clang-format: committed sources match .clang-format (#20) ──
   format-check:
     runs-on: [self-hosted, amd64]
