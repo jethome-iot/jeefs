@@ -331,8 +331,12 @@ int16_t EEPROM_DeleteFile(uint8_t *image, uint16_t imageSize, const char *filena
 
     uint32_t shift = sizeof(JEEFSFileHeaderv1) + victim.hdr.dataSize;
     uint32_t tail_start = victim.addr + shift; // first byte after the victim
+    uint32_t tail_len = chain_end - tail_start; // bytes of real files after it
 
-    if (victim.hdr.nextFileAddress == 0) {
+    // The victim is terminal when nothing real follows it — including the
+    // legal case of a non-zero link into a valid-but-empty slot (the
+    // iterator ends the chain on the empty name). Fuzz finding, PR #75.
+    if (victim.hdr.nextFileAddress == 0 || tail_len == 0) {
         // Victim is the last file: terminate the predecessor and wipe.
         if (victim.prev != 0) {
             JEEFSFileHeaderv1 prev_hdr;
@@ -349,17 +353,25 @@ int16_t EEPROM_DeleteFile(uint8_t *image, uint16_t imageSize, const char *filena
     // already names that address) stays valid without a write.
     memmove(image + victim.addr, image + tail_start, chain_end - tail_start);
 
-    // Rewrite the moved headers' absolute links.
+    // Rewrite the moved headers' absolute links. Only headers inside the
+    // moved region are trusted — they were validated before the move; the
+    // last moved file may legally link one past the region, where the
+    // freed span is wiped to empty below (fuzz finding, PR #75: following
+    // raw links past the region walked stale bytes and wrote wild).
+    uint32_t moved_end = victim.addr + tail_len;
     uint16_t addr = victim.addr;
-    while (addr != 0) {
+    while (addr != 0 && (uint32_t) addr + sizeof(JEEFSFileHeaderv1) <= moved_end) {
         JEEFSFileHeaderv1 hdr;
         file_hdr_from_bytes(image + addr, &hdr);
         if (hdr.nextFileAddress == 0 || hdr.nextFileAddress == 0xFFFF) {
             break; // terminal link (0 or erased) needs no rewrite
         }
-        hdr.nextFileAddress = (uint16_t) (hdr.nextFileAddress - shift);
+        uint16_t next = (uint16_t) (hdr.nextFileAddress - shift);
+        if (next <= addr)
+            break; // defense in depth: validated links strictly increase
+        hdr.nextFileAddress = next;
         file_hdr_to_bytes(&hdr, image + addr);
-        addr = hdr.nextFileAddress;
+        addr = next;
     }
 
     // Wipe the freed span at the old end of the chain.

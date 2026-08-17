@@ -299,7 +299,7 @@ jobs:
         run: |
           rm -rf /tmp/crashes && mkdir -p /tmp/crashes
           mkdir -p /tmp/corpus_fs /tmp/corpus_hdr /tmp/corpus_devid
-          cp test-vectors/reference/*.bin /tmp/corpus_fs/
+          cp test-vectors/reference/*.bin fuzz/corpus/fs/*.bin /tmp/corpus_fs/
           cp test-vectors/vectors/v*.bin /tmp/corpus_hdr/
           cp test-vectors/vectors/devid_*.bin /tmp/corpus_devid/
           ./build-fuzz/fuzz/fuzz_fs -max_total_time=60 -max_len=8192 -artifact_prefix=/tmp/crashes/ /tmp/corpus_fs

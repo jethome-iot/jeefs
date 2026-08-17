@@ -326,6 +326,54 @@ static void test_empty_datasize_is_corruption(void) {
     printf("  empty dataSize is corruption: OK\n");
 }
 
+// Fuzz finding (PR #75): a file whose link points at a valid-but-empty
+// slot is a LEGAL terminal (the iterator ends on the empty name), but
+// DeleteFile classified it as mid-chain and walked raw headers past the
+// chain — corrupting the image or writing out of bounds.
+static void test_delete_with_link_to_empty_slot(void) {
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("A", 10, 1) == 10);
+    assert(add_pattern("B", 20, 2) == 20);
+
+    // B's link: 0 -> its own end (an empty slot) — still a valid chain
+    uint16_t b_addr = HDR_V3 + 24 + 10;
+    uint16_t b_end = (uint16_t) (b_addr + 24 + 20);
+    poke_le16(b_addr + 22, b_end);
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
+
+    assert(EEPROM_DeleteFile(image, image_size, "B") == 1);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+    assert(strcmp(names[0], "A") == 0);
+    assert_file("A", 10, 1);
+    printf("  delete with link to empty slot: OK\n");
+}
+
+// The reproducer geometry: delete the FIRST file while its successor
+// (the last real file) links to an empty slot — the compaction rewrite
+// must stop at the moved-region boundary.
+static void test_delete_first_with_successor_linking_empty(void) {
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("cfg", 22, 1) == 22);
+    assert(add_pattern("wifi", 27, 2) == 27);
+
+    uint16_t wifi_addr = HDR_V3 + 24 + 22;
+    uint16_t wifi_end = (uint16_t) (wifi_addr + 24 + 27);
+    poke_le16(wifi_addr + 22, wifi_end); // link into the empty slot
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
+
+    assert(EEPROM_DeleteFile(image, image_size, "cfg") == 1);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+    assert(strcmp(names[0], "wifi") == 0);
+    assert_file("wifi", 27, 2);
+
+    // and the freed span must read as empty space, not stale headers
+    assert(add_pattern("new", 8, 3) == 8);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
+    printf("  delete first, successor links empty slot: OK\n");
+}
+
 static void test_nospace_is_atomic(void) {
     // 512-byte image, v2 header (256): room for one ~200-byte file.
     fresh_fs(512, 2);
@@ -436,6 +484,8 @@ int main(void) {
     test_erased_next_is_terminal();
     test_erased_free_space_0xff();
     test_empty_datasize_is_corruption();
+    test_delete_with_link_to_empty_slot();
+    test_delete_first_with_successor_linking_empty();
     test_nospace_is_atomic();
     test_set_header_roundtrip();
     test_consistency_detects_bad_crc();
