@@ -10,6 +10,8 @@ project(jeefs VERSION ${JEEFS_VERSION} LANGUAGES C CXX)
 option(JEEFS_BUILD_TESTS "Build tests" ON)
 option(JEEFS_USEDYNAMIC_FILES "Build the shared jeefs library in addition to the static one" ON)
 option(JEEFS_INSTALL "Generate install rules and package files" ON)
+option(JEEFS_BUILD_FUZZERS "Build libFuzzer harnesses (Clang)" OFF)
+option(JEEFS_FUZZ_DRIVER "Build fuzz harnesses as standalone corpus runners" OFF)
 
 # --- Compiler options ---
 
@@ -42,6 +44,10 @@ endif (JEEFS_BUILD_TESTS)
 if (JEEFS_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif (JEEFS_BUILD_EXAMPLES)
+
+if (JEEFS_BUILD_FUZZERS)
+    add_subdirectory(fuzz)
+endif ()
 
 # --- Install / export -------------------------------------------------------
 
