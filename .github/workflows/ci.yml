@@ -297,13 +297,31 @@ jobs:
         # Committed goldens and vectors are the seed corpus; 60s per target
         # keeps PR latency sane — this is a regression fuzz, not a campaign.
         run: |
+          rm -rf /tmp/crashes && mkdir -p /tmp/crashes
           mkdir -p /tmp/corpus_fs /tmp/corpus_hdr /tmp/corpus_devid
           cp test-vectors/reference/*.bin /tmp/corpus_fs/
           cp test-vectors/vectors/v*.bin /tmp/corpus_hdr/
           cp test-vectors/vectors/devid_*.bin /tmp/corpus_devid/
-          ./build-fuzz/fuzz/fuzz_fs -max_total_time=60 -max_len=8192 /tmp/corpus_fs
-          ./build-fuzz/fuzz/fuzz_header -max_total_time=60 -max_len=1024 /tmp/corpus_hdr
-          ./build-fuzz/fuzz/fuzz_devid -max_total_time=60 -max_len=512 /tmp/corpus_devid
+          ./build-fuzz/fuzz/fuzz_fs -max_total_time=60 -max_len=8192 -artifact_prefix=/tmp/crashes/ /tmp/corpus_fs
+          ./build-fuzz/fuzz/fuzz_header -max_total_time=60 -max_len=1024 -artifact_prefix=/tmp/crashes/ /tmp/corpus_hdr
+          ./build-fuzz/fuzz/fuzz_devid -max_total_time=60 -max_len=512 -artifact_prefix=/tmp/crashes/ /tmp/corpus_devid
+
+      - name: Dump crash artifacts to the log
+        if: failure()
+        run: |
+          for f in /tmp/crashes/*; do
+            [ -f "$f" ] || continue
+            echo "=== $f ==="
+            base64 "$f"
+          done
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fuzz-crashes
+          path: /tmp/crashes/
+          if-no-files-found: ignore
 
   # ── clang-format: committed sources match .clang-format (#20) ──
   format-check:
