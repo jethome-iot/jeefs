@@ -1,10 +1,5 @@
 # DeviceIdentityV1 (256 bytes)
 
-> Accepted 2026-08-14 (RFC
-> [#26](https://github.com/jethome-iot/jeefs/issues/26)); the generated
-> structs are the source of truth production tooling writes from. Record
-> parsers across the language ports are tracked in the follow-up issues.
-
 ## Motivation
 
 A device may contain several boards with their own EEPROM (the CPU module —
@@ -116,21 +111,10 @@ EEPROM), ONIE TlvInfo, Raspberry Pi HAT, Toradex config block.
 
 ## Signature algorithm rationale
 
-[DECISION] The record reuses the header's ECDSA scheme (secp192r1 legacy /
+The record reuses the header's ECDSA scheme (secp192r1 legacy /
 secp256r1 current, raw r‖s in a fixed 64-byte field) rather than Ed25519. The
 production and runtime stack is ESP32/ESP-IDF: mbedTLS — ESP-IDF's crypto
 library — does not implement Ed25519, while the ESP32 hardware ECDSA
 peripheral supports exactly P-192 and P-256 with eFuse-resident keys; Ed25519
 would be software-only with no eFuse key integration. A future algorithm, if
 ever needed, arrives as a new `signature_version` value, not a layout change.
-
-## Resolved questions (RFC #26)
-
-- `flags` semantics: stays a named field; all bits reserved (zero on write,
-  ignored on read) until a future `record_version` defines them. Whether an
-  "identity locked" state exists is firmware policy, outside the format.
-- `serial` terminology: the header specs now describe the field as
-  board-scoped (board serial); renaming the field itself to `board_serial`
-  is a header-v4 candidate.
-- Erased-storage interaction: no record-layer special case (see the layout
-  notes above).
