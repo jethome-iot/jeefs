@@ -1,89 +1,74 @@
 # JEEFS Roadmap
 
-Strategic plan across releases. Tactical near-term items live in [TODO.md](TODO.md);
-this document defines release themes, ordering and freeze criteria. Progress is
-tracked in GitHub milestones and the audit tracking issue
-([#30](https://github.com/jethome-iot/jeefs/issues/30)).
+Strategic direction across releases. Tactical items live in [TODO.md](TODO.md);
+work is tracked in GitHub issues and milestones. The 2026-08 audit backlog
+(#5–#30) is fully resolved — v0.2.0 through v0.5.0 shipped it.
 
 ## Compatibility policy
 
-- **Header formats v1–v3 are wire-stable forever**: every implementation must keep
-  parsing all released header versions. New fields only via a new header version.
+- **Header formats v1–v4 are wire-stable forever**: every implementation must
+  keep parsing all released header versions. New fields only via a new header
+  version through the RFC process. v1/v2 are **obsolete** — never written
+  anew, kept parseable as a basis for future formats; v3 is the fielded
+  production format; **v4 (board-scoped) is current**.
+- **The DeviceIdentityV1 record** (`device.id`) is wire-stable the same way;
+  changes only via a new `record_version`.
 - **The FS layer carries no legacy constraints before v1.0**: the C API, ABI,
   behavior — and the on-EEPROM file layout itself — may change between 0.x
-  releases. The layout in force is whatever the current filesystem spec
-  revision defines ([format/filesystem-v1.md](format/filesystem-v1.md) today);
-  no migration support for images written by older 0.x releases.
-- Known consumers (jethome-iot/testsuite\*) are non-critical and migrate with the API.
+  releases per the current [filesystem spec](format/filesystem-v1.md); no
+  migration support for images written by older 0.x releases.
+- Known consumers (jethome-iot/testsuite\*) are non-critical and migrate with
+  the API.
 
-## v0.2.0 — Trustworthy FS core
+## Shipped
 
-The FS layer is rewritten rather than patched; header pipeline stays.
+| Release | Theme | Highlights |
+|---------|-------|------------|
+| v0.2.0 | Trustworthy FS core | FS rewritten around a validated chain iterator (#5–#9, #18); header dedup + freestanding include chain (#10); C++ wrappers; release automation to PyPI/crates.io |
+| v0.3.0 | Correctness & CI hardening | LE wire access (#11); `assert` re-armed in Release CI; strict codegen parser (#12); sanitizers / strict-warnings / clang-format gates (#20); supply chain: Dependabot + SHA-pinned actions (#22); `JEEFS_`-prefixed public macros; GitHub Release automation (#21) |
+| v0.4.0 | Format completion | **Header v4** — board-scoped identity (#56, #58); **DeviceIdentityV1 accepted** with parsers in all four ports (#26, #60); bounded strings (#13); two-domain emptiness rule (#14); Rust BE-correct accessors (#15); implementation contract + conformance suite (#17); CMake install/export/pkg-config (#23) |
+| v0.5.0 | Embeddability | **Buffer-centric FS API** — the library performs no I/O (#25 variant A); **port layer**: CRC32 providers with a freestanding built-in default, libraries free of zlib, `JEEFS_LOG`, freestanding smoke CI for aarch64/riscv64 (#24); audit epic closed (#30) |
 
-1. FS-core rewrite around a single validated chain iterator (#9): fixes chain
-   corruption on delete (#5), inverted `EEPROM_SetHeader` (#6), unbounded VLAs (#7),
-   non-atomic `WriteFile`, phantom files, cycle hangs; unified `EEPROMError` codes.
-2. Real C test suite (#18): per-test fixtures, asserts on every return code,
-   negative tests (corrupted chain, cycle, out-of-bounds sizes).
-3. Header API dedup and freestanding include chain (#10); little-endian access in
-   the C core (#11).
-4. C++ FS wrapper leaves the build until the core stabilizes (#8);
-   `jeefs_headerpp.hpp` stays.
-5. Codegen parser hardening (#12); CI: Python drift-check, sanitizers, format,
-   `-Wvla` (#20); committed test vectors wired into CI (#19).
-6. Spec decisions that block the v3 freeze: raw-vs-string field semantics (#13),
-   `0xFF is empty` rule (#14).
-7. Release automation: crates.io + GitHub Releases alongside PyPI (#21);
-   Dependabot and supply-chain pinning (#22).
-8. Documentation sync: CLAUDE.md / EEPROM_FORMAT.md cleanup (#27), Outline wiki
-   mirror (#28).
+The consumption model settled in #25: *the environment reads the EEPROM
+itself and hands the library bytes* — every operation is a pure function
+over a caller-owned image buffer. No hardware backends, ever; the
+deployment targets (x86_64 / aarch64 / riscv64) are all little-endian, so
+CI proves LE-correctness structurally rather than on BE hosts.
 
-## v0.3.0 — Embeddability (MCU / U-Boot / Linux kernel)
+## Next (unscheduled, owner-prioritized)
 
-Ordering rule: the FS rewrite lands **before** the storage-contract change, so the
-ABI break happens under a green regression net.
+- **Go port** — the first external validation of the
+  [implementation contract](IMPLEMENTATION_CONTRACT.md); follows its 7-step
+  checklist, grows the matrix to 5×5. TypeScript follows the same path when
+  a consumer materializes.
+- **`examples/uboot/` skeleton** — a compilable integration example on top of
+  [PORTING.md](PORTING.md), when production integration starts.
+- **Consumer migration** — jethome-iot/testsuite\* onto the `jeefs` PyPI
+  package; production tooling writing v4 headers and `device.id` records
+  (conventions in RFC #26).
+- Continuous fuzzing beyond the CI smoke (longer campaigns, corpus growth).
 
-1. Port layer (#24): `jeefs_crc32` (built-in table / zlib / U-Boot / kernel
-   mapping), LE accessors, overridable logging, no POSIX in public headers.
-2. `eepromops` v2 (#25): ops table + `void *ctx` instead of a POSIX fd; optional
-   lock/unlock hooks; documented "no heap, no VLA, bounded stack" contract.
-3. Rust big-endian correctness (#15).
-4. CMake install/export/pkg-config, `jeefs::header` (freestanding) and `jeefs::fs`
-   targets (#23).
-5. CI: arm-none-eabi smoke build, big-endian (qemu) job, fuzz targets for the
-   chain iterator and `detect_version`.
-6. Reference backends: MCU I2C (HAL callbacks), U-Boot i2c_eeprom (DM), kernel
-   nvmem/regmap, POSIX file; `examples/uboot/` skeleton.
+## v1.0.0 — Freeze criteria
 
-## v0.4.0 — Ecosystem and language parity
-
-1. Go and TypeScript header implementations; cross-language matrix grows to 6×6.
-2. Implementation conformance contract + shared conformance tests (#17); close
-   current asymmetries (Python v1/v2 + `detect_version`, #16).
-3. Device identity: finalize and implement `device.id`
-   ([format/device-identity-v1.md](format/device-identity-v1.md), RFC #26) once
-   agreed — parsers in every supported language (C/Python/Rust, plus Go and
-   TypeScript as they land in this milestone), codegen metadata, test vectors.
-4. Header v4 draft only if concrete field requirements have accumulated
-   (board role field, etc.) — RFC process through docs/format.
-
-## v1.0.0 — Freeze
-
-1. Format v3 (and v4 if introduced) and the public C API are frozen; SemVer,
-   stable SOVERSION / crate / package versions.
-2. Full spec audit: EEPROM_FORMAT.md free of legacy external references, Outline
-   mirror regenerated, README reflects the multi-language scope.
-3. Entry criteria: every public function and error code covered by tests, N hours
-   of fuzzing without findings, cross-language matrix green on LE and BE.
+1. The FS API has survived a stabilization window with real consumers on
+   0.5.x without another break; the buffer-centric surface is then frozen
+   under SemVer with stable SOVERSION / crate / package versions.
+2. At least one port implemented from the contract alone (Go) with no
+   contract corrections required — the contract is proven descriptive,
+   not aspirational.
+3. Accumulated fuzzing time without findings across all three harnesses;
+   the cross-language matrix and both goldens green throughout.
+4. Docs audit: README reflects the multi-language scope, the Outline mirror
+   matches the release, PORTING.md verified against a real embedding.
 
 ## Non-goals
 
-- Async/callback storage API — all target environments access EEPROM synchronously.
-- FFI-based unification of header parsing — native implementations per language
-  is a settled decision.
+- Async/callback storage API — all target environments access EEPROM
+  synchronously; I/O belongs to the environment entirely (#25).
+- FFI-based unification of header parsing — native implementations per
+  language is a settled decision.
 - Wear-leveling, journaling, directories, fragmentation support — the format
   remains a singly-linked list for ~8 KiB parts.
 - Migrating the spec source from markdown tables to YAML/JSON.
-- Internal locking — synchronization is the caller's responsibility (plus
-  optional port-layer hooks).
-- Speculative format v4 without concrete field owners.
+- Internal locking — synchronization is the caller's responsibility.
+- Big-endian CI targets — no BE host exists among the deployment targets.
