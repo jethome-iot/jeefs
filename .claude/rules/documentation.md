@@ -20,8 +20,9 @@ Apply to `docs/**`, `EEPROM_FORMAT.md`, `README.md` and the Outline mirror
 
 ## Outline mirror
 
-The mirror is the document linked above. It is nested under the original
-2023 «Формат eeprom» page — a separate, historical document.
+The mirror is the document linked above — a top-level page in the
+Software collection. The historical 2023 «(устаревшее) Формат eeprom»
+page is kept as one of its subpages.
 
 - Structure: the mirror's main page carries the current state only — common
   properties, the current header version in full, the filesystem, a short
@@ -30,4 +31,4 @@ The mirror is the document linked above. It is nested under the original
 - Sync is one-way: `docs/format/*.md` is the source of truth; the mirror
   never introduces format facts of its own. Update the mirror as part of
   every release (see `docs/RELEASING.md`).
-- The historical parent page is never edited.
+- The historical 2023 page is never edited.
