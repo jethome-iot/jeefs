@@ -32,3 +32,10 @@ page is kept as one of its subpages.
   never introduces format facts of its own. Update the mirror as part of
   every release (see `docs/RELEASING.md`).
 - The historical 2023 page is never edited.
+
+## Project list
+
+The jeefs row on the Outline project-list page
+(<https://docs.iot.jethome.com/doc/spisok-proektov-PVIQ2n88L8>) carries
+the latest released version and its date — update it as part of every
+release.
