@@ -55,4 +55,6 @@ with `gh release create v<X.Y.Z> --generate-notes` as a last resort.
 
 - bump `version.json` `dev` field (e.g. `0.3.1-dev`) in the next PR;
 - move remaining open issues to the next milestone and close the
-  released one.
+  released one;
+- sync the Outline mirror to the released state (structure and style:
+  `.claude/rules/documentation.md`).
