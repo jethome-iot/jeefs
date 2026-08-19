@@ -135,6 +135,7 @@ class TestFieldOffsets:
             "magic",
             "version",
             "signature_version",
+            "fs_version",
             "header_reserved",
             "boardname",
             "boardversion",

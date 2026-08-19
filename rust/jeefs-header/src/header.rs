@@ -394,7 +394,7 @@ mod tests {
         assert_eq!(core::mem::size_of::<JeepromHeaderV1>(), 512);
         assert_eq!(core::mem::size_of::<JeepromHeaderV2>(), 256);
         assert_eq!(core::mem::size_of::<JeepromHeaderV3>(), 256);
-        assert_eq!(core::mem::size_of::<JeefsFileHeaderV1>(), 24);
+        assert_eq!(core::mem::size_of::<JeefsFileHeaderV1>(), 28);
     }
 
     #[test]

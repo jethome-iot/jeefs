@@ -27,7 +27,9 @@ typedef enum {
     BUFFERNOTVALID = -8,
     EEPROMCORRUPTED = -10,
     EEPROMREADERROR = -11,
-    EEPROMWRITEERROR = -12
+    EEPROMWRITEERROR = -12,
+    // fs_version byte names a filesystem layout this build does not know
+    FSVERSIONNOTSUPPORTED = -13
 } EEPROMError;
 
 #ifdef __cplusplus

@@ -48,13 +48,18 @@ static void file_hdr_from_bytes(const uint8_t *raw, JEEFSFileHeaderv1 *hdr) {
     hdr->dataSize = jeefs_get_le16(raw + offsetof(JEEFSFileHeaderv1, dataSize));
     hdr->crc32 = jeefs_get_le32(raw + offsetof(JEEFSFileHeaderv1, crc32));
     hdr->nextFileAddress = jeefs_get_le16(raw + offsetof(JEEFSFileHeaderv1, nextFileAddress));
+    hdr->headerCrc32 = jeefs_get_le32(raw + offsetof(JEEFSFileHeaderv1, headerCrc32));
 }
 
+// Every header write goes through here, so headerCrc32 (bytes 0-23) is
+// resealed on creation, link rewrites and data-CRC refreshes alike.
 static void file_hdr_to_bytes(const JEEFSFileHeaderv1 *hdr, uint8_t *raw) {
     memcpy(raw, hdr->name, sizeof(hdr->name));
     jeefs_put_le16(raw + offsetof(JEEFSFileHeaderv1, dataSize), hdr->dataSize);
     jeefs_put_le32(raw + offsetof(JEEFSFileHeaderv1, crc32), hdr->crc32);
     jeefs_put_le16(raw + offsetof(JEEFSFileHeaderv1, nextFileAddress), hdr->nextFileAddress);
+    jeefs_put_le32(raw + offsetof(JEEFSFileHeaderv1, headerCrc32),
+                   calculateCRC32(raw, offsetof(JEEFSFileHeaderv1, headerCrc32)));
 }
 
 // Validated chain iterator.
@@ -62,6 +67,7 @@ typedef struct {
     uint16_t addr; // current file header address (valid after step == 1)
     uint16_t prev; // predecessor header address, 0 = current is first
     uint16_t next_addr; // where the next step will read
+    uint16_t fs_start; // first byte after the board header
     JEEFSFileHeaderv1 hdr;
 } JEEFSIter;
 
@@ -69,9 +75,19 @@ static int16_t iter_begin(const uint8_t *image, uint16_t imageSize, JEEFSIter *i
     int header_size = header_size_of(image, imageSize);
     if (header_size < 0)
         return EEPROMCORRUPTED;
+
+    /* The filesystem is gated by the fs_version byte of the board header:
+     * 0 = no filesystem (the file area is empty regardless of content, as
+     * on every image written before the field existed), 1 = the current
+     * layout, anything else = a layout this build does not know. */
+    uint8_t fs_version = image[JEEFS_FS_VERSION_OFFSET];
+    if (fs_version != 0 && fs_version != JEEFS_FS_VERSION)
+        return FSVERSIONNOTSUPPORTED;
+
     it->addr = 0;
     it->prev = 0;
-    it->next_addr = (uint16_t) header_size;
+    it->fs_start = (uint16_t) header_size;
+    it->next_addr = (fs_version == JEEFS_FS_VERSION) ? (uint16_t) header_size : 0;
     memset(&it->hdr, 0, sizeof(it->hdr));
     return 0;
 }
@@ -92,7 +108,11 @@ static int16_t iter_step(const uint8_t *image, uint16_t imageSize, JEEFSIter *it
     if (EEPROM_ByteIsEmpty(hdr.name[0]))
         return 0; // unwritten slot (0x00 or 0xFF): end of chain
 
-    // A written header must carry a terminated name and a sane size.
+    // A written header must checksum before any of its fields is trusted.
+    if (calculateCRC32(image + start, offsetof(JEEFSFileHeaderv1, headerCrc32)) != hdr.headerCrc32)
+        return EEPROMCORRUPTED;
+
+    // Defense in depth behind the CRC: a terminated name and a sane size.
     if (hdr.name[JEEFS_FILE_NAME_LENGTH] != '\0')
         return EEPROMCORRUPTED;
     if (hdr.dataSize == 0 || hdr.dataSize == 0xFFFF)
@@ -132,7 +152,7 @@ static int16_t chain_walk(const uint8_t *image, uint16_t imageSize, const char *
     if (ret < 0)
         return ret;
 
-    uint32_t end = it.next_addr;
+    uint32_t end = it.fs_start;
     int16_t hit = 0;
     uint16_t guard = 0;
     const uint16_t max_files = (uint16_t) (imageSize / sizeof(JEEFSFileHeaderv1)) + 1;
@@ -152,6 +172,16 @@ static int16_t chain_walk(const uint8_t *image, uint16_t imageSize, const char *
     if (chain_end)
         *chain_end = end;
     return hit;
+}
+
+// Stamp the current filesystem version into the board header (and refresh
+// the header CRC, which covers the byte). A no-op when already stamped;
+// iter_begin has rejected any other value before a mutation gets here.
+static int16_t fs_stamp(uint8_t *image, uint16_t imageSize) {
+    if (image[JEEFS_FS_VERSION_OFFSET] == JEEFS_FS_VERSION)
+        return 0;
+    image[JEEFS_FS_VERSION_OFFSET] = JEEFS_FS_VERSION;
+    return jeefs_header_update_crc(image, imageSize) == 0 ? 0 : EEPROMCORRUPTED;
 }
 
 static bool filename_valid(const char *filename) {
@@ -203,6 +233,12 @@ int EEPROM_SetHeader(uint8_t *image, uint16_t imageSize, void *header) {
     int size = jeefs_header_size(version);
     if ((uint32_t) size > imageSize)
         return EEPROMCORRUPTED;
+
+    /* The header API carries board identity; the filesystem version belongs
+     * to the file area. Never let a caller-built header make an existing
+     * filesystem invisible by writing a zero fs_version over it. */
+    if (header_size_of(image, imageSize) >= 0 && image[JEEFS_FS_VERSION_OFFSET] == JEEFS_FS_VERSION)
+        ((uint8_t *) header)[JEEFS_FS_VERSION_OFFSET] = JEEFS_FS_VERSION;
 
     if (jeefs_header_update_crc((uint8_t *) header, (size_t) size) != 0)
         return EEPROMCORRUPTED;
@@ -288,6 +324,10 @@ int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename,
     int header_size = header_size_of(image, imageSize);
     if (header_size < 0)
         return EEPROMCORRUPTED;
+
+    ret = fs_stamp(image, imageSize);
+    if (ret < 0)
+        return ret;
 
     JEEFSFileHeaderv1 hdr;
     memset(&hdr, 0, sizeof(hdr));
@@ -470,7 +510,8 @@ int EEPROM_FormatEEPROM(uint8_t *image, uint16_t imageSize, int version) {
         return EEPROMCORRUPTED;
 
     memset(image + header_size, JEEFS_EMPTYBYTE, imageSize - (uint32_t) header_size);
-    return 0;
+    // A formatted image carries the (empty) current filesystem.
+    return fs_stamp(image, imageSize) < 0 ? EEPROMCORRUPTED : 0;
 }
 
 static uint32_t calculateCRC32(const uint8_t *data, size_t length) { return jeefs_crc32(data, length); }

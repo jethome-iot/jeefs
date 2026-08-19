@@ -89,14 +89,14 @@ Two distinct APIs:
 ```
 Offset 0:
 ┌──────────────────────────────────────────────────┐
-│ Header v1 (512B), v2 (256B), or v3 (256B)       │
-│  magic "JETHOME\0" | version | boardname         │
-│  boardversion | serial | usid | cpuid            │
-│  mac[6] | [signature + timestamp (v3)] | crc32   │
+│ Header v1 (512B) or v2/v3/v4 (256B)             │
+│  magic "JETHOME\0" | version | fs_version        │
+│  boardname | boardversion | serial | usid        │
+│  cpuid | mac[6] | [signature + timestamp] | crc32│
 ├──────────────────────────────────────────────────┤
-│ File1: FileHeader (24B) + data (N bytes)         │
+│ File1: FileHeader (28B) + data (N bytes)         │
 │  name[16] | dataSize | crc32 |                   │
-│  nextFileAddress → points to File2               │
+│  nextFileAddress → File2 | headerCrc32           │
 ├──────────────────────────────────────────────────┤
 │ ...                                               │
 │ FileN: nextFileAddress = 0 (end marker)          │
@@ -116,7 +116,7 @@ See `docs/format/*.md` (canonical) and `EEPROM_FORMAT.md` (overview) for field-b
 - `JEEPROMHeaderv1` (512B) / `JEEPROMHeaderv2` / `JEEPROMHeaderv3` / `JEEPROMHeaderv4` (256B) — board identity headers (device identity = `DeviceIdentityV1`, file `device.id`)
 - `JEEPROMHeader` — union of all header versions + `JEEPROMHeaderversion` (12-byte version-detect struct)
 - `JEEFSSignatureAlgorithm` — enum: `JEEFS_SIG_NONE` (0), `JEEFS_SIG_SECP192R1` (1), `JEEFS_SIG_SECP256R1` (2)
-- `JEEFSFileHeaderv1` (24B) — file entry: name (15 chars max), dataSize, CRC32, nextFileAddress
+- `JEEFSFileHeaderv1` (28B) — file entry: name (15 chars max), dataSize, data CRC32, nextFileAddress, headerCrc32; gated by the `fs_version` byte at header offset 10 (0 = no filesystem, 1 = current)
 
 **Python (python/jeefs/):**
 

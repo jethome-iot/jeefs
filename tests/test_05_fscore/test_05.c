@@ -64,6 +64,29 @@ static void poke_le16(uint16_t off, uint16_t v) {
     poke(off, le, 2);
 }
 
+static void poke_le32(uint16_t off, uint32_t v) {
+    uint8_t le[4] = {(uint8_t) (v & 0xFF), (uint8_t) ((v >> 8) & 0xFF), (uint8_t) ((v >> 16) & 0xFF),
+                     (uint8_t) ((v >> 24) & 0xFF)};
+    poke(off, le, 4);
+}
+
+#define FHDR ((uint16_t) sizeof(JEEFSFileHeaderv1))
+#define FHDR_CRC_OFF 24 // offsetof(JEEFSFileHeaderv1, headerCrc32)
+
+// Reseal a file header after a raw poke. The scenarios below model states
+// that were legally WRITTEN to the medium (a cycle link, an erased link, a
+// stale link onto an empty slot), so their header CRC matches the content —
+// each validation rule is exercised on its own, not shadowed by the CRC.
+// Corruption detection by the header CRC has its own test.
+static void reseal_hdr(uint16_t addr) { poke_le32(addr + FHDR_CRC_OFF, (uint32_t) crc32(0L, image + addr, FHDR_CRC_OFF)); }
+
+// Force a raw fs_version byte and reseal the board-header CRC around it
+// (the byte is covered by the header CRC).
+static void force_fs_version(uint8_t v) {
+    poke(10, &v, 1);
+    poke_le32(252, (uint32_t) crc32(0L, image, 252)); // 256-byte headers only
+}
+
 static void test_format_and_header(void) {
     fresh_fs(IMG_SIZE, 3);
     assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
@@ -217,6 +240,7 @@ static void test_corrupted_chain_terminates(void) {
     // nextFileAddress of "a" points back at "a": a cycle. Offset of the
     // nextFileAddress field inside JEEFSFileHeaderv1 is 22.
     poke_le16(HDR_V3 + 22, HDR_V3);
+    reseal_hdr(HDR_V3);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
@@ -233,6 +257,7 @@ static void test_oversized_datasize_rejected(void) {
     // dataSize of "a" -> 0xFF00: out of bounds for an 8K image. Offset of
     // dataSize inside JEEFSFileHeaderv1 is 16.
     poke_le16(HDR_V3 + 16, 0xFF00);
+    reseal_hdr(HDR_V3);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
@@ -250,8 +275,9 @@ static void test_link_to_eeprom_end_rejected(void) {
     assert(add_pattern("a", 10, 1) == 10);
 
     // dataSize of "a" -> spans to EEPROM end; next -> exactly eeprom_size
-    poke_le16(HDR_V3 + 16, IMG_SIZE - HDR_V3 - 24);
+    poke_le16(HDR_V3 + 16, IMG_SIZE - HDR_V3 - FHDR);
     poke_le16(HDR_V3 + 22, IMG_SIZE);
+    reseal_hdr(HDR_V3);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
@@ -263,9 +289,9 @@ static void test_data_crc_checked_on_read(void) {
     fresh_fs(IMG_SIZE, 3);
     assert(add_pattern("a", 32, 1) == 32);
 
-    // flip one data byte (data starts right after the 24-byte file header)
+    // flip one data byte (data starts right after the file header)
     uint8_t evil = 0xEE;
-    poke(HDR_V3 + 24 + 5, &evil, 1);
+    poke(HDR_V3 + FHDR + 5, &evil, 1);
 
     uint8_t buf[64];
     assert(EEPROM_ReadFile(image, image_size, "a", buf, sizeof(buf)) == EEPROMCORRUPTED);
@@ -278,9 +304,12 @@ static void test_erased_next_is_terminal(void) {
     assert(add_pattern("a", 10, 1) == 10);
     assert(add_pattern("b", 20, 2) == 20);
 
-    // erase the link of "b" (the last file): 0xFFFF instead of 0
-    uint16_t b_addr = HDR_V3 + 24 + 10;
+    // erase the link of "b" (the last file): 0xFFFF instead of 0 — the
+    // header was written wholesale onto erased media, so its CRC covers
+    // the erased link (RFC #14)
+    uint16_t b_addr = HDR_V3 + FHDR + 10;
     poke_le16(b_addr + 22, 0xFFFF);
+    reseal_hdr(b_addr);
 
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
@@ -321,6 +350,7 @@ static void test_empty_datasize_is_corruption(void) {
     fresh_fs(IMG_SIZE, 3);
     assert(add_pattern("a", 10, 1) == 10);
     poke_le16(HDR_V3 + 16, 0x0000);
+    reseal_hdr(HDR_V3); // rule fires on its own, not via the header CRC
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
     printf("  empty dataSize is corruption: OK\n");
@@ -336,9 +366,10 @@ static void test_delete_with_link_to_empty_slot(void) {
     assert(add_pattern("B", 20, 2) == 20);
 
     // B's link: 0 -> its own end (an empty slot) — still a valid chain
-    uint16_t b_addr = HDR_V3 + 24 + 10;
-    uint16_t b_end = (uint16_t) (b_addr + 24 + 20);
+    uint16_t b_addr = HDR_V3 + FHDR + 10;
+    uint16_t b_end = (uint16_t) (b_addr + FHDR + 20);
     poke_le16(b_addr + 22, b_end);
+    reseal_hdr(b_addr);
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
 
@@ -357,9 +388,10 @@ static void test_delete_first_with_successor_linking_empty(void) {
     assert(add_pattern("cfg", 22, 1) == 22);
     assert(add_pattern("wifi", 27, 2) == 27);
 
-    uint16_t wifi_addr = HDR_V3 + 24 + 22;
-    uint16_t wifi_end = (uint16_t) (wifi_addr + 24 + 27);
+    uint16_t wifi_addr = HDR_V3 + FHDR + 22;
+    uint16_t wifi_end = (uint16_t) (wifi_addr + FHDR + 27);
     poke_le16(wifi_addr + 22, wifi_end); // link into the empty slot
+    reseal_hdr(wifi_addr);
     char names[8][JEEFS_FILE_NAME_LENGTH + 1];
     assert(EEPROM_ListFiles(image, image_size, names, 8) == 2);
 
@@ -436,8 +468,15 @@ static void test_wire_format_is_le(void) {
     assert(raw[19] == ((expect_crc >> 8) & 0xFF));
     assert(raw[20] == ((expect_crc >> 16) & 0xFF));
     assert(raw[21] == ((expect_crc >> 24) & 0xFF));
-    // next = 256 + 24 + 3 = 283 = 0x011B
-    assert(raw[22] == 0x1B && raw[23] == 0x01);
+    // next = 256 + 28 + 3 = 287 = 0x011F
+    assert(raw[22] == 0x1F && raw[23] == 0x01);
+
+    // headerCrc32 @24 is the LE encoding of crc32(header bytes 0..23)
+    uint32_t expect_hcrc = (uint32_t) crc32(0L, raw, 24);
+    assert(raw[24] == (expect_hcrc & 0xFF));
+    assert(raw[25] == ((expect_hcrc >> 8) & 0xFF));
+    assert(raw[26] == ((expect_hcrc >> 16) & 0xFF));
+    assert(raw[27] == ((expect_hcrc >> 24) & 0xFF));
 
     // v3 header CRC field @252 is the LE encoding of crc32(bytes 0..251)
     uint8_t hdr[256];
@@ -448,6 +487,74 @@ static void test_wire_format_is_le(void) {
     assert(hdr[254] == ((hdr_crc >> 16) & 0xFF));
     assert(hdr[255] == ((hdr_crc >> 24) & 0xFF));
     printf("  wire format is LE: OK\n");
+}
+
+// The header CRC catches corruption the field checks cannot: a flipped
+// name byte used to read as a silent "different file".
+static void test_header_crc_detects_corruption(void) {
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("victim", 10, 1) == 10);
+
+    uint8_t evil = 'X';
+    poke(HDR_V3 + 1, &evil, 1); // name[1], NOT resealed: real corruption
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == EEPROMCORRUPTED);
+    printf("  header CRC detects corruption: OK\n");
+}
+
+// fs_version = 0: the file area is empty regardless of content; the first
+// write stamps the current version and starts a fresh chain.
+static void test_fs_version_zero_is_empty(void) {
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("old", 10, 1) == 10);
+
+    force_fs_version(0);
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 0);
+    uint8_t buf[64];
+    assert(EEPROM_ReadFile(image, image_size, "old", buf, sizeof(buf)) == FILENOTFOUND);
+
+    assert(add_pattern("fresh", 8, 2) == 8);
+    assert(image[10] == 1); // stamped back
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+    assert(strcmp(names[0], "fresh") == 0);
+    assert_file("fresh", 8, 2);
+    printf("  fs_version 0 reads empty, write restamps: OK\n");
+}
+
+// An fs_version this build does not know is an explicit error, not a guess.
+static void test_fs_version_unknown_rejected(void) {
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("a", 10, 1) == 10);
+
+    force_fs_version(2);
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == FSVERSIONNOTSUPPORTED);
+    uint8_t buf[64];
+    assert(EEPROM_ReadFile(image, image_size, "a", buf, sizeof(buf)) == FSVERSIONNOTSUPPORTED);
+    assert(add_pattern("b", 4, 2) == FSVERSIONNOTSUPPORTED);
+    printf("  unknown fs_version rejected: OK\n");
+}
+
+// SetHeader carries board identity only: a caller-built header with a zero
+// fs_version must not make an existing filesystem invisible.
+static void test_set_header_preserves_fs_version(void) {
+    fresh_fs(IMG_SIZE, 3);
+    assert(add_pattern("keep", 10, 1) == 10);
+
+    uint8_t hdr[HDR_V3];
+    assert(EEPROM_GetHeader(image, image_size, hdr, sizeof(hdr)) == 0);
+    hdr[10] = 0; // caller "forgot" the filesystem version
+    assert(EEPROM_SetHeader(image, image_size, hdr) == 0);
+
+    assert(image[10] == 1);
+    assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
+    char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+    assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+    assert_file("keep", 10, 1);
+    printf("  SetHeader preserves fs_version: OK\n");
 }
 
 static void test_consistency_short_image(void) {
@@ -490,6 +597,10 @@ int main(void) {
     test_set_header_roundtrip();
     test_consistency_detects_bad_crc();
     test_wire_format_is_le();
+    test_header_crc_detects_corruption();
+    test_fs_version_zero_is_empty();
+    test_fs_version_unknown_rejected();
+    test_set_header_preserves_fs_version();
     test_consistency_short_image();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");

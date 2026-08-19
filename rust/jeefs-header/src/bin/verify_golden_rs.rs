@@ -86,6 +86,9 @@ fn main() {
 
     println!("\n=== Filesystem verification (Rust) ===");
 
+    // fs_version gates the file area: 1 = the current layout
+    check_int("fs_version", eeprom[10] as i64, 1);
+
     // Walk the linked list
     let expected_names = ["config", "wifi.conf", "serial"];
     let mut file_count = 0usize;
@@ -108,6 +111,19 @@ fn main() {
         let data_size = fh.data_size() as usize;
         let next = fh.next_file_address();
         let stored_crc = fh.crc32();
+
+        // The header carries its own CRC over bytes 0-23
+        let calc_hcrc = crc32fast::hash(&eeprom[offset as usize..offset as usize + 24]);
+        if calc_hcrc != fh.header_crc32() {
+            eprintln!(
+                "  FAIL: file '{}' headerCrc32 mismatch: stored=0x{:08x} calculated=0x{:08x}",
+                fh.name_str(),
+                fh.header_crc32(),
+                calc_hcrc
+            );
+            unsafe { FAILURES += 1 };
+            break;
+        }
 
         println!(
             "  File {}: \"{}\" size={} next={}",

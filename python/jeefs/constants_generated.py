@@ -55,6 +55,8 @@ EEPROM_DEVID_MAGIC = b"JHDEVID\x00"
 EEPROM_EMPTYBYTE = 0x00
 EEPROM_ERASEDBYTE = 0xFF
 EEPROM_FILE_NAME_LENGTH = 15
+EEPROM_FS_VERSION = 1
+EEPROM_FS_VERSION_OFFSET = 10
 EEPROM_HEADER_VERSION = 4
 EEPROM_MAC_LENGTH = 6
 EEPROM_MAGIC = b"JETHOME\x00"
@@ -69,7 +71,8 @@ EEPROM_FIELDS: dict[str, tuple[int, int]] = {
     "magic": (0, 8),
     "version": (8, 1),
     "signature_version": (9, 1),
-    "header_reserved": (10, 2),
+    "fs_version": (10, 1),
+    "header_reserved": (11, 1),
     "boardname": (12, 32),
     "boardversion": (44, 32),
     "board_serial": (76, 32),
@@ -89,7 +92,8 @@ EEPROM_FIELDS_V3: dict[str, tuple[int, int]] = {
     "magic": (0, 8),
     "version": (8, 1),
     "signature_version": (9, 1),
-    "header_reserved": (10, 2),
+    "fs_version": (10, 1),
+    "header_reserved": (11, 1),
     "boardname": (12, 32),
     "boardversion": (44, 32),
     "serial": (76, 32),
@@ -163,6 +167,7 @@ EEPROM_FIELDS_JEEFSFILEHEADERV1: dict[str, tuple[int, int]] = {
     "dataSize": (16, 2),
     "crc32": (18, 4),
     "nextFileAddress": (22, 2),
+    "headerCrc32": (24, 4),
 }
 
 # Field offsets and sizes for JEEPROMHeaderversion

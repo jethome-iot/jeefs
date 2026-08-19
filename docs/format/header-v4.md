@@ -11,7 +11,8 @@
 | 0-7     | 8    | magic             | char[8]      | -             | "JETHOME\0" (null-terminated string) |
 | 8       | 1    | version           | uint8_t      | -             | Header version = 4                   |
 | 9       | 1    | signature_version | uint8_t      | -             | Signature algorithm (see enums)      |
-| 10-11   | 2    | header_reserved   | uint8_t[2]   | -             | Reserved (zeros)                     |
+| 10      | 1    | fs_version        | uint8_t      | -             | Filesystem version: 0 = none, 1 = current |
+| 11      | 1    | header_reserved   | uint8_t      | -             | Reserved (zeros)                     |
 | 12-43   | 32   | boardname         | char[32]     | -             | Board name, null-terminated          |
 | 44-75   | 32   | boardversion      | char[32]     | -             | Board version, null-terminated       |
 | 76-107  | 32   | board_serial      | uint8_t[32]  | -             | Board serial number (bounded string) |
@@ -47,6 +48,12 @@
   the value fills the field, all 32 bytes usable.
 - `timestamp` is the header creation/signing moment, mirroring
   DeviceIdentityV1.
+- `fs_version` (offset 10, formerly the first `header_reserved` byte —
+  zero on every image written before the field existed) versions the
+  **filesystem** independently of the header: `0` = no filesystem (the
+  file area is treated as empty regardless of content), `1` = the layout
+  in [filesystem-v1.md](filesystem-v1.md). Mutating filesystem operations
+  stamp `1` and refresh the header CRC.
 - `reserved2` keeps the v1-era alignment split of the reserved space.
 - CRC32 covers bytes 0-251 (includes signature and timestamp); signature
   conventions are unchanged from v3.
