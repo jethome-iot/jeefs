@@ -16,10 +16,12 @@ a byte buffer, exactly like the headers. The record lives as the file
 `device.id` in a JEEFS filesystem.
 
 This spec defines the record format and the reserved file name — nothing else.
-Which board's EEPROM carries the file, in what order files are written, who
-reads or verifies the record and when — production and firmware concerns,
-outside the scope of this document and of the library (which sees 8 KiB of
-data and read/write requests).
+Which board's EEPROM carries the file, who reads or verifies the record and
+when — production and firmware concerns, outside the scope of this document
+and of the library. Within one filesystem the C library does pin the
+position: `EEPROM_AddFile` inserts `device.id` as the first file
+([filesystem-v1.md](filesystem-v1.md)), so the whole identity is readable
+as a bounded prefix of the image at boot.
 
 Prior art: IPMI FRU (Chassis Area "present in exactly one FRU device of a
 system"), NVIDIA Jetson (system part/serial fields populated only in the carrier

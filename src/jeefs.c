@@ -285,6 +285,10 @@ int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename,
     if (chain_end + sizeof(JEEFSFileHeaderv1) + dataSize > imageSize)
         return NOTENOUGHSPACE;
 
+    int header_size = header_size_of(image, imageSize);
+    if (header_size < 0)
+        return EEPROMCORRUPTED;
+
     JEEFSFileHeaderv1 hdr;
     memset(&hdr, 0, sizeof(hdr));
     strncpy(hdr.name, filename, JEEFS_FILE_NAME_LENGTH);
@@ -292,13 +296,50 @@ int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename,
     hdr.crc32 = calculateCRC32(data, dataSize);
     hdr.nextFileAddress = 0;
 
+    /* The reserved device-identity file always takes the FIRST slot, so a
+     * boot environment can read the whole identity as a bounded prefix
+     * (header + one file header + record) instead of buffering the image
+     * (#80, #81): shift the existing chain up and insert in front of it. */
+    uint32_t span = sizeof(JEEFSFileHeaderv1) + dataSize;
+    if (chain_end > (uint32_t) header_size &&
+        strncmp(filename, JEEFS_DEVICE_ID_FILENAME, JEEFS_FILE_NAME_LENGTH + 1) == 0) {
+        memmove(image + header_size + span, image + header_size, chain_end - (uint32_t) header_size);
+
+        /* Relink the moved headers. Contiguity was validated before the
+         * move, so the moved chain is walked arithmetically. The one legal
+         * nonzero terminal — a link onto the (formerly) empty slot at the
+         * old chain end — is normalized to 0: shifting it would point at
+         * unvetted bytes past the moved region (same class of bug as the
+         * PR #75 delete finding). */
+        uint32_t moved_end = chain_end + span;
+        uint32_t addr = (uint32_t) header_size + span;
+        while (addr + sizeof(JEEFSFileHeaderv1) <= moved_end) {
+            JEEFSFileHeaderv1 mh;
+            file_hdr_from_bytes(image + addr, &mh);
+            if (mh.nextFileAddress == 0 || mh.nextFileAddress == 0xFFFF)
+                break;
+            if ((uint32_t) mh.nextFileAddress >= chain_end) {
+                mh.nextFileAddress = 0;
+                file_hdr_to_bytes(&mh, image + addr);
+                break;
+            }
+            mh.nextFileAddress = (uint16_t) (mh.nextFileAddress + span);
+            file_hdr_to_bytes(&mh, image + addr);
+            addr += sizeof(JEEFSFileHeaderv1) + mh.dataSize;
+        }
+
+        hdr.nextFileAddress = (uint16_t) ((uint32_t) header_size + span);
+        file_hdr_to_bytes(&hdr, image + header_size);
+        memcpy(image + header_size + sizeof(hdr), data, dataSize);
+        return (int16_t) dataSize;
+    }
+
     uint16_t new_addr = (uint16_t) chain_end;
     file_hdr_to_bytes(&hdr, image + new_addr);
     memcpy(image + new_addr + sizeof(hdr), data, dataSize);
 
     // Link the predecessor (the last existing file), if any. The first file
     // needs no link: its position is implied by the header size.
-    int header_size = header_size_of(image, imageSize);
     if (new_addr != (uint16_t) header_size) {
         JEEFSIter it;
         ret = iter_begin(image, imageSize, &it);
