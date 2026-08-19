@@ -51,15 +51,18 @@ extern "C" {
 
 // File system functions
 
-// Returns the number of files found (>= 0) or a negative EEPROMError.
-// Populates fileList with the NUL-terminated names of the files.
+// Returns the number of files found (>= 0) or a negative EEPROMError
+// (EEPROMCORRUPTED, FSVERSIONNOTSUPPORTED for an unknown fs_version byte).
+// Populates fileList with the NUL-terminated names of the files. An image
+// with fs_version = 0 has no filesystem and lists zero files.
 int16_t EEPROM_ListFiles(const uint8_t *image, uint16_t imageSize, char fileList[][JEEFS_FILE_NAME_LENGTH + 1],
                          uint16_t maxFiles);
 
 // Reads the data of the file with the given filename into the buffer and
 // verifies the stored CRC32.
 // Return: read bytes count, FILENOTFOUND, FILENAMENOTVALID, BUFFERNOTVALID
-// (too small), EEPROMCORRUPTED (bad chain or CRC mismatch).
+// (too small), EEPROMCORRUPTED (bad chain or CRC mismatch),
+// FSVERSIONNOTSUPPORTED.
 int16_t EEPROM_ReadFile(const uint8_t *image, uint16_t imageSize, const char *filename, uint8_t *buffer,
                         uint16_t bufferSize);
 
@@ -68,7 +71,8 @@ int16_t EEPROM_ReadFile(const uint8_t *image, uint16_t imageSize, const char *fi
 // except JEEFS_DEVICE_ID_FILENAME, which re-inserts first, see AddFile).
 // Free space is checked before the old content is destroyed.
 // Return: written bytes count, FILENOTFOUND, FILENAMENOTVALID,
-// NOTENOUGHSPACE (old file intact), BUFFERNOTVALID, EEPROMCORRUPTED.
+// NOTENOUGHSPACE (old file intact), BUFFERNOTVALID, EEPROMCORRUPTED,
+// FSVERSIONNOTSUPPORTED.
 int16_t EEPROM_WriteFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
                          uint16_t dataSize);
 
@@ -76,14 +80,17 @@ int16_t EEPROM_WriteFile(uint8_t *image, uint16_t imageSize, const char *filenam
 // end of the chain; the reserved JEEFS_DEVICE_ID_FILENAME is the exception —
 // it is inserted FIRST (the existing chain shifts up), so a boot environment
 // can read the device identity as a bounded prefix of the image.
-// Return: written bytes count, 0 if the file already exists,
-// FILENAMENOTVALID, BUFFERNOTVALID, NOTENOUGHSPACE, EEPROMCORRUPTED.
+// Stamps fs_version = 1 into the board header (refreshing its CRC) when the
+// byte was 0. Return: written bytes count, 0 if the file already exists,
+// FILENAMENOTVALID, BUFFERNOTVALID, NOTENOUGHSPACE, EEPROMCORRUPTED,
+// FSVERSIONNOTSUPPORTED.
 int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
                        uint16_t dataSize);
 
 // Deletes the file with the given filename and compacts the chain (the
 // following files shift down; their links are rewritten).
-// Return: 1 if deleted, FILENOTFOUND, FILENAMENOTVALID, EEPROMCORRUPTED.
+// Return: 1 if deleted, FILENOTFOUND, FILENAMENOTVALID, EEPROMCORRUPTED,
+// FSVERSIONNOTSUPPORTED.
 int16_t EEPROM_DeleteFile(uint8_t *image, uint16_t imageSize, const char *filename);
 
 // Checks the integrity of the EEPROM header.
@@ -92,8 +99,11 @@ int16_t EEPROM_DeleteFile(uint8_t *image, uint16_t imageSize, const char *filena
 int16_t EEPROM_HeaderCheckConsistency(const uint8_t *image, uint16_t imageSize);
 
 // Recalculates the CRC32 inside the caller's header buffer and copies the
-// header into the image. Return: 0 on success, BUFFERNOTVALID,
-// EEPROMCORRUPTED (bad magic/version or image too small).
+// header into the image. Mutates the caller's buffer: besides the CRC, the
+// fs_version byte is forced to 1 when the image already carries a
+// filesystem, so a caller-built header cannot make it invisible.
+// Return: 0 on success, BUFFERNOTVALID, EEPROMCORRUPTED (bad magic/version
+// or image too small).
 int EEPROM_SetHeader(uint8_t *image, uint16_t imageSize, void *header);
 
 // Copies exactly the detected header (256/512 bytes) into the buffer.

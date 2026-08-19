@@ -78,7 +78,9 @@ static void poke_le32(uint16_t off, uint32_t v) {
 // stale link onto an empty slot), so their header CRC matches the content —
 // each validation rule is exercised on its own, not shadowed by the CRC.
 // Corruption detection by the header CRC has its own test.
-static void reseal_hdr(uint16_t addr) { poke_le32(addr + FHDR_CRC_OFF, (uint32_t) crc32(0L, image + addr, FHDR_CRC_OFF)); }
+static void reseal_hdr(uint16_t addr) {
+    poke_le32(addr + FHDR_CRC_OFF, (uint32_t) crc32(0L, image + addr, FHDR_CRC_OFF));
+}
 
 // Force a raw fs_version byte and reseal the board-header CRC around it
 // (the byte is covered by the header CRC).

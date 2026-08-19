@@ -7,8 +7,9 @@ JEEFS stores files as a singly-linked list immediately after the EEPROM header. 
 ## Filesystem version
 
 The filesystem is versioned by the `fs_version` byte at **offset 10 of the
-board header** (a named field in headers v3/v4; the same offset is
-reserved-zero in the obsolete v1/v2 layouts, which therefore read as 0):
+board header** — a named field in headers v3/v4; in the obsolete v1/v2
+layouts the same offset lies in reserved space, reads 0 on images of their
+era, and is stamped by the same rule when a filesystem is written:
 
 - `0` — no filesystem: the file area is treated as empty regardless of its
   content (every image written before the field existed carries 0 and an

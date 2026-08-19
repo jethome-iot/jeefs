@@ -51,7 +51,7 @@ enum JEEFSSignatureAlgorithm {
 typedef struct {
     char magic[8];  // 8B, offset 0, Magic string "JETHOME\0"
     uint8_t version;  // 1B, offset 8, Header version number
-    uint8_t reserved1[3];  // 3B, offset 9, Alignment / reserved
+    uint8_t reserved1[3];  // 3B, offset 9, Not used by detection
 } JEEPROMHeaderversion;
 
 // JEEPROMHeaderv1 (512 bytes)

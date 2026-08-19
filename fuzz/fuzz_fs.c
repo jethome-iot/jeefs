@@ -18,7 +18,8 @@
 
 #define MAX_IMG 8192
 
-/* Enough slots for every possible file (8192 / 24) — a shorter list
+/* Enough slots for every possible file (8192 / 28, kept with margin
+ * from the 24-byte era) — a shorter list
  * would let ListFiles return "full" without walking the rest of the
  * chain, blinding the invariant to late corruption. */
 #define MAX_FILES 344

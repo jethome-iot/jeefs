@@ -65,7 +65,7 @@ impl SignatureAlgorithm {
 pub struct JeepromHeaderVersion {
     pub magic: [u8; 8],  // Magic string "JETHOME\0"
     pub version: u8,  // Header version number
-    pub reserved1: [u8; 3],  // Alignment / reserved
+    pub reserved1: [u8; 3],  // Not used by detection
 }
 
 const _: () = assert!(core::mem::size_of::<JeepromHeaderVersion>() == 12);

@@ -28,5 +28,9 @@
 ## Notes
 
 - Compact version of v1 (256 bytes vs 512 bytes).
+- Offset 10 (inside `reserved1`) is the filesystem-version byte shared by
+  all header layouts ([filesystem-v1.md](filesystem-v1.md)): images of the
+  v2 era carry 0 there (no filesystem); a mutating filesystem operation
+  stamps 1 and recomputes the header CRC. The v2 layout itself is frozen.
 - Removed `modules[16]` array (32 bytes of uint16_t module IDs).
 - `reserved3` area (72 bytes) later became `signature` + `timestamp` in v3.

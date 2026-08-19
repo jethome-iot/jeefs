@@ -83,6 +83,9 @@ int main(int argc, char *argv[]) {
 
     printf("\n=== Filesystem verification ===\n");
 
+    /* fs_version gates the file area: 1 = the current layout */
+    check_int("fs_version", eeprom[JEEFS_FS_VERSION_OFFSET], JEEFS_FS_VERSION);
+
     /* Walk the linked list */
     const char *expected_names[] = {"config", "wifi.conf", "serial"};
     int file_count = 0;
@@ -94,6 +97,15 @@ int main(int argc, char *argv[]) {
         /* Check if this looks like a valid file header */
         if (fh->name[0] == '\0')
             break;
+
+        /* The header carries its own CRC over bytes 0-23 */
+        uint32_t calc_hcrc = crc32(0L, eeprom + offset, offsetof(JEEFSFileHeaderv1, headerCrc32));
+        if (calc_hcrc != fh->headerCrc32) {
+            fprintf(stderr, "  FAIL: file '%s' headerCrc32 mismatch: stored=0x%08x calculated=0x%08x\n", fh->name,
+                    fh->headerCrc32, calc_hcrc);
+            failures++;
+            break;
+        }
 
         if (file_count < 3) {
             check_str("filename", fh->name, expected_names[file_count]);

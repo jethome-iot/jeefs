@@ -11,6 +11,7 @@
         "cpuid": "GOLDEN_CPUID_ABCD",
         "mac": "F0:57:8D:A0:1D:01",
         "signature_version": 0,
+        "fs_version": 1,
         "timestamp": 1700000000,
         "board_serial": "SN-GOLDEN-001"
     },

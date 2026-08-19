@@ -162,6 +162,12 @@ class EEPROMHeaderV3:
     # Timestamp (Unix epoch, written verbatim; 0/None serialize as 0)
     timestamp: int | None = None
 
+    # Filesystem version byte (offset 10): 0 = no filesystem, 1 = the
+    # current layout. The Python port does not touch the file area, so the
+    # value round-trips verbatim — a read-modify-write of a header must not
+    # make an existing filesystem invisible by zeroing the gate.
+    fs_version: int = 0
+
     def __post_init__(self) -> None:
         """Validate signature_algorithm type after init."""
         if not isinstance(self.signature_algorithm, SignatureAlgorithm):
@@ -248,7 +254,9 @@ class EEPROMHeaderV3:
         # Signature algorithm version (offset 9, 1 byte)
         eeprom[9] = int(self.signature_algorithm)
 
-        # header_reserved (offset 10-11): zeros from init
+        # Filesystem version (offset 10): written verbatim, see the field
+        # docstring. header_reserved (offset 11) stays zero from init.
+        eeprom[EEPROM_FIELDS_V3["fs_version"][0]] = self.fs_version
 
         # String fields
         off, sz = EEPROM_FIELDS_V3["boardname"]
@@ -355,6 +363,7 @@ class EEPROMHeaderV3:
             signature=signature,
             signature_algorithm=sig_algo,
             timestamp=timestamp,
+            fs_version=data[EEPROM_FIELDS_V3["fs_version"][0]],
         )
 
     def verify_crc(self, data: bytes) -> bool:

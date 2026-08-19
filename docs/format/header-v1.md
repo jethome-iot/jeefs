@@ -29,5 +29,9 @@
 ## Notes
 
 - Original 512-byte header format.
+- Offset 10 (inside `reserved1`) is the filesystem-version byte shared by
+  all header layouts ([filesystem-v1.md](filesystem-v1.md)): images of the
+  v1 era carry 0 there (no filesystem); a mutating filesystem operation
+  stamps 1 and recomputes the header CRC. The v1 layout itself is frozen.
 - `modules` is an array of 16 little-endian uint16_t hardware module IDs.
 - Superseded by v2 (compact, no modules) and v3 (compact + signature).
