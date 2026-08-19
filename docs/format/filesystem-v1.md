@@ -49,7 +49,9 @@ Offset 0:
 - Files are stored as a **singly-linked list** (forward traversal only).
 - `nextFileAddress` contains the **absolute byte offset** within the EEPROM of the next file's header.
 - `nextFileAddress = 0` marks the **last file** in the chain.
-- Files are ordered by insertion time (not alphabetically).
+- Files are ordered by insertion time (not alphabetically) — with one
+  exception: the reserved `device.id` file always occupies the first slot
+  (see [Creation](#creation-eeprom_addfile) below).
 - The first file header starts immediately after the EEPROM header (at offset = header size).
 
 ### Address Calculation
@@ -78,6 +80,17 @@ The `nextFileAddress` must equal `A + sizeof(JEEFSFileHeaderv1) + dataSize` for 
 3. Write file header (name, dataSize, crc32, nextFileAddress=0).
 4. Write file data after header.
 5. Update previous file's `nextFileAddress` to point to new file.
+
+The reserved name `device.id`
+([device-identity-v1.md](device-identity-v1.md)) is the one exception:
+it is inserted as the **first** file — the existing chain shifts up by
+the file's span and every moved link is rewritten — so a boot
+environment can read the device identity as a bounded prefix of the
+image (header + one file header + the 256-byte record). The other
+operations preserve the position naturally: delete-compaction keeps
+relative order, a same-size overwrite stays in place, and a
+different-size overwrite re-creates the file through the same insertion
+rule.
 
 ### Overwrite (EEPROM_WriteFile)
 

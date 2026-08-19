@@ -52,6 +52,12 @@ static void exercise(uint8_t *img, uint16_t size) {
     if (EEPROM_AddFile(img, size, "fuzz", payload, sizeof(payload)) == 5 &&
         EEPROM_ListFiles(img, size, names, MAX_FILES) < 0)
         abort();
+
+    // The reserved identity name takes the insert-first path (#80): the
+    // shift + relink over an arbitrary fuzzed chain must stay walkable.
+    if (EEPROM_AddFile(img, size, JEEFS_DEVICE_ID_FILENAME, payload, sizeof(payload)) >= 0 &&
+        EEPROM_ListFiles(img, size, names, MAX_FILES) < 0)
+        abort();
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {

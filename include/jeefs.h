@@ -64,14 +64,18 @@ int16_t EEPROM_ReadFile(const uint8_t *image, uint16_t imageSize, const char *fi
                         uint16_t bufferSize);
 
 // Overwrites the data of an existing file. Same size overwrites in place;
-// a different size re-creates the file (it moves to the end of the chain).
+// a different size re-creates the file (it moves to the end of the chain —
+// except JEEFS_DEVICE_ID_FILENAME, which re-inserts first, see AddFile).
 // Free space is checked before the old content is destroyed.
 // Return: written bytes count, FILENOTFOUND, FILENAMENOTVALID,
 // NOTENOUGHSPACE (old file intact), BUFFERNOTVALID, EEPROMCORRUPTED.
 int16_t EEPROM_WriteFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
                          uint16_t dataSize);
 
-// Creates a new file with the given filename and data.
+// Creates a new file with the given filename and data. New files go to the
+// end of the chain; the reserved JEEFS_DEVICE_ID_FILENAME is the exception —
+// it is inserted FIRST (the existing chain shifts up), so a boot environment
+// can read the device identity as a bounded prefix of the image.
 // Return: written bytes count, 0 if the file already exists,
 // FILENAMENOTVALID, BUFFERNOTVALID, NOTENOUGHSPACE, EEPROMCORRUPTED.
 int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
