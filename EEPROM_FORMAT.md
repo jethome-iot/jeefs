@@ -36,7 +36,8 @@ Each board EEPROM carries a structured **board-scoped** header followed by optio
 | 0-7       | 8     | magic             | "JETHOME\0" (null-terminated string)           |
 | 8         | 1     | version           | Version = 3                                    |
 | 9         | 1     | signature_version | Signature algorithm (see table below)          |
-| 10-11     | 2     | header_reserved   | Reserved (zeros)                               |
+| 10        | 1     | fs_version        | Filesystem version: 0 = none, 1 = current      |
+| 11        | 1     | header_reserved   | Reserved (zeros)                               |
 | 12-43     | 32    | boardname         | Board name (e.g. "JXD-CPU-E1ETH")              |
 | 44-75     | 32    | boardversion      | Board version (e.g. "1.3")                     |
 | 76-107    | 32    | serial            | Device serial number                           |
@@ -197,7 +198,8 @@ typedef struct __attribute__((packed)) {
     char     magic[8];               // 8 bytes  (offset 0-7)
     uint8_t  version;                // 1 byte   (offset 8)       = 3
     uint8_t  signature_version;      // 1 byte   (offset 9)
-    uint8_t  header_reserved[2];     // 2 bytes  (offset 10-11)
+    uint8_t  fs_version;             // 1 byte   (offset 10)      0 = no filesystem
+    uint8_t  header_reserved;        // 1 byte   (offset 11)
     char     boardname[32];          // 32 bytes (offset 12-43)
     char     boardversion[32];       // 32 bytes (offset 44-75)
     uint8_t  serial[32];             // 32 bytes (offset 76-107)

@@ -150,6 +150,15 @@ class TestFieldOffsets:
         }
         assert set(EEPROM_FIELDS_V3.keys()) == expected_fields
 
+    def test_fs_version_round_trips(self):
+        """Read-modify-write of a header must not zero the filesystem gate."""
+        raw = bytearray(EEPROMHeaderV3(boardname="board").to_bytes())
+        assert raw[10] == 0  # python-built headers carry no filesystem
+        raw[10] = 1  # image whose file area holds a filesystem
+        hdr = EEPROMHeaderV3.from_bytes(bytes(raw))
+        assert hdr.fs_version == 1
+        assert EEPROMHeaderV3.from_bytes(hdr.to_bytes()).fs_version == 1
+
     def test_offsets_cover_256_bytes(self):
         coverage = [False] * EEPROM_HEADER_SIZE
         for name, (offset, size) in EEPROM_FIELDS_V3.items():

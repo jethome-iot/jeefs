@@ -279,7 +279,7 @@ mod tests {
         // Wire bytes are little-endian by spec; the accessors must decode
         // them identically on any host (from_le is a no-op on LE hosts,
         // a swap on BE hosts — this locks the accessor path itself).
-        let mut raw = [0u8; 24];
+        let mut raw = [0u8; 28];
         raw[16] = 0x34; // data_size = 0x1234 LE
         raw[17] = 0x12;
         raw[18] = 0x78; // crc32 = 0x12345678 LE
@@ -288,10 +288,15 @@ mod tests {
         raw[21] = 0x12;
         raw[22] = 0xCD; // next_file_address = 0xABCD LE
         raw[23] = 0xAB;
-        let fh: &JeefsFileHeaderV1 = unsafe { &*(raw.as_ptr() as *const _) };
+        raw[24] = 0xEF; // header_crc32 = 0x0BADBEEF LE
+        raw[25] = 0xBE;
+        raw[26] = 0xAD;
+        raw[27] = 0x0B;
+        let fh = JeefsFileHeaderV1::from_bytes(&raw).expect("28 bytes fit the header");
         assert_eq!(fh.data_size(), 0x1234);
         assert_eq!(fh.crc32(), 0x12345678);
         assert_eq!(fh.next_file_address(), 0xABCD);
+        assert_eq!(fh.header_crc32(), 0x0BADBEEF);
     }
 
     #[test]

@@ -35,9 +35,12 @@ This file defines constants, enumerations, and shared properties used across all
 |--------|------|-----------|-------------|------------|--------------------------|
 | 0-7    | 8    | magic     | char[8]     | -          | Magic string "JETHOME\0" |
 | 8      | 1    | version   | uint8_t     | -          | Header version number    |
-| 9-11   | 3    | reserved1 | uint8_t[3]  | -          | Alignment / reserved     |
+| 9-11   | 3    | reserved1 | uint8_t[3]  | -          | Not used by detection    |
 
-Used to detect the header version by reading only the first 12 bytes. The `version` field determines which full struct to use for parsing.
+Used to detect the header version by reading only the first 12 bytes. The
+`version` field determines which full struct to use for parsing. Detection
+never inspects bytes 9-11; note that byte 10 is the `fs_version` field in
+headers v3/v4 ([filesystem-v1.md](filesystem-v1.md)), not free space.
 
 ## Signature Algorithms
 
