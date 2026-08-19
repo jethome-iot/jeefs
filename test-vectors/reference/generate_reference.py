@@ -7,8 +7,11 @@ Creates an 8192-byte EEPROM image with:
   - JEEFS files as a linked list starting at offset 256
 
 Each file entry is:
-  - JEEFSFileHeaderv1 (24 bytes): name[16], dataSize(u16 LE), crc32(u32 LE), nextFileAddress(u16 LE)
+  - JEEFSFileHeaderv1 (28 bytes): name[16], dataSize(u16 LE), crc32(u32 LE),
+    nextFileAddress(u16 LE), headerCrc32(u32 LE over bytes 0-23)
   - Followed by dataSize bytes of file data
+
+The board header carries fs_version = 1 at offset 10 (the filesystem gate).
 
 Usage:
     python generate_reference.py
@@ -19,7 +22,6 @@ from __future__ import annotations
 import binascii
 import json
 import struct
-import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
@@ -57,6 +59,7 @@ def generate(json_path: Path = JSON_PATH) -> bytes:
     buf[0:8] = b"JETHOME\x00"
     buf[8] = header_spec["version"]
     buf[9] = header_spec.get("signature_version", 0)
+    buf[10] = header_spec.get("fs_version", 1)  # the image carries a filesystem
 
     buf[12:44] = _pack_string(header_spec["boardname"], 32)
     buf[44:76] = _pack_string(header_spec["boardversion"], 32)
@@ -83,23 +86,26 @@ def generate(json_path: Path = JSON_PATH) -> bytes:
         data_size = len(data)
 
         # Calculate next file address
-        file_header_size = 24
+        file_header_size = 28
         next_offset = offset + file_header_size + data_size
 
         # Is there a next file?
         is_last = i == len(files_spec) - 1
         next_file_addr = 0 if is_last else next_offset
 
-        # Write file header: name[16] + dataSize(u16) + crc32(u32) + nextFileAddress(u16)
+        # Write file header: name[16] + dataSize(u16) + crc32(u32) +
+        # nextFileAddress(u16) + headerCrc32(u32 over bytes 0-23)
         name_bytes = _pack_string(name, 16)
         buf[offset : offset + 16] = name_bytes
         struct.pack_into("<H", buf, offset + 16, data_size)
         file_crc = binascii.crc32(data) & 0xFFFFFFFF
         struct.pack_into("<I", buf, offset + 18, file_crc)
         struct.pack_into("<H", buf, offset + 22, next_file_addr)
+        header_crc = binascii.crc32(bytes(buf[offset : offset + 24])) & 0xFFFFFFFF
+        struct.pack_into("<I", buf, offset + 24, header_crc)
 
         # Write file data
-        buf[offset + 24 : offset + 24 + data_size] = data
+        buf[offset + 28 : offset + 28 + data_size] = data
 
         offset = next_offset
 
@@ -119,9 +125,9 @@ def main() -> None:
     eeprom_size = spec["eeprom_size"]
     for f in spec["files"]:
         file_data = bytes.fromhex(f["data_hex"])
-        print(f"  [{offset:4d}-{offset+23:4d}] FileHeader: {f['name']!r}")
-        print(f"  [{offset+24:4d}-{offset+23+len(file_data):4d}] Data: {len(file_data)} bytes")
-        offset += 24 + len(file_data)
+        print(f"  [{offset:4d}-{offset+27:4d}] FileHeader: {f['name']!r}")
+        print(f"  [{offset+28:4d}-{offset+27+len(file_data):4d}] Data: {len(file_data)} bytes")
+        offset += 28 + len(file_data)
     print(f"  [{offset:4d}-{eeprom_size-1:4d}] Free space")
 
 

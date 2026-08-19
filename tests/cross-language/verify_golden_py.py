@@ -94,11 +94,18 @@ def verify(bin_path: str, json_path: str) -> int:
     # === Filesystem ===
     print("\n=== Filesystem verification ===")
 
+    # fs_version gates the file area: 1 = the current layout
+    if eeprom[10] != 1:
+        print(f"  FAIL: fs_version = {eeprom[10]} (expected 1)")
+        failures += 1
+    else:
+        print("  OK: fs_version = 1")
+
     offset = header_spec["header_size"]
     file_count = 0
 
     while offset != 0 and offset < len(eeprom):
-        # Read file header
+        # Read file header (28 bytes)
         name = eeprom[offset : offset + 16].split(b"\x00")[0].decode("utf-8")
         if not name:
             break
@@ -106,6 +113,14 @@ def verify(bin_path: str, json_path: str) -> int:
         data_size = struct.unpack("<H", eeprom[offset + 16 : offset + 18])[0]
         file_crc = struct.unpack("<I", eeprom[offset + 18 : offset + 22])[0]
         next_addr = struct.unpack("<H", eeprom[offset + 22 : offset + 24])[0]
+        header_crc = struct.unpack("<I", eeprom[offset + 24 : offset + 28])[0]
+
+        calc_hcrc = binascii.crc32(bytes(eeprom[offset : offset + 24])) & 0xFFFFFFFF
+        if calc_hcrc != header_crc:
+            print(f"  FAIL: file {name!r} headerCrc32 stored=0x{header_crc:08x} calc=0x{calc_hcrc:08x}")
+            failures += 1
+        else:
+            print(f"  OK: file {name!r} headerCrc32 = 0x{header_crc:08x}")
 
         # Verify name
         if file_count < len(files_spec):
@@ -118,7 +133,7 @@ def verify(bin_path: str, json_path: str) -> int:
 
             # Verify data
             expected_data = bytes.fromhex(files_spec[file_count]["data_hex"])
-            actual_data = bytes(eeprom[offset + 24 : offset + 24 + data_size])
+            actual_data = bytes(eeprom[offset + 28 : offset + 28 + data_size])
             if actual_data != expected_data:
                 print(f"  FAIL: file {name!r} data mismatch")
                 failures += 1
@@ -126,7 +141,7 @@ def verify(bin_path: str, json_path: str) -> int:
                 print(f"  OK: file {name!r} data ({data_size} bytes)")
 
         # Verify CRC
-        actual_data = bytes(eeprom[offset + 24 : offset + 24 + data_size])
+        actual_data = bytes(eeprom[offset + 28 : offset + 28 + data_size])
         calc_crc = binascii.crc32(actual_data) & 0xFFFFFFFF
         if calc_crc != file_crc:
             print(f"  FAIL: file {name!r} CRC stored=0x{file_crc:08x} calc=0x{calc_crc:08x}")

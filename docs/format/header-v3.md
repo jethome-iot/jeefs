@@ -11,7 +11,8 @@
 | 0-7     | 8    | magic             | char[8]      | -             | "JETHOME\0" (null-terminated string) |
 | 8       | 1    | version           | uint8_t      | -             | Header version = 3                   |
 | 9       | 1    | signature_version | uint8_t      | -             | Signature algorithm (see enums)      |
-| 10-11   | 2    | header_reserved   | uint8_t[2]   | -             | Reserved (zeros)                     |
+| 10      | 1    | fs_version        | uint8_t      | -             | Filesystem version: 0 = none, 1 = current |
+| 11      | 1    | header_reserved   | uint8_t      | -             | Reserved (zeros)                     |
 | 12-43   | 32   | boardname         | char[32]     | -             | Board name, null-terminated          |
 | 44-75   | 32   | boardversion      | char[32]     | -             | Board version, null-terminated       |
 | 76-107  | 32   | serial            | uint8_t[32]  | -             | Board serial number (bounded string) |
@@ -27,7 +28,12 @@
 
 - Based on v2 layout with `reserved3` replaced by `signature` (64B) + `timestamp` (8B).
 - `signature_version` at offset 9 replaces `reserved1[0]` from v2.
-- `header_reserved[2]` at offset 10-11 replaces remaining `reserved1` bytes.
+- `fs_version` (offset 10) and `header_reserved` (offset 11) replace the
+  remaining `reserved1` bytes. `fs_version` was reserved-zero until the
+  filesystem gained its own version: `0` = no filesystem, `1` = the layout
+  in [filesystem-v1.md](filesystem-v1.md) — every image written before the
+  field existed carries `0`, which is accurate (fielded v3 devices have
+  empty file areas).
 - CRC32 covers bytes 0-251 (includes signature and timestamp).
 - String fields (`boardname`, `boardversion`) are UTF-8, null-terminated, zero-padded to field size.
 - `serial`, `usid`, `cpuid` are **bounded strings** (RFC #13): printable

@@ -68,6 +68,8 @@ Used to detect the header version by reading only the first 12 bytes. The `versi
 | HEADER_VERSION      | 4         | int    | Current (latest) header version         |
 | SIGNATURE_FIELD_SIZE| 64        | int    | Total signature field size in bytes     |
 | FILE_NAME_LENGTH    | 15        | int    | Max filename length (excluding null)    |
+| FS_VERSION          | 1         | int    | Current filesystem version              |
+| FS_VERSION_OFFSET   | 10        | int    | fs_version byte offset in the header    |
 | MAC_LENGTH          | 6         | int    | MAC address size in bytes               |
 | SERIAL_LENGTH       | 32        | int    | Serial field size in bytes              |
 | USID_LENGTH         | 32        | int    | USID field size in bytes                |

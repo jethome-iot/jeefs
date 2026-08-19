@@ -20,6 +20,8 @@ pub const DEVID_MAGIC: &[u8; 8] = b"JHDEVID\0";
 pub const EMPTYBYTE: u8 = 0x00;
 pub const ERASEDBYTE: u8 = 0xFF;
 pub const FILE_NAME_LENGTH: usize = 15;
+pub const FS_VERSION: usize = 1;
+pub const FS_VERSION_OFFSET: usize = 10;
 pub const HEADER_VERSION: usize = 4;
 pub const MAC_LENGTH: usize = 6;
 pub const MAGIC: &[u8; 8] = b"JETHOME\0";
@@ -175,7 +177,8 @@ pub struct JeepromHeaderV3 {
     pub magic: [u8; 8],  // "JETHOME\0" (null-terminated string)
     pub version: u8,  // Header version = 3
     pub signature_version: u8,  // Signature algorithm (see enums)
-    pub header_reserved: [u8; 2],  // Reserved (zeros)
+    pub fs_version: u8,  // Filesystem version: 0 = none, 1 = current
+    pub header_reserved: u8,  // Reserved (zeros)
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-terminated
     pub serial: [u8; 32],  // Board serial number (bounded string)
@@ -196,7 +199,8 @@ impl core::fmt::Debug for JeepromHeaderV3 {
             .field("magic", &self.magic)
             .field("version", &{ self.version })
             .field("signature_version", &{ self.signature_version })
-            .field("header_reserved", &self.header_reserved)
+            .field("fs_version", &{ self.fs_version })
+            .field("header_reserved", &{ self.header_reserved })
             .field("boardname", &self.boardname)
             .field("boardversion", &self.boardversion)
             .field("serial", &self.serial)
@@ -229,7 +233,8 @@ pub struct JeepromHeaderV4 {
     pub magic: [u8; 8],  // "JETHOME\0" (null-terminated string)
     pub version: u8,  // Header version = 4
     pub signature_version: u8,  // Signature algorithm (see enums)
-    pub header_reserved: [u8; 2],  // Reserved (zeros)
+    pub fs_version: u8,  // Filesystem version: 0 = none, 1 = current
+    pub header_reserved: u8,  // Reserved (zeros)
     pub boardname: [u8; 32],  // Board name, null-terminated
     pub boardversion: [u8; 32],  // Board version, null-terminated
     pub board_serial: [u8; 32],  // Board serial number (bounded string)
@@ -250,7 +255,8 @@ impl core::fmt::Debug for JeepromHeaderV4 {
             .field("magic", &self.magic)
             .field("version", &{ self.version })
             .field("signature_version", &{ self.signature_version })
-            .field("header_reserved", &self.header_reserved)
+            .field("fs_version", &{ self.fs_version })
+            .field("header_reserved", &{ self.header_reserved })
             .field("boardname", &self.boardname)
             .field("boardversion", &self.boardversion)
             .field("board_serial", &self.board_serial)
@@ -330,7 +336,7 @@ impl DeviceIdentityV1 {
     }
 }
 
-/// JEEFSFileHeaderv1 (24 bytes)
+/// JEEFSFileHeaderv1 (28 bytes)
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 pub struct JeefsFileHeaderV1 {
@@ -338,9 +344,10 @@ pub struct JeefsFileHeaderV1 {
     pub data_size: u16,  // File data size in bytes
     pub crc32: u32,  // CRC32 of file data only (not header)
     pub next_file_address: u16,  // Absolute offset of next file, 0 = end
+    pub header_crc32: u32,  // CRC32 of header bytes 0-23
 }
 
-const _: () = assert!(core::mem::size_of::<JeefsFileHeaderV1>() == 24);
+const _: () = assert!(core::mem::size_of::<JeefsFileHeaderV1>() == 28);
 
 impl JeefsFileHeaderV1 {
     /// `data_size` decoded from the little-endian wire representation.
@@ -354,6 +361,10 @@ impl JeefsFileHeaderV1 {
     /// `next_file_address` decoded from the little-endian wire representation.
     pub fn next_file_address(&self) -> u16 {
         u16::from_le(self.next_file_address)
+    }
+    /// `header_crc32` decoded from the little-endian wire representation.
+    pub fn header_crc32(&self) -> u32 {
+        u32::from_le(self.header_crc32)
     }
 }
 
