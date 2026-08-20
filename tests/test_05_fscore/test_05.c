@@ -559,6 +559,62 @@ static void test_set_header_preserves_fs_version(void) {
     printf("  SetHeader preserves fs_version: OK\n");
 }
 
+
+// AddFile on an image with no header at all (blank, erased or garbage)
+// claims the slot with an empty current-version header, so the write
+// proceeds and the real identity can arrive later via SetHeader.
+static void test_addfile_claims_blank_image(void) {
+    const uint8_t fills[3] = {0x00, 0xFF, 0x5A};
+    for (int f = 0; f < 3; f++) {
+        memset(image, fills[f], sizeof(image));
+        image_size = IMG_SIZE;
+        if (fills[f] == 0x5A) { // garbage, not a uniform fill
+            uint32_t x = 0xC0FFEE42;
+            for (uint16_t i = 0; i < IMG_SIZE; i++) {
+                x = x * 1664525u + 1013904223u;
+                image[i] = (uint8_t) (x >> 24);
+            }
+        }
+        assert(add_pattern("boot.cfg", 12, 7) == 12);
+
+        // an empty current-version header was written and sealed
+        uint8_t hdr[256];
+        assert(EEPROM_GetHeader(image, image_size, hdr, sizeof(hdr)) == 0);
+        assert(hdr[8] == JEEFS_HEADER_VERSION);
+        assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
+        assert(image[10] == 1); // fs_version stamped
+        assert(hdr[12] == 0); // empty identity: boardname zeroed
+
+        char names[8][JEEFS_FILE_NAME_LENGTH + 1];
+        assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+        assert_file("boot.cfg", 12, 7);
+
+        // the garbage file area was wiped: free space reads empty
+        assert(image[IMG_SIZE - 1] == 0x00);
+
+        // the real identity arrives later and the file survives
+        memcpy(hdr + 12, "real-board", 11);
+        assert(EEPROM_SetHeader(image, image_size, hdr) == 0);
+        assert(EEPROM_HeaderCheckConsistency(image, image_size) == 1);
+        assert(EEPROM_ListFiles(image, image_size, names, 8) == 1);
+        assert_file("boot.cfg", 12, 7);
+    }
+    printf("  AddFile claims a blank image: OK\n");
+}
+
+// A matching magic with an unknown version byte is NOT absence of a
+// header — it may belong to a newer format. AddFile must refuse, not
+// format over it.
+static void test_addfile_keeps_future_header(void) {
+    memset(image, 0x00, sizeof(image));
+    image_size = IMG_SIZE;
+    memcpy(image, "JETHOME\0", 8);
+    image[8] = 9; // unknown (future) header version
+    assert(add_pattern("boot.cfg", 12, 7) == EEPROMCORRUPTED);
+    assert(image[8] == 9); // untouched
+    printf("  AddFile keeps a future header: OK\n");
+}
+
 static void test_consistency_short_image(void) {
     // an image too small to even hold the version block is simply
     // inconsistent — with no I/O there is no read-error class (#25)
@@ -603,6 +659,8 @@ int main(void) {
     test_fs_version_zero_is_empty();
     test_fs_version_unknown_rejected();
     test_set_header_preserves_fs_version();
+    test_addfile_claims_blank_image();
+    test_addfile_keeps_future_header();
     test_consistency_short_image();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");

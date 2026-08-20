@@ -81,7 +81,13 @@ int16_t EEPROM_WriteFile(uint8_t *image, uint16_t imageSize, const char *filenam
 // it is inserted FIRST (the existing chain shifts up), so a boot environment
 // can read the device identity as a bounded prefix of the image.
 // Stamps fs_version = 1 into the board header (refreshing its CRC) when the
-// byte was 0. Return: written bytes count, 0 if the file already exists,
+// byte was 0. An image with no header at all (blank, erased or garbage —
+// the magic does not match) is claimed on first write: an empty
+// current-version header is written (zero identity, wiped file area)
+// before the file, and the real identity arrives later through
+// EEPROM_SetHeader. A matching magic with an unknown version is NOT
+// claimed — that may be a newer format's header.
+// Return: written bytes count, 0 if the file already exists,
 // FILENAMENOTVALID, BUFFERNOTVALID, NOTENOUGHSPACE, EEPROMCORRUPTED,
 // FSVERSIONNOTSUPPORTED.
 int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
