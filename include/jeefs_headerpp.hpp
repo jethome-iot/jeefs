@@ -44,6 +44,8 @@ namespace jeefs {
 
         /// Verify stored CRC32 against calculated.
         bool verify_crc() const { return jeefs_header_verify_crc(data_, size_) == 0; }
+        // true for a placeholder (claimed) header with no identity yet
+        bool is_empty() const { return jeefs_header_is_empty(data_, size_) == 1; }
 
         /// Board name (null-terminated string at offset 12, common to all versions).
         std::string_view boardname() const { return string_at(12, 32); }

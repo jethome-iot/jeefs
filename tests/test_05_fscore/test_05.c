@@ -17,6 +17,7 @@
 
 #include "eepromerr.h"
 #include "jeefs.h"
+#include "jeefs_header.h"
 
 #define IMG_SIZE 8192
 #define HDR_V3 256
@@ -646,6 +647,39 @@ static void test_claim_is_atomic_and_null_safe(void) {
     printf("  claim is atomic and NULL-safe: OK\n");
 }
 
+
+// A claimed (placeholder) header is distinguishable from a provisioned
+// one: every identity byte between the prologue and the CRC is zero.
+static void test_header_is_empty(void) {
+    // no header at all
+    memset(image, 0x00, sizeof(image));
+    image_size = IMG_SIZE;
+    assert(jeefs_header_is_empty(image, image_size) < 0);
+
+    // the claim writes an empty header
+    uint8_t d[4] = {1, 2, 3, 4};
+    assert(EEPROM_AddFile(image, image_size, "boot.cfg", d, 4) == 4);
+    assert(jeefs_header_is_empty(image, image_size) == 1);
+
+    // the real identity arrives: no longer empty
+    uint8_t hdr[HDR_V3];
+    assert(EEPROM_GetHeader(image, image_size, hdr, sizeof(hdr)) == 0);
+    memcpy(hdr + 12, "real-board", 11);
+    assert(EEPROM_SetHeader(image, image_size, hdr) == 0);
+    assert(jeefs_header_is_empty(image, image_size) == 0);
+
+    // a freshly formatted image is empty too, whatever the version
+    fresh_fs(IMG_SIZE, 3);
+    assert(jeefs_header_is_empty(image, image_size) == 1);
+    fresh_fs(IMG_SIZE, 4);
+    assert(jeefs_header_is_empty(image, image_size) == 1);
+
+    // a single nonzero identity byte anywhere flips the verdict
+    image[243] = 0x01; // last signature byte
+    assert(jeefs_header_is_empty(image, image_size) == 0);
+    printf("  header is_empty: OK\n");
+}
+
 static void test_consistency_short_image(void) {
     // an image too small to even hold the version block is simply
     // inconsistent — with no I/O there is no read-error class (#25)
@@ -693,6 +727,7 @@ int main(void) {
     test_addfile_claims_blank_image();
     test_addfile_keeps_future_header();
     test_claim_is_atomic_and_null_safe();
+    test_header_is_empty();
     test_consistency_short_image();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");

@@ -113,6 +113,24 @@ def detect_version(data: bytes) -> int | None:
     return version if version in _HEADER_SIZES else None
 
 
+
+def header_is_empty(data: bytes) -> bool | None:
+    """Distinguish a placeholder header from a provisioned one.
+
+    True when a header is detected and every identity byte (offset 12 up
+    to the CRC field) is zero — the empty header a first-write claim
+    leaves behind; False when detected and populated; None when no valid
+    header is detected. Emptiness is independent of CRC validity.
+    """
+    version = detect_version(data)
+    if version is None:
+        return None
+    size = _HEADER_SIZES.get(version)
+    if size is None or len(data) < size:
+        return None
+    return not any(data[12 : size - 4])
+
+
 @dataclass
 class EEPROMHeaderV3:
     """JEEPROMHeaderv3 -- 256-byte EEPROM header (v2-based layout with signature).

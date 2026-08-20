@@ -17,12 +17,13 @@ from .constants import (
     SignatureAlgorithm,
 )
 from .devid import DeviceIdentityV1
-from .header import EEPROMHeaderV3, EEPROMHeaderV4, detect_version, parse_mac_string
+from .header import EEPROMHeaderV3, EEPROMHeaderV4, detect_version, header_is_empty, parse_mac_string
 
 __all__ = [
     "DeviceIdentityV1",
     "EEPROMHeaderV3",
     "detect_version",
+    "header_is_empty",
     "EEPROMHeaderV4",
     "SignatureAlgorithm",
     "SIGNATURE_SIZES",
