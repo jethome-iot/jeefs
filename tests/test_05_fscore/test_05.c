@@ -615,6 +615,37 @@ static void test_addfile_keeps_future_header(void) {
     printf("  AddFile keeps a future header: OK\n");
 }
 
+
+// The claim must be atomic: when the image cannot hold the header plus
+// the file, nothing is written — an error return leaves the caller's
+// buffer byte-for-byte intact (#9 principle). And a NULL image stays a
+// clean error, never a crash.
+static void test_claim_is_atomic_and_null_safe(void) {
+    uint8_t small[64];
+    uint8_t before[64];
+    uint32_t x = 0xBADC0DE1;
+    for (uint16_t i = 0; i < sizeof(small); i++) {
+        x = x * 1664525u + 1013904223u;
+        small[i] = (uint8_t) (x >> 24);
+    }
+    memcpy(before, small, sizeof(small));
+
+    uint8_t d[4] = {1, 2, 3, 4};
+    assert(EEPROM_AddFile(small, sizeof(small), "boot.cfg", d, 4) == NOTENOUGHSPACE);
+    assert(memcmp(small, before, sizeof(small)) == 0); // untouched
+
+    // header fits, file does not: still atomic
+    uint8_t tight[260];
+    memset(tight, 0xAB, sizeof(tight));
+    uint8_t before2[260];
+    memcpy(before2, tight, sizeof(tight));
+    assert(EEPROM_AddFile(tight, sizeof(tight), "boot.cfg", d, 4) == NOTENOUGHSPACE);
+    assert(memcmp(tight, before2, sizeof(tight)) == 0);
+
+    assert(EEPROM_AddFile(NULL, IMG_SIZE, "boot.cfg", d, 4) == EEPROMCORRUPTED);
+    printf("  claim is atomic and NULL-safe: OK\n");
+}
+
 static void test_consistency_short_image(void) {
     // an image too small to even hold the version block is simply
     // inconsistent — with no I/O there is no read-error class (#25)
@@ -661,6 +692,7 @@ int main(void) {
     test_set_header_preserves_fs_version();
     test_addfile_claims_blank_image();
     test_addfile_keeps_future_header();
+    test_claim_is_atomic_and_null_safe();
     test_consistency_short_image();
     test_oversized_payload_rejected();
     printf("test_05: OK\n");
