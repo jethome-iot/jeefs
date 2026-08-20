@@ -28,6 +28,8 @@ work is tracked in GitHub issues and milestones. The 2026-08 audit backlog
 | v0.3.0 | Correctness & CI hardening | LE wire access (#11); `assert` re-armed in Release CI; strict codegen parser (#12); sanitizers / strict-warnings / clang-format gates (#20); supply chain: Dependabot + SHA-pinned actions (#22); `JEEFS_`-prefixed public macros; GitHub Release automation (#21) |
 | v0.4.0 | Format completion | **Header v4** — board-scoped identity (#56, #58); **DeviceIdentityV1 accepted** with parsers in all four ports (#26, #60); bounded strings (#13); two-domain emptiness rule (#14); Rust BE-correct accessors (#15); implementation contract + conformance suite (#17); CMake install/export/pkg-config (#23) |
 | v0.5.0 | Embeddability | **Buffer-centric FS API** — the library performs no I/O (#25 variant A); **port layer**: CRC32 providers with a freestanding built-in default, libraries free of zlib, `JEEFS_LOG`, freestanding smoke CI for aarch64/riscv64 (#24); audit epic closed (#30) |
+| v0.6.0 | Filesystem integrity | **Dual versioning** — the `fs_version` byte gates the file area (#80); **28-byte file header** with its own CRC32; **`device.id` first** is normative, enforced by AddFile (#82); **pull-model walker** for bounded-RAM targets + running-CRC port form (#81, #84) |
+| v0.7.0 | Provisioning flow | **First-write claim** — AddFile formats a headerless image with an empty current-version header, atomically with the write (#86); **`is_empty`** contract entry point in all four ports distinguishes a placeholder header from a provisioned one |
 
 The consumption model settled in #25: *the environment reads the EEPROM
 itself and hands the library bytes* — every operation is a pure function
