@@ -15,6 +15,7 @@
 
 #include "eepromerr.h"
 #include "jeefs.h"
+#include "jeefs_walk.h"
 
 #define MAX_IMG 8192
 
@@ -29,6 +30,37 @@ static void exercise(uint8_t *img, uint16_t size) {
     uint8_t buf[MAX_IMG];
 
     (void) EEPROM_HeaderCheckConsistency(img, size);
+
+    // The pull-model walker (#81) must reach the same terminal state as
+    // the in-memory iterator on any byte soup.
+    {
+        JEEFSWalk w;
+        int16_t b = jeefs_walk_begin(&w, img, size < 256 ? size : 256, size, "fuzz");
+        while (jeefs_walk_want(&w, NULL, NULL) == 1) {
+            if (jeefs_walk_feed(&w, img + w.want_offset, w.want_len) != 0)
+                break;
+        }
+        int16_t r = EEPROM_ReadFile(img, size, "fuzz", buf, sizeof(buf));
+        int16_t terminal = b < 0 ? b : w.state;
+        switch (terminal) {
+            case JEEFS_WALK_FOUND: // ReadFile still validates the tail + data CRC
+                if (!(r > 0 || r == EEPROMCORRUPTED))
+                    abort();
+                break;
+            case JEEFS_WALK_NOTFOUND:
+                if (r != FILENOTFOUND)
+                    abort();
+                break;
+            case EEPROMCORRUPTED:
+            case FSVERSIONNOTSUPPORTED:
+                if (r != terminal)
+                    abort();
+                break;
+            default:
+                break;
+        }
+    }
+
     int16_t n = EEPROM_ListFiles(img, size, names, MAX_FILES);
     if (n < 0)
         return; // corrupt chain: nothing more to do

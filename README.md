@@ -17,9 +17,12 @@ GPL-2.0-or-later / Apache-2.0.
   [filesystem v1](docs/format/filesystem-v1.md).
 - **The library performs no I/O**: the environment (U-Boot, the kernel,
   userspace tooling) reads the EEPROM itself and hands every operation a
-  caller-owned image buffer. See [docs/PORTING.md](docs/PORTING.md) for
-  embedding into U-Boot / Linux / MCU firmware — the core is freestanding,
-  heap-free and dependency-free (built-in CRC32 by default).
+  caller-owned image buffer. Bounded-RAM targets can locate and
+  stream-verify single files through the pull-model walker
+  (`jeefs_walk.h`) instead of buffering the image. See
+  [docs/PORTING.md](docs/PORTING.md) for embedding into U-Boot / Linux /
+  MCU firmware — the core is freestanding, heap-free and dependency-free
+  (built-in CRC32 by default).
 
 ## Implementations
 

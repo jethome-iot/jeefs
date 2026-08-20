@@ -8,10 +8,12 @@ set(JEEFS_PUBLIC_INCLUDES
 add_library(jeefs_header STATIC
         jeefs_header.c
         jeefs_devid.c
+        jeefs_walk.c
         jeefs_crc32.c
         ../include/jeefs.h
         ../include/jeefs_header.h
         ../include/jeefs_devid.h
+        ../include/jeefs_walk.h
 )
 add_library(jeefs::header ALIAS jeefs_header)
 set_target_properties(jeefs_header PROPERTIES EXPORT_NAME header)

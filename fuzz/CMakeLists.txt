@@ -11,6 +11,7 @@ set(FUZZ_CORE
         ${jeefs_SOURCE_DIR}/src/jeefs.c
         ${jeefs_SOURCE_DIR}/src/jeefs_header.c
         ${jeefs_SOURCE_DIR}/src/jeefs_devid.c
+        ${jeefs_SOURCE_DIR}/src/jeefs_walk.c
         ${jeefs_SOURCE_DIR}/src/jeefs_crc32.c)
 
 foreach(t IN LISTS FUZZ_TARGETS)

@@ -36,24 +36,39 @@ extern "C" {
 #error "Define at most one JEEFS_CRC32_* provider"
 #endif
 
+/* Both forms share zlib semantics; the running form obeys
+ * jeefs_crc32_update(jeefs_crc32_update(0, a, la), b, lb)
+ *   == jeefs_crc32(a||b, la+lb)
+ * and is what stream consumers (the #81 walker pattern) verify with. */
+
 #if defined(JEEFS_CRC32_ZLIB)
 
 #include <zlib.h>
 static inline uint32_t jeefs_crc32(const uint8_t *buf, size_t len) { return (uint32_t) crc32(0L, buf, len); }
+static inline uint32_t jeefs_crc32_update(uint32_t crc, const uint8_t *buf, size_t len) {
+    return (uint32_t) crc32(crc, buf, len);
+}
 
 #elif defined(JEEFS_CRC32_UBOOT)
 
 #include <u-boot/crc.h>
 static inline uint32_t jeefs_crc32(const uint8_t *buf, size_t len) { return crc32(0, buf, (uint) len); }
+static inline uint32_t jeefs_crc32_update(uint32_t crc, const uint8_t *buf, size_t len) {
+    return crc32(crc, buf, (uint) len);
+}
 
 #elif defined(JEEFS_CRC32_KERNEL)
 
 #include <linux/crc32.h>
 static inline uint32_t jeefs_crc32(const uint8_t *buf, size_t len) { return crc32_le(~0u, buf, len) ^ ~0u; }
+static inline uint32_t jeefs_crc32_update(uint32_t crc, const uint8_t *buf, size_t len) {
+    return crc32_le(~crc, buf, len) ^ ~0u;
+}
 
 #else /* built-in table (src/jeefs_crc32.c) */
 
 uint32_t jeefs_crc32(const uint8_t *buf, size_t len);
+uint32_t jeefs_crc32_update(uint32_t crc, const uint8_t *buf, size_t len);
 
 #endif
 

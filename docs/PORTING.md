@@ -12,16 +12,22 @@ caller's: operate on a buffer one context owns.
 | Need | Files |
 |------|-------|
 | header + device-identity parsing | `src/jeefs_header.c`, `src/jeefs_devid.c` (+ `src/jeefs_crc32.c` for the default CRC) |
+| partial reads on bounded RAM | add `src/jeefs_walk.c` (see below) |
 | file system operations | add `src/jeefs.c` |
-| headers | `include/` (public surface: `jeefs.h`, `jeefs_header.h`, `jeefs_devid.h`, `jeefs_generated.h`, `jeefs_endian.h`, `jeefs_port.h`, `eepromerr.h`) |
+| headers | `include/` (public surface: `jeefs.h`, `jeefs_header.h`, `jeefs_devid.h`, `jeefs_walk.h`, `jeefs_generated.h`, `jeefs_endian.h`, `jeefs_port.h`, `eepromerr.h`) |
 
 The primary boot scenario — read the board header and `device.id` before
-the OS — needs only the first row.
+the OS — needs only the first row: the header API is prefix-friendly
+(detection needs 12 bytes, verification one 256/512-byte read), and with
+`device.id` stored first the whole device identity is a bounded prefix of
+256 + 28 + 256 = 540 bytes.
 
 ## CRC32 provider (include/jeefs_port.h)
 
 `jeefs_crc32(buf, len)` must equal zlib `crc32(0, buf, len)` (IEEE 802.3,
-reflected). Pick one:
+reflected), and `jeefs_crc32_update(crc, buf, len)` is its running form
+(`update(update(0, a), b) == jeefs_crc32(a||b)`) for stream consumers.
+Pick one:
 
 | Define | Environment | Notes |
 |--------|-------------|-------|
@@ -32,6 +38,37 @@ reflected). Pick one:
 
 When a provider define is set, `src/jeefs_crc32.c` compiles to nothing —
 it is safe to keep it in the file list unconditionally.
+
+## Partial reads on bounded RAM (include/jeefs_walk.h)
+
+When buffering the whole image is too expensive (U-Boot SPL, small MCUs),
+locate any file with the pull-model walker: the library owns the state
+machine and the validation (header CRC before any field is trusted, exact
+contiguity, bounds), the environment owns every read — no callbacks, no
+I/O inside the library:
+
+```c
+JEEFSWalk w;
+uint8_t hdr[sizeof(JEEFSFileHeaderv1)];
+jeefs_walk_begin(&w, prefix, prefix_len, image_size, "wifi.conf");
+uint32_t off; uint16_t len;
+while (jeefs_walk_want(&w, &off, &len) == 1) {
+    env_read(off, hdr, len);                  /* 28 bytes per hop */
+    if (jeefs_walk_feed(&w, hdr, len) != 0)
+        break;
+}
+/* JEEFS_WALK_FOUND: stream the data from w.file_offset in windows and
+ * verify incrementally: crc = jeefs_crc32_update(crc, chunk, n); compare
+ * with w.file_crc32 at the end. */
+```
+
+`prefix` is the board-header prefix the environment already read (>= 12
+bytes); verifying the board-header CRC first stays the caller's job. Peak
+RAM is the walker struct plus one 28-byte header window plus the data
+window of your choice — about 130 bytes total with a 64-byte window,
+against 8 KiB for the buffer-centric API. Locating and stream-verifying a
+small file on an 8 KiB image costs a few hundred bytes of reads; writes
+stay buffer-centric by design.
 
 ## Required environment surface
 

@@ -83,6 +83,7 @@ Two distinct APIs:
 
 - **`jeefs_header.h`** — pure functions on byte buffers (detect version, verify/update CRC, init header). No I/O dependency. Suitable for standalone use or integration.
 - **`jeefs.h`** — FS API over a caller-owned image buffer (format, list/read/write/add/delete files, header get/set). No I/O, no descriptors.
+- **`jeefs_walk.h`** — pull-model file locator for bounded-RAM targets: the environment feeds 28-byte header windows, the walker owns the state machine and validation; data streams verify via `jeefs_crc32_update` (port layer).
 
 ### EEPROM Binary Layout
 
