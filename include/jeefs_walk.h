@@ -5,9 +5,13 @@
  *
  * Pull-model file locator (#81): find one file in the JEEFS chain
  * without buffering the image. The walker owns the state machine and
- * every validation rule of the in-memory iterator (headerCrc32 before
- * any field is trusted, exact contiguity, bounds, erased-link and
- * empty-slot terminals); the environment owns every read:
+ * applies the in-memory iterator's validation rules to every header it
+ * visits (headerCrc32 before any field is trusted, exact contiguity,
+ * bounds, erased-link and empty-slot terminals) — up to and including
+ * the match: unlike EEPROM_ReadFile, it stops there and does not
+ * validate the rest of the chain. FOUND certifies the chain prefix;
+ * the streamed data is certified by the CRC comparison. The
+ * environment owns every read:
  *
  *   JEEFSWalk w;
  *   uint8_t hdr[sizeof(JEEFSFileHeaderv1)];
@@ -63,8 +67,9 @@ typedef struct {
  * enough for version detection and the fs_version byte).
  * Return: 0 on success; BUFFERNOTVALID (short prefix), FILENAMENOTVALID,
  * EEPROMCORRUPTED (bad magic/version or header does not fit image_size),
- * FSVERSIONNOTSUPPORTED. An fs_version of 0 succeeds and terminates as
- * JEEFS_WALK_NOTFOUND without requesting any bytes.
+ * FSVERSIONNOTSUPPORTED. Two conditions succeed and terminate as
+ * JEEFS_WALK_NOTFOUND without requesting any bytes: an fs_version of 0,
+ * and an image with no room for a file header after the board header.
  */
 int16_t jeefs_walk_begin(JEEFSWalk *w, const uint8_t *prefix, uint16_t prefix_len, uint16_t image_size,
                          const char *filename);

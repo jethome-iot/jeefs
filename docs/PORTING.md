@@ -63,7 +63,10 @@ while (jeefs_walk_want(&w, &off, &len) == 1) {
 ```
 
 `prefix` is the board-header prefix the environment already read (>= 12
-bytes); verifying the board-header CRC first stays the caller's job. Peak
+bytes); verifying the board-header CRC first stays the caller's job. One
+scope note: the walker validates every header it visits up to and
+including the match, then stops — `EEPROM_ReadFile` additionally
+validates the rest of the chain. Peak
 RAM is the walker struct plus one 28-byte header window plus the data
 window of your choice — about 130 bytes total with a 64-byte window,
 against 8 KiB for the buffer-centric API. Locating and stream-verifying a

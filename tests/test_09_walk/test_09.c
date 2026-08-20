@@ -140,6 +140,24 @@ static void test_corruption_detected(void) {
     printf("  corruption detected: OK\n");
 }
 
+// Documented scope divergence: the walker certifies the chain prefix up
+// to the match and stops; ReadFile keeps validating the tail.
+static void test_found_stops_before_tail_corruption(void) {
+    const char *names[] = {"alpha", "beta", "gamma"};
+    const uint16_t sizes[] = {10, 20, 30};
+    fresh_fs_with(names, sizes, 3);
+    // corrupt gamma (after the target), CRC not resealed
+    uint16_t gamma_addr = HDR + 2 * (uint16_t) sizeof(JEEFSFileHeaderv1) + 10 + 20;
+    image[gamma_addr + 1] ^= 0x40;
+
+    JEEFSWalk w;
+    assert(jeefs_walk_begin(&w, image, HDR, IMG_SIZE, "beta") == 0);
+    assert(drive(&w, NULL) == JEEFS_WALK_FOUND); // prefix is intact
+    uint8_t buf[64];
+    assert(EEPROM_ReadFile(image, IMG_SIZE, "beta", buf, sizeof(buf)) == EEPROMCORRUPTED);
+    printf("  found stops before tail corruption: OK\n");
+}
+
 static void test_begin_rejects_bad_input(void) {
     const char *names[] = {"alpha"};
     const uint16_t sizes[] = {10};
@@ -179,6 +197,7 @@ int main(void) {
     test_device_id_is_one_hop();
     test_fs_version_gates();
     test_corruption_detected();
+    test_found_stops_before_tail_corruption();
     test_begin_rejects_bad_input();
     test_crc32_update_equivalence();
     printf("test_09_walk: all OK\n");
