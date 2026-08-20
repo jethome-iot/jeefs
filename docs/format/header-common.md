@@ -26,6 +26,16 @@ This file defines constants, enumerations, and shared properties used across all
     NUL optional when the value fills the field — all bytes usable.
     Content validation is outside the library.
 
+## Empty (placeholder) header
+
+A header whose every byte from offset 12 up to (not including) its CRC
+field is `0x00` is **empty**: it reserves the slot — the first file
+write claims a headerless image with exactly such a header — and carries
+no identity yet. Readers distinguish the two states by content
+(`jeefs_header_is_empty` and the per-port equivalents): a provisioned
+board has at least one nonzero identity byte. Emptiness is independent
+of CRC validity — consistency stays a separate check.
+
 ## Version Detection Struct
 
 <!-- STRUCT: JEEPROMHeaderversion -->

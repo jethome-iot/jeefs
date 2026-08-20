@@ -68,6 +68,16 @@ int jeefs_header_update_crc(uint8_t *data, size_t len);
  */
 int jeefs_header_init(uint8_t *data, size_t len, int version);
 
+/*
+ * Distinguish a placeholder header from a provisioned one.
+ * Returns 1 when a header is detected and every identity byte (offset 12
+ * up to the CRC field) is zero — the empty header a first-write claim or
+ * jeefs_header_init leaves behind; 0 when detected and populated; -1 when
+ * no valid header is detected. Emptiness is independent of CRC validity —
+ * verify consistency separately (jeefs_header_verify_crc).
+ */
+int jeefs_header_is_empty(const uint8_t *data, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

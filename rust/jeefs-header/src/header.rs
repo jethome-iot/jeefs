@@ -89,6 +89,22 @@ pub fn initialize_header(buf: &mut [u8], version: u8) -> bool {
     update_crc(&mut buf[..size])
 }
 
+/// Distinguish a placeholder header from a provisioned one.
+///
+/// `Some(true)` when a header is detected and every identity byte
+/// (offset 12 up to the CRC field) is zero — the empty header a
+/// first-write claim leaves behind; `Some(false)` when detected and
+/// populated; `None` when no valid header is detected. Emptiness is
+/// independent of CRC validity — verify consistency separately.
+pub fn header_is_empty(data: &[u8]) -> Option<bool> {
+    let version = detect_version(data)?;
+    let size = header_size(version)?;
+    if data.len() < size {
+        return None;
+    }
+    Some(data[12..size - 4].iter().all(|&b| b == 0))
+}
+
 /// Update the CRC32 field in a mutable header buffer. Returns `true` on success.
 pub fn update_crc(data: &mut [u8]) -> bool {
     let ver = match detect_version(data) {
@@ -422,7 +438,10 @@ mod tests {
     #[test]
     fn test_enum_from_u8() {
         assert_eq!(SignatureAlgorithm::from_u8(0), Ok(SignatureAlgorithm::NONE));
-        assert_eq!(SignatureAlgorithm::from_u8(2), Ok(SignatureAlgorithm::SECP256R1));
+        assert_eq!(
+            SignatureAlgorithm::from_u8(2),
+            Ok(SignatureAlgorithm::SECP256R1)
+        );
         assert_eq!(SignatureAlgorithm::from_u8(99), Err(99));
     }
 
@@ -431,5 +450,17 @@ mod tests {
         assert_eq!(SignatureAlgorithm::NONE.signature_size(), 0);
         assert_eq!(SignatureAlgorithm::SECP192R1.signature_size(), 48);
         assert_eq!(SignatureAlgorithm::SECP256R1.signature_size(), 64);
+    }
+    #[test]
+    fn test_header_is_empty() {
+        let mut buf = [0u8; 256];
+        assert_eq!(header_is_empty(&buf), None); // no magic
+        buf[0..8].copy_from_slice(b"JETHOME\0");
+        buf[8] = 4;
+        assert_eq!(header_is_empty(&buf), Some(true));
+        buf[10] = 1; // fs_version is prologue, not identity
+        assert_eq!(header_is_empty(&buf), Some(true));
+        buf[12] = b'x'; // boardname byte
+        assert_eq!(header_is_empty(&buf), Some(false));
     }
 }

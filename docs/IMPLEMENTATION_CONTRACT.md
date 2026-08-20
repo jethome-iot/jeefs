@@ -27,6 +27,10 @@ Every port provides these over raw byte buffers, with no I/O dependency:
 - **update_crc(buf)** — recalculate and store.
 - **init(buf, version)** — zero fill, magic, version byte, CRC. Unknown
   version is an error.
+- **is_empty(buf)** — a detected header whose every byte from offset 12
+  up to the CRC field is zero is a placeholder (claimed slot, no
+  identity yet); populated otherwise; no-header is a distinct third
+  outcome. Independent of CRC validity.
 - **Field access for current versions (v3, v4)** — string semantics per
   RFC #13: `boardname`/`boardversion` NUL-terminated (at most `size - 1`
   content bytes); the serial slot, `usid` and `cpuid` are bounded strings
@@ -91,6 +95,7 @@ Conformance is not a claim, it is the following tests passing in CI:
 |-------------|---|-----|--------|------|
 | detect_version | `jeefs_header_detect_version` | `HeaderView::detect_version` | `detect_version` | `detect_version` |
 | verify/update/init | `jeefs_header_*` | `HeaderBuffer` | model classes | `verify_crc`/`update_crc`/`initialize_header` |
+| is_empty | `jeefs_header_is_empty` | `HeaderView::is_empty` | `header_is_empty` | `header_is_empty` |
 | bounded strings | raw bytes (caller-decoded) | `strnlen` views | `_pack_bounded`/`_unpack_string` | `str_from_bytes` |
 | LE on BE hosts | `jeefs_endian.h` | via C core | `<` struct formats | generated `from_le` accessors |
 | record ops | `jeefs_devid.h` | `DeviceIdView`/`DeviceIdBuffer` | `DeviceIdentityV1` | `devid` module |

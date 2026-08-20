@@ -712,3 +712,28 @@ class TestTimestampRoundTrip:
         # C/Rust detect only need the 12-byte version-detect struct
         assert detect_version(b"JETHOME\x00\x03\x00\x00\x00") == 3
         assert detect_version(b"JETHOME\x00\x04\x00\x00\x00") == 4
+
+
+class TestHeaderIsEmpty:
+    """A placeholder (claimed) header is distinguishable by content."""
+
+    def test_no_header(self):
+        from jeefs import header_is_empty
+
+        assert header_is_empty(b"\x00" * 256) is None
+        assert header_is_empty(b"\xff" * 256) is None
+        assert header_is_empty(b"junk") is None
+
+    def test_empty_and_populated(self):
+        from jeefs import header_is_empty
+        from jeefs.header import EEPROMHeaderV4
+
+        empty = bytearray(256)
+        empty[0:8] = b"JETHOME\x00"
+        empty[8] = 4
+        assert header_is_empty(bytes(empty)) is True
+        empty[10] = 1  # fs_version is prologue, not identity
+        assert header_is_empty(bytes(empty)) is True
+
+        hdr = EEPROMHeaderV4(boardname="board", boardversion="1.0")
+        assert header_is_empty(hdr.to_bytes()) is False

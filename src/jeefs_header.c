@@ -101,3 +101,16 @@ int jeefs_header_init(uint8_t *data, size_t len, int version) {
     /* Compute and write CRC */
     return jeefs_header_update_crc(data, len);
 }
+
+int jeefs_header_is_empty(const uint8_t *data, size_t len) {
+    int version = jeefs_header_detect_version(data, len);
+    if (version < 0)
+        return -1;
+    int size = jeefs_header_size(version);
+    if (size < 0 || (size_t) size > len)
+        return -1;
+    for (size_t i = 12; i < (size_t) size - 4; i++)
+        if (data[i] != 0)
+            return 0;
+    return 1;
+}

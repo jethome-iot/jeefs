@@ -19,7 +19,10 @@ static mut FAILURES: i32 = 0;
 
 fn check_str(name: &str, actual: &str, expected: &str) {
     if actual != expected {
-        eprintln!("  FAIL: {} = \"{}\" (expected \"{}\")", name, actual, expected);
+        eprintln!(
+            "  FAIL: {} = \"{}\" (expected \"{}\")",
+            name, actual, expected
+        );
         unsafe { FAILURES += 1 };
     } else {
         println!("  OK: {} = \"{}\"", name, actual);
@@ -42,7 +45,11 @@ fn main() {
         process::exit(2);
     }
 
-    let expected_ver: i64 = if args.len() == 3 { args[2].parse().unwrap_or(3) } else { 3 };
+    let expected_ver: i64 = if args.len() == 3 {
+        args[2].parse().unwrap_or(3)
+    } else {
+        3
+    };
     let eeprom = fs::read(&args[1]).unwrap_or_else(|e| {
         eprintln!("{}: {}", args[1], e);
         process::exit(2);
@@ -61,7 +68,11 @@ fn main() {
 
     // Version detection
     let ver = detect_version(&eeprom);
-    check_int("header_version", ver.map(|v| v as i64).unwrap_or(-1), expected_ver);
+    check_int(
+        "header_version",
+        ver.map(|v| v as i64).unwrap_or(-1),
+        expected_ver,
+    );
 
     // CRC
     if !verify_crc(&eeprom) {
@@ -155,11 +166,7 @@ fn main() {
             );
             unsafe { FAILURES += 1 };
         } else {
-            println!(
-                "  OK: file '{}' CRC32 = 0x{:08x}",
-                fh.name_str(),
-                calc_crc
-            );
+            println!("  OK: file '{}' CRC32 = 0x{:08x}", fh.name_str(), calc_crc);
         }
 
         file_count += 1;
