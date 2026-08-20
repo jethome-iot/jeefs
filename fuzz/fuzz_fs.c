@@ -62,8 +62,17 @@ static void exercise(uint8_t *img, uint16_t size) {
     }
 
     int16_t n = EEPROM_ListFiles(img, size, names, MAX_FILES);
-    if (n < 0)
-        return; // corrupt chain: nothing more to do
+    if (n < 0) {
+        // No walkable chain. A headerless image (magic mismatch) must be
+        // CLAIMED by AddFile (#86): success means a fresh header and a
+        // walkable one-file chain — anything else on that path aborts.
+        const uint8_t payload[5] = {1, 2, 3, 4, 5};
+        int16_t a = EEPROM_AddFile(img, size, "fuzz", payload, sizeof(payload));
+        if (a == 5 &&
+            (EEPROM_HeaderCheckConsistency(img, size) != 1 || EEPROM_ListFiles(img, size, names, MAX_FILES) != 1))
+            abort();
+        return;
+    }
 
     for (int16_t i = 0; i < n; i++) {
         int16_t r = EEPROM_ReadFile(img, size, names[i], buf, sizeof(buf));
