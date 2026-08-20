@@ -310,6 +310,21 @@ int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename,
     if (!data || dataSize == 0 || dataSize > INT16_MAX)
         return BUFFERNOTVALID;
 
+    /* An image with no header at all — blank, erased or garbage — is
+     * claimed on first write: an empty current-version header reserves
+     * the slot (zero identity, wiped file area, fs_version stamped), and
+     * the real identity arrives later through EEPROM_SetHeader, which
+     * preserves the fs_version stamp. A matching magic with an unknown
+     * version is NOT claimed: that may be a header from a newer format,
+     * not the absence of one. */
+    if (header_size_of(image, imageSize) < 0) {
+        if (imageSize >= JEEFS_MAGIC_LENGTH && memcmp(image, JEEFS_MAGIC, JEEFS_MAGIC_LENGTH) == 0)
+            return EEPROMCORRUPTED;
+        int fret = EEPROM_FormatEEPROM(image, imageSize, JEEFS_HEADER_VERSION);
+        if (fret != 0)
+            return (int16_t) fret;
+    }
+
     JEEFSIter last;
     uint32_t chain_end;
     int16_t ret = chain_walk(image, imageSize, filename, &last, &chain_end);

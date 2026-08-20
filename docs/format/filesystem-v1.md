@@ -106,6 +106,13 @@ as the EEPROM header:
 
 ### Creation (EEPROM_AddFile)
 
+0. An image with no header at all (the magic does not match: blank,
+   erased or garbage) is claimed first — `EEPROM_AddFile` formats it
+   with an empty current-version header (zero identity, wiped file
+   area, `fs_version = 1`), reserving the slot for the real identity
+   to be written later via `EEPROM_SetHeader` (which preserves the
+   `fs_version` stamp). A matching magic with an unknown version is
+   never overwritten — it may belong to a newer format.
 1. Verify file does not already exist.
 2. Scan linked list to find end (or empty/corrupted slot).
 3. Write file header (name, dataSize, crc32, nextFileAddress=0,
