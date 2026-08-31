@@ -151,6 +151,22 @@ if(Python3_FOUND)
             ${GOLDEN_BIN_V4} ${GOLDEN_JSON_V4}
     )
 
+    # The public image API must reproduce the committed goldens
+    # byte-for-byte and parse them back (one format implementation).
+    add_test(
+        NAME image_build_py_matches_golden
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_image_build_py.py
+            ${GOLDEN_BIN} ${GOLDEN_JSON}
+    )
+
+    add_test(
+        NAME image_build_py_matches_golden_v4
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_image_build_py.py
+            ${GOLDEN_BIN_V4} ${GOLDEN_JSON_V4}
+    )
+
     # The committed test-vectors/vectors/*.bin must match their .json
     # descriptions — they exist for cross-commit stability (#19).
     add_test(

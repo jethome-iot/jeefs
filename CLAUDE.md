@@ -9,7 +9,7 @@ JEEFS (JetHome EEPROM File System) — a library for working with a simple linke
 The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/Go/TypeScript) with two areas:
 
 1. **Header parsing/manipulation** (priority) — native implementations per language, `docs/format/*.md` as source of truth, shared binary test vectors
-2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header
+2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header; the Python port additionally offers whole-image build/parse (`jeefs.build_image`/`parse_image`) as a pure-bytes tooling surface — no CRUD, no I/O
 
 ### Code generation policy
 
@@ -122,6 +122,7 @@ See `docs/format/*.md` (canonical) and `EEPROM_FORMAT.md` (overview) for field-b
 **Python (python/jeefs/):**
 
 - `EEPROMHeaderV3` — dataclass with `to_bytes()`, `from_bytes()`, `verify_crc()`, `validate()`, `to_partition_image()`
+- `build_image()` / `parse_image()` / `ImageFile` / `DEVICE_ID_FILENAME` — whole-image build and parse per filesystem-v1.md (device.id-first invariant, double CRC, fs_version gate)
 - `SignatureAlgorithm` — IntEnum: `NONE` (0), `SECP192R1` (1), `SECP256R1` (2)
 - Constants: `EEPROM_FIELDS` (v4, current) / `EEPROM_FIELDS_V3` etc. (offset/size dicts), `EEPROM_MAGIC`, `SIGNATURE_SIZES`
 
