@@ -173,7 +173,7 @@ class TestParseImage:
             parse_image(bytes(img))
 
     def test_wide_char_name_rejected_on_build(self):
-        with pytest.raises(ValueError, match="byte-range"):
+        with pytest.raises(ValueError, match="above U\\+00FF"):
             build_image(v4_header(), [("имя", b"x")], 512)
 
     def test_nul_in_name_rejected_on_build(self):

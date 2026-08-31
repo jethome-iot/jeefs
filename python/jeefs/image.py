@@ -72,7 +72,7 @@ def _seal_file_header(name: str, data: bytes, next_addr: int) -> bytes:
     try:
         encoded = name.encode("latin-1")
     except UnicodeEncodeError as exc:
-        raise ValueError(f"file name {name!r}: only byte-range characters (U+0000..U+00FF) fit the wire") from exc
+        raise ValueError(f"file name {name!r}: contains characters above U+00FF, which do not fit the wire bytes") from exc
     raw[0 : len(encoded)] = encoded
     struct.pack_into("<H", raw, 16, len(data))
     struct.pack_into("<I", raw, 18, binascii.crc32(data) & 0xFFFFFFFF)
