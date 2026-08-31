@@ -43,8 +43,14 @@ def main() -> int:
     built = build_image(header, files, spec["eeprom_size"])
 
     if built != golden:
-        diff = next(i for i, (a, b) in enumerate(zip(built, golden)) if a != b)
-        print(f"FAIL: built image differs from golden at byte {diff}", file=sys.stderr)
+        diff = next(
+            (i for i, (a, b) in enumerate(zip(built, golden)) if a != b),
+            min(len(built), len(golden)),  # equal prefix: sizes differ
+        )
+        print(
+            f"FAIL: built image differs from golden at byte {diff} (sizes {len(built)}/{len(golden)})",
+            file=sys.stderr,
+        )
         return 1
     print(f"OK: build_image reproduces {sys.argv[1]} byte-for-byte")
 

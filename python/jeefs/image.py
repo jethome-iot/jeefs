@@ -69,7 +69,10 @@ def _seal_file_header(name: str, data: bytes, next_addr: int) -> bytes:
     raw = bytearray(_FHDR)
     # latin-1 is byte-transparent: the wire format constrains only the
     # length and the NUL terminator, not the byte values (filesystem-v1.md)
-    encoded = name.encode("latin-1")
+    try:
+        encoded = name.encode("latin-1")
+    except UnicodeEncodeError as exc:
+        raise ValueError(f"file name {name!r}: only byte-range characters (U+0000..U+00FF) fit the wire") from exc
     raw[0 : len(encoded)] = encoded
     struct.pack_into("<H", raw, 16, len(data))
     struct.pack_into("<I", raw, 18, binascii.crc32(data) & 0xFFFFFFFF)
@@ -146,8 +149,10 @@ def parse_image(data: bytes) -> ParsedImage:
     ``ParsedImage.unreadable`` instead (C's EEPROM_ReadFile would
     return EEPROMCORRUPTED for it).
 
-    Raises ValueError when no valid board header is present, on an
-    unknown fs_version, or on a corrupted chain.
+    Raises ValueError when no valid board header is present, when the
+    board-header CRC does not match (the parse returns header fields, so
+    a failed CRC is a failed header), on an unknown fs_version, or on a
+    corrupted chain.
     """
     version = detect_version(data)
     if version is None:
@@ -162,6 +167,15 @@ def parse_image(data: bytes) -> ParsedImage:
         header = EEPROMHeaderV3.from_bytes(header_bytes)
     elif version == 4:
         header = EEPROMHeaderV4.from_bytes(header_bytes)
+
+    # parse_image returns the header's field values, so the header must
+    # prove itself first: a failed CRC is a failed header. (The C chain
+    # iterator skips this check only because it never interprets any
+    # identity field — it consumes magic/version for the size alone.)
+    coverage = _HEADER_SIZES[version] - 4
+    stored_header_crc = struct.unpack("<I", header_bytes[coverage : coverage + 4])[0]
+    if binascii.crc32(header_bytes[:coverage]) & 0xFFFFFFFF != stored_header_crc:
+        raise ValueError("board header CRC mismatch")
 
     fs_version = data[EEPROM_FS_VERSION_OFFSET]
     result = ParsedImage(version, header_bytes, header, fs_version)
