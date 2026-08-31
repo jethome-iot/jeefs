@@ -16,18 +16,20 @@ import struct
 from dataclasses import dataclass, field
 
 from .constants_generated import (
+    EEPROM_CRC_COVERAGE,
     EEPROM_DEVICE_ID_FILENAME,
+    EEPROM_FIELDS_JEEFSFILEHEADERV1,
     EEPROM_FILE_NAME_LENGTH,
     EEPROM_FS_VERSION,
     EEPROM_FS_VERSION_OFFSET,
 )
-from .header import EEPROMHeaderV3, EEPROMHeaderV4, detect_version
+from .header import _HEADER_SIZES, EEPROMHeaderV3, EEPROMHeaderV4, detect_version
 
 DEVICE_ID_FILENAME = EEPROM_DEVICE_ID_FILENAME
 
-_FHDR = 28  # sizeof(JEEFSFileHeaderv1)
-_HEADER_SIZES = {1: 512, 2: 256, 3: 256, 4: 256}
-_MAX_DATA = 32767  # INT16_MAX, filesystem-v1.md constraints
+_F = EEPROM_FIELDS_JEEFSFILEHEADERV1
+_FHDR = max(off + size for off, size in _F.values())  # 28, from the spec
+_MAX_DATA = 32767  # INT16_MAX: the C API's int16_t byte counts
 _MAX_IMAGE = 65535  # uint16_t addressing
 
 
@@ -47,6 +49,12 @@ class ParsedImage:
     obsolete v1/v2 layouts (``header_bytes`` always carries the raw
     header). ``files`` is empty when ``fs_version`` is 0 — the file area
     of such an image is empty regardless of content.
+
+    ``unreadable`` mirrors the C API's split between listing and
+    reading: names whose chain entry is valid but whose payload the C
+    ``EEPROM_ReadFile`` would refuse — a data-CRC mismatch or a
+    ``dataSize`` above INT16_MAX. Such files still appear in ``files``
+    with the payload as stored on the medium.
     """
 
     version: int
@@ -54,11 +62,14 @@ class ParsedImage:
     header: EEPROMHeaderV3 | None
     fs_version: int
     files: list[ImageFile] = field(default_factory=list)
+    unreadable: list[str] = field(default_factory=list)
 
 
 def _seal_file_header(name: str, data: bytes, next_addr: int) -> bytes:
     raw = bytearray(_FHDR)
-    encoded = name.encode("ascii")
+    # latin-1 is byte-transparent: the wire format constrains only the
+    # length and the NUL terminator, not the byte values (filesystem-v1.md)
+    encoded = name.encode("latin-1")
     raw[0 : len(encoded)] = encoded
     struct.pack_into("<H", raw, 16, len(data))
     struct.pack_into("<I", raw, 18, binascii.crc32(data) & 0xFFFFFFFF)
@@ -88,8 +99,8 @@ def build_image(
     normalized: list[ImageFile] = []
     for f in files:
         item = f if isinstance(f, ImageFile) else ImageFile(f[0], f[1])
-        if not 0 < len(item.name) <= EEPROM_FILE_NAME_LENGTH:
-            raise ValueError(f"file name {item.name!r} must be 1..{EEPROM_FILE_NAME_LENGTH} chars")
+        if not 0 < len(item.name) <= EEPROM_FILE_NAME_LENGTH or "\x00" in item.name:
+            raise ValueError(f"file name {item.name!r} must be 1..{EEPROM_FILE_NAME_LENGTH} chars without NUL")
         if not 0 < len(item.data) <= _MAX_DATA:
             raise ValueError(f"file {item.name!r} data must be 1..{_MAX_DATA} bytes")
         normalized.append(item)
@@ -102,7 +113,9 @@ def build_image(
 
     header_bytes = bytearray(header.to_bytes())
     header_bytes[EEPROM_FS_VERSION_OFFSET] = EEPROM_FS_VERSION
-    struct.pack_into("<I", header_bytes, 252, binascii.crc32(bytes(header_bytes[:252])) & 0xFFFFFFFF)
+    struct.pack_into(
+        "<I", header_bytes, EEPROM_CRC_COVERAGE, binascii.crc32(bytes(header_bytes[:EEPROM_CRC_COVERAGE])) & 0xFFFFFFFF
+    )
 
     chain = bytearray()
     offset = len(header_bytes)
@@ -123,11 +136,15 @@ def build_image(
 def parse_image(data: bytes) -> ParsedImage:
     """Parse a complete EEPROM image back into header and files.
 
-    Applies the reader rules of filesystem-v1.md: the fs_version byte
-    gates the file area (0 = no filesystem, files ignored; unknown =
-    error), every visited file header must pass its headerCrc32 before
-    any field is trusted, links must be exactly contiguous, and every
-    file's data CRC is verified.
+    Applies the reader rules of filesystem-v1.md exactly as the C
+    iterator does: the fs_version byte gates the file area (0 = no
+    filesystem, files ignored; unknown = error), every visited file
+    header must pass its headerCrc32 before any field is trusted, and
+    links must be exactly contiguous. Payload verification mirrors the
+    C split between listing and reading: a data-CRC mismatch or an
+    oversized dataSize never aborts the walk — the name lands in
+    ``ParsedImage.unreadable`` instead (C's EEPROM_ReadFile would
+    return EEPROMCORRUPTED for it).
 
     Raises ValueError when no valid board header is present, on an
     unknown fs_version, or on a corrupted chain.
@@ -163,7 +180,7 @@ def parse_image(data: bytes) -> ParsedImage:
             raise ValueError(f"file header CRC mismatch at offset {offset}")
         if raw[EEPROM_FILE_NAME_LENGTH] != 0:
             raise ValueError(f"unterminated file name at offset {offset}")
-        name = raw[:16].split(b"\x00")[0].decode("ascii")
+        name = raw[:16].split(b"\x00")[0].decode("latin-1")
         data_size, stored_crc, next_addr = struct.unpack("<HIH", raw[16:24])
         if data_size == 0 or data_size == 0xFFFF:
             raise ValueError(f"corrupted dataSize at offset {offset}")
@@ -175,8 +192,11 @@ def parse_image(data: bytes) -> ParsedImage:
         if next_addr != 0 and (next_addr != end or end + _FHDR > len(data)):
             raise ValueError(f"broken chain link at offset {offset}")
         payload = bytes(data[offset + _FHDR : end])
-        if binascii.crc32(payload) & 0xFFFFFFFF != stored_crc:
-            raise ValueError(f"file {name!r} data CRC mismatch")
+        # The chain walk never aborts on payload problems — exactly like
+        # the C iterator. EEPROM_ReadFile's per-file refusals (data-CRC
+        # mismatch, dataSize above INT16_MAX) are reported per name.
+        if data_size > _MAX_DATA or binascii.crc32(payload) & 0xFFFFFFFF != stored_crc:
+            result.unreadable.append(name)
         result.files.append(ImageFile(name, payload))
         offset = next_addr
 
