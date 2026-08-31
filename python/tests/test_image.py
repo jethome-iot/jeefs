@@ -164,6 +164,18 @@ class TestParseImage:
         assert parsed.files[0].name == "\xe9"
         assert parsed.unreadable == []
 
+    def test_broken_header_crc_is_a_broken_header(self):
+        # parse_image hands out header field values, so the header must
+        # prove itself: a CRC error means no fields are returned at all.
+        img = bytearray(build_image(v4_header(), [("a", b"x")], 512))
+        img[100] ^= 0x01  # identity byte: header CRC now stale
+        with pytest.raises(ValueError, match="header CRC"):
+            parse_image(bytes(img))
+
+    def test_wide_char_name_rejected_on_build(self):
+        with pytest.raises(ValueError, match="byte-range"):
+            build_image(v4_header(), [("имя", b"x")], 512)
+
     def test_nul_in_name_rejected_on_build(self):
         with pytest.raises(ValueError, match="name"):
             build_image(v4_header(), [("a\x00b", b"x")], 512)
