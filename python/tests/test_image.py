@@ -176,6 +176,15 @@ class TestParseImage:
         with pytest.raises(ValueError, match="above U\\+00FF"):
             build_image(v4_header(), [("имя", b"x")], 512)
 
+    def test_crc_gate_fires_before_field_rules(self):
+        # A corrupted header that also breaks a field rule (unknown
+        # signature_version) must fail as a CRC error — the gate runs on
+        # raw bytes before the typed model interprets anything.
+        img = bytearray(build_image(v4_header(), [("a", b"x")], 512))
+        img[9] = 7  # invalid signature_version, CRC not resealed
+        with pytest.raises(ValueError, match="header CRC"):
+            parse_image(bytes(img))
+
     def test_nul_in_name_rejected_on_build(self):
         with pytest.raises(ValueError, match="name"):
             build_image(v4_header(), [("a\x00b", b"x")], 512)
