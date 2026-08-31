@@ -18,8 +18,14 @@ from .constants import (
 )
 from .devid import DeviceIdentityV1
 from .header import EEPROMHeaderV3, EEPROMHeaderV4, detect_version, header_is_empty, parse_mac_string
+from .image import DEVICE_ID_FILENAME, ImageFile, ParsedImage, build_image, parse_image
 
 __all__ = [
+    "DEVICE_ID_FILENAME",
+    "ImageFile",
+    "ParsedImage",
+    "build_image",
+    "parse_image",
     "DeviceIdentityV1",
     "EEPROMHeaderV3",
     "detect_version",

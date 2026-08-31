@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: (GPL-2.0+ or Apache-2.0)
-"""Generate the golden reference EEPROM binary from eeprom_full.json.
+"""Generate the golden reference EEPROM binaries from their JSON specs.
 
-Creates an 8192-byte EEPROM image with:
-  - JEEPROMHeaderv3 at offset 0 (256 bytes)
-  - JEEFS files as a linked list starting at offset 256
-
-Each file entry is:
-  - JEEFSFileHeaderv1 (28 bytes): name[16], dataSize(u16 LE), crc32(u32 LE),
-    nextFileAddress(u16 LE), headerCrc32(u32 LE over bytes 0-23)
-  - Followed by dataSize bytes of file data
-
-The board header carries fs_version = 1 at offset 10 (the filesystem gate).
+Thin driver over the public jeefs image API (jeefs.build_image): the
+format lives in one place — python/jeefs/image.py per
+docs/format/filesystem-v1.md. The byte-identity of the committed goldens
+across this migration is locked by python/tests/test_image.py.
 
 Usage:
     python generate_reference.py
@@ -19,116 +13,42 @@ Usage:
 
 from __future__ import annotations
 
-import binascii
 import json
-import struct
+import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent
-JSON_PATH = SCRIPT_DIR / "eeprom_full.json"
-BIN_PATH = SCRIPT_DIR / "eeprom_full.bin"
-JSON_PATH_V4 = SCRIPT_DIR / "eeprom_full_v4.json"
-BIN_PATH_V4 = SCRIPT_DIR / "eeprom_full_v4.bin"
+sys.path.insert(0, str(SCRIPT_DIR.parent.parent / "python"))
+
+from jeefs import EEPROMHeaderV3, EEPROMHeaderV4, build_image
 
 
-def _pack_string(value: str, size: int) -> bytes:
-    encoded = value.encode("utf-8")[: size - 1]
-    return encoded + b"\x00" * (size - len(encoded))
-
-
-def _pack_bounded(value: str, size: int) -> bytes:
-    """Bounded string (RFC #13): all bytes usable, NUL only when shorter."""
-    encoded = value.encode("utf-8")[:size]
-    return encoded + b"\x00" * (size - len(encoded))
-
-
-def _parse_mac(mac_str: str) -> bytes:
-    return bytes.fromhex(mac_str.replace(":", "").replace("-", ""))
-
-
-def generate(json_path: Path = JSON_PATH) -> bytes:
+def generate(json_path: Path) -> bytes:
     spec = json.loads(json_path.read_text())
-    eeprom_size = spec["eeprom_size"]
-    header_spec = spec["header"]
-    files_spec = spec["files"]
-
-    buf = bytearray(eeprom_size)
-
-    # === Build header (v3, 256 bytes) ===
-    header_size = header_spec["header_size"]
-    buf[0:8] = b"JETHOME\x00"
-    buf[8] = header_spec["version"]
-    buf[9] = header_spec.get("signature_version", 0)
-    buf[10] = header_spec.get("fs_version", 1)  # the image carries a filesystem
-
-    buf[12:44] = _pack_string(header_spec["boardname"], 32)
-    buf[44:76] = _pack_string(header_spec["boardversion"], 32)
-    # v4 names the serial slot board_serial; serial-like fields are bounded
-    serial_key = "board_serial" if header_spec["version"] == 4 else "serial"
-    buf[76:108] = _pack_bounded(header_spec[serial_key], 32)
-    buf[108:140] = _pack_bounded(header_spec["usid"], 32)
-    buf[140:172] = _pack_bounded(header_spec["cpuid"], 32)
-    buf[172:178] = _parse_mac(header_spec["mac"])
-
-    timestamp = header_spec.get("timestamp", 0)
-    struct.pack_into("<q", buf, 244, timestamp)
-
-    # CRC32 of header (bytes 0-251)
-    crc = binascii.crc32(bytes(buf[:252])) & 0xFFFFFFFF
-    struct.pack_into("<I", buf, 252, crc)
-
-    # === Build filesystem linked list ===
-    offset = header_size  # first file starts right after header
-
-    for i, file_spec in enumerate(files_spec):
-        name = file_spec["name"]
-        data = bytes.fromhex(file_spec["data_hex"])
-        data_size = len(data)
-
-        # Calculate next file address
-        file_header_size = 28
-        next_offset = offset + file_header_size + data_size
-
-        # Is there a next file?
-        is_last = i == len(files_spec) - 1
-        next_file_addr = 0 if is_last else next_offset
-
-        # Write file header: name[16] + dataSize(u16) + crc32(u32) +
-        # nextFileAddress(u16) + headerCrc32(u32 over bytes 0-23)
-        name_bytes = _pack_string(name, 16)
-        buf[offset : offset + 16] = name_bytes
-        struct.pack_into("<H", buf, offset + 16, data_size)
-        file_crc = binascii.crc32(data) & 0xFFFFFFFF
-        struct.pack_into("<I", buf, offset + 18, file_crc)
-        struct.pack_into("<H", buf, offset + 22, next_file_addr)
-        header_crc = binascii.crc32(bytes(buf[offset : offset + 24])) & 0xFFFFFFFF
-        struct.pack_into("<I", buf, offset + 24, header_crc)
-
-        # Write file data
-        buf[offset + 28 : offset + 28 + data_size] = data
-
-        offset = next_offset
-
-    return bytes(buf)
+    h = spec["header"]
+    cls = EEPROMHeaderV4 if h["version"] == 4 else EEPROMHeaderV3
+    serial_key = "board_serial" if h["version"] == 4 else "serial"
+    header = cls(
+        boardname=h["boardname"],
+        boardversion=h["boardversion"],
+        usid=h["usid"],
+        cpuid=h["cpuid"],
+        mac=h["mac"],
+        timestamp=h.get("timestamp", 0),
+        signature_algorithm=h.get("signature_version", 0),
+        **{serial_key: h[serial_key]},
+    )
+    files = [(f["name"], bytes.fromhex(f["data_hex"])) for f in spec["files"]]
+    return build_image(header, files, spec["eeprom_size"])
 
 
 def main() -> None:
-    for json_path, bin_path in ((JSON_PATH, BIN_PATH), (JSON_PATH_V4, BIN_PATH_V4)):
+    for stem in ("eeprom_full", "eeprom_full_v4"):
+        json_path = SCRIPT_DIR / f"{stem}.json"
+        bin_path = SCRIPT_DIR / f"{stem}.bin"
         data = generate(json_path)
         bin_path.write_bytes(data)
         print(f"Generated: {bin_path} ({len(data)} bytes)")
-
-    # Print layout summary
-    spec = json.loads(JSON_PATH.read_text())
-    header_size = spec["header"]["header_size"]
-    offset = header_size
-    eeprom_size = spec["eeprom_size"]
-    for f in spec["files"]:
-        file_data = bytes.fromhex(f["data_hex"])
-        print(f"  [{offset:4d}-{offset+27:4d}] FileHeader: {f['name']!r}")
-        print(f"  [{offset+28:4d}-{offset+27+len(file_data):4d}] Data: {len(file_data)} bytes")
-        offset += 28 + len(file_data)
-    print(f"  [{offset:4d}-{eeprom_size-1:4d}] Free space")
 
 
 if __name__ == "__main__":

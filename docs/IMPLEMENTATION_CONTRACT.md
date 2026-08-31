@@ -101,6 +101,12 @@ Conformance is not a claim, it is the following tests passing in CI:
 | record ops | `jeefs_devid.h` | `DeviceIdView`/`DeviceIdBuffer` | `DeviceIdentityV1` | `devid` module |
 | header build | `init` + struct writes | `HeaderBuffer` + struct access | `EEPROMHeaderV3`/`V4` | `initialize_header` + byte ops |
 
+Optional per-port extras (not required by the contract): the Python port
+ships a whole-image tooling surface — `build_image`/`parse_image` over
+plain bytes per `filesystem-v1.md` (device.id-first, double CRC,
+fs_version stamp/gate) — locked to the C/Rust ports by the byte-identity
+of the committed goldens it must reproduce.
+
 Known, accepted deviations:
 
 - Python has no v1/v2 model classes — the versions are obsolete (#16);
