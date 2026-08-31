@@ -103,8 +103,8 @@ static void exercise(uint8_t *img, uint16_t size) {
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {
-    if (len < 12 || len > MAX_IMG)
-        return 0;
+    if (len == 0 || len > MAX_IMG)
+        return 0; // sub-12-byte inputs stay in: every op must gate lengths itself
     uint8_t img[MAX_IMG];
     memcpy(img, data, len);
     exercise(img, (uint16_t) len);
