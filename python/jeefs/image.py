@@ -162,20 +162,23 @@ def parse_image(data: bytes) -> ParsedImage:
         raise ValueError(f"image shorter than the v{version} header")
 
     header_bytes = bytes(data[:header_size])
+
+    # parse_image returns the header's field values, so the header must
+    # prove itself BEFORE any field is interpreted: the CRC runs on the
+    # raw bytes ahead of the typed model — otherwise a corrupted header
+    # could fail on some field rule first and mask the real cause. (The
+    # C chain iterator skips this check only because it never interprets
+    # any identity field — it consumes magic/version for the size alone.)
+    coverage = _HEADER_SIZES[version] - 4
+    stored_header_crc = struct.unpack("<I", header_bytes[coverage : coverage + 4])[0]
+    if binascii.crc32(header_bytes[:coverage]) & 0xFFFFFFFF != stored_header_crc:
+        raise ValueError("board header CRC mismatch")
+
     header: EEPROMHeaderV3 | None = None
     if version == 3:
         header = EEPROMHeaderV3.from_bytes(header_bytes)
     elif version == 4:
         header = EEPROMHeaderV4.from_bytes(header_bytes)
-
-    # parse_image returns the header's field values, so the header must
-    # prove itself first: a failed CRC is a failed header. (The C chain
-    # iterator skips this check only because it never interprets any
-    # identity field — it consumes magic/version for the size alone.)
-    coverage = _HEADER_SIZES[version] - 4
-    stored_header_crc = struct.unpack("<I", header_bytes[coverage : coverage + 4])[0]
-    if binascii.crc32(header_bytes[:coverage]) & 0xFFFFFFFF != stored_header_crc:
-        raise ValueError("board header CRC mismatch")
 
     fs_version = data[EEPROM_FS_VERSION_OFFSET]
     result = ParsedImage(version, header_bytes, header, fs_version)
