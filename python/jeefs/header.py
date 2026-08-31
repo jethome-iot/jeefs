@@ -248,7 +248,10 @@ class EEPROMHeaderV3:
         """Serialize header to 256-byte binary (JEEPROMHeaderv3 format).
 
         Calculates CRC32 over bytes 0-251 and appends at offset 252.
-        If timestamp is None or 0, uses current Unix time.
+        The timestamp is written verbatim (None packs as 0): no
+        implementation substitutes the current time — producers set the
+        signing moment explicitly, and 0 is the not-yet-provisioned
+        placeholder state (see header_is_empty).
 
         Returns:
             256-byte EEPROM header binary.

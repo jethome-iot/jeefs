@@ -230,6 +230,14 @@ class TestHeaderToBytes:
         ts = struct.unpack("<q", result[244:252])[0]
         assert ts == 0
 
+    def test_timestamp_zero_is_verbatim(self, sample_data):
+        # ts=0 stays 0 on the wire: it is the placeholder state
+        # (header_is_empty), never replaced with the current time
+        header = EEPROMHeaderV3(**sample_data, timestamp=0)
+        result = header.to_bytes()
+        ts = struct.unpack("<q", result[244:252])[0]
+        assert ts == 0
+
     def test_timestamp_explicit(self, sample_data):
         header = EEPROMHeaderV3(**sample_data, timestamp=1734264000)
         result = header.to_bytes()

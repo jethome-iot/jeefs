@@ -26,6 +26,11 @@ This file defines constants, enumerations, and shared properties used across all
     NUL optional when the value fills the field — all bytes usable.
     Content validation is outside the library.
 
+- **Timestamps:** written verbatim by the producer — no implementation
+  substitutes the current time during serialization. `0` means "not
+  provisioned yet" and is part of the empty-header state below; parsers
+  return the stored value as is.
+
 ## Empty (placeholder) header
 
 A header whose every byte from offset 12 up to (not including) its CRC
