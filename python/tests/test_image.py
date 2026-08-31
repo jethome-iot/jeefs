@@ -134,11 +134,39 @@ class TestParseImage:
         with pytest.raises(ValueError, match="header CRC"):
             parse_image(bytes(img))
 
-    def test_corrupted_data_crc_rejected(self):
-        img = bytearray(build_image(v4_header(), [("a", b"xyz")], 512))
-        img[256 + FHDR] ^= 0xFF  # first data byte
-        with pytest.raises(ValueError, match="data CRC"):
-            parse_image(bytes(img))
+    def test_corrupted_data_crc_reported_not_fatal(self):
+        # C conformance: the chain walk never aborts on a payload problem —
+        # ListFiles lists both files, ReadFile refuses only the bad one.
+        img = bytearray(build_image(v4_header(), [("a", b"xyz"), ("b", b"ok")], 512))
+        img[256 + FHDR] ^= 0xFF  # first data byte of "a"
+        parsed = parse_image(bytes(img))
+        assert [f.name for f in parsed.files] == ["a", "b"]
+        assert parsed.unreadable == ["a"]
+
+    def test_oversized_datasize_is_unreadable(self):
+        # dataSize above INT16_MAX walks fine (chain rules allow it) but
+        # C's EEPROM_ReadFile would refuse it — reported, not returned OK.
+        img = bytearray(build_image(v4_header(), [("big", b"x" * 100)], 40000 + 284 + 100))
+        img[256 + 16 : 256 + 18] = struct.pack("<H", 40000)
+        img[256 + 22 : 256 + 24] = struct.pack("<H", 0)
+        img[256 + 24 : 256 + 28] = struct.pack("<I", binascii.crc32(bytes(img[256 : 256 + 24])) & 0xFFFFFFFF)
+        parsed = parse_image(bytes(img))
+        assert parsed.unreadable == ["big"]
+
+    def test_non_ascii_name_bytes_parse(self):
+        # The wire format constrains only name length and the terminator,
+        # not byte values (C's filename check is length-only) — a name
+        # byte above 0x7F must parse, not crash.
+        img = bytearray(build_image(v4_header(), [("a", b"x")], 512))
+        img[256] = 0xE9
+        img[256 + 24 : 256 + 28] = struct.pack("<I", binascii.crc32(bytes(img[256 : 256 + 24])) & 0xFFFFFFFF)
+        parsed = parse_image(bytes(img))
+        assert parsed.files[0].name == "\xe9"
+        assert parsed.unreadable == []
+
+    def test_nul_in_name_rejected_on_build(self):
+        with pytest.raises(ValueError, match="name"):
+            build_image(v4_header(), [("a\x00b", b"x")], 512)
 
     def test_erased_tail_is_clean_end(self):
         img = bytearray(build_image(v4_header(), [("a", b"x")], 1024))
