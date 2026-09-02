@@ -178,6 +178,18 @@ endif()
 
 if(CARGO)
     add_test(
+        NAME image_build_rs_matches_golden
+        COMMAND ${CARGO} run --quiet --manifest-path ${CMAKE_SOURCE_DIR}/rust/jeefs-header/Cargo.toml
+            --features bins --bin verify_image_build_rs -- ${GOLDEN_BIN} ${GOLDEN_JSON}
+    )
+
+    add_test(
+        NAME image_build_rs_matches_golden_v4
+        COMMAND ${CARGO} run --quiet --manifest-path ${CMAKE_SOURCE_DIR}/rust/jeefs-header/Cargo.toml
+            --features bins --bin verify_image_build_rs -- ${GOLDEN_BIN_V4} ${GOLDEN_JSON_V4}
+    )
+
+    add_test(
         NAME golden_rs_verify
         COMMAND ${VERIFY_GOLDEN_RS} ${GOLDEN_BIN}
     )
