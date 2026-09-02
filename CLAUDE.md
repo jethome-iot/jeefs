@@ -9,7 +9,7 @@ JEEFS (JetHome EEPROM File System) — a library for working with a simple linke
 The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/Go/TypeScript) with two areas:
 
 1. **Header parsing/manipulation** (priority) — native implementations per language, `docs/format/*.md` as source of truth, shared binary test vectors
-2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header; the Python port additionally offers whole-image build/parse (`jeefs.build_image`/`parse_image`) as a pure-bytes tooling surface — no CRUD, no I/O
+2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header; the Python and Rust ports additionally offer whole-image build/parse (`jeefs.build_image`/`parse_image`, `jeefs_header::image` under the `std` feature) as a pure-bytes tooling surface — no CRUD, no I/O
 
 ### Code generation policy
 
