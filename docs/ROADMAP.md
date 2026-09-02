@@ -30,6 +30,8 @@ work is tracked in GitHub issues and milestones. The 2026-08 audit backlog
 | v0.5.0 | Embeddability | **Buffer-centric FS API** — the library performs no I/O (#25 variant A); **port layer**: CRC32 providers with a freestanding built-in default, libraries free of zlib, `JEEFS_LOG`, freestanding smoke CI for aarch64/riscv64 (#24); audit epic closed (#30) |
 | v0.6.0 | Filesystem integrity | **Dual versioning** — the `fs_version` byte gates the file area (#80); **28-byte file header** with its own CRC32; **`device.id` first** is normative, enforced by AddFile (#82); **pull-model walker** for bounded-RAM targets + running-CRC port form (#81, #84) |
 | v0.7.0 | Provisioning flow | **First-write claim** — AddFile formats a headerless image with an empty current-version header, atomically with the write (#86); **`is_empty`** contract entry point in all four ports distinguishes a placeholder header from a provisioned one |
+| v0.7.1 | Contract clarity | Verbatim **timestamp semantics** stated everywhere (docstring, spec, wire-locking test): producers set the signing moment, 0 = not provisioned — part of the placeholder-header state |
+| v0.8.0 | Image tooling | **Python whole-image API** — `build_image`/`parse_image` over plain bytes (#92): device.id-first, double CRC, hard board-header CRC gate on parse; goldens reproduced byte-for-byte and locked by ctest; `generate_reference.py` is a thin driver over the API |
 
 The consumption model settled in #25: *the environment reads the EEPROM
 itself and hands the library bytes* — every operation is a pure function
