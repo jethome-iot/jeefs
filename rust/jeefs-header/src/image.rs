@@ -127,8 +127,9 @@ pub fn build_image(
             return Err(ImageError::BadData);
         }
     }
-    for (i, (name, _)) in files.iter().enumerate() {
-        if files.iter().skip(i + 1).any(|(other, _)| other == name) {
+    let mut seen = std::collections::HashSet::new();
+    for (name, _) in files {
+        if !seen.insert(*name) {
             return Err(ImageError::DuplicateName);
         }
     }
