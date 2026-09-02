@@ -6,17 +6,19 @@
 
 #![no_std]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
 pub mod devid;
 pub mod generated;
 pub mod header;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub mod image;
 
 pub use devid::*;
 pub use generated::*;
 pub use header::*;
-#[cfg(feature = "std")]
+#[cfg(feature = "alloc")]
 pub use image::*;

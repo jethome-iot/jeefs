@@ -6,11 +6,15 @@
 //! environment read. The rules mirror the C reader in `src/jeefs.c` and the
 //! Python port; cross-language conformance is locked by the byte-identity
 //! of the committed goldens (ctest `image_build_rs_matches_golden*`).
+//!
+//! Gated on the `alloc` feature (a subset of `std`): a `no_std` firmware
+//! with an allocator can read the whole EEPROM, [`parse_image`] it, and
+//! [`build_image`] a replacement to write back.
 
 use crate::generated::{DEVICE_ID_FILENAME, FILE_NAME_LENGTH, FS_VERSION, FS_VERSION_OFFSET};
 use crate::header::{detect_version, header_size};
-use std::string::String;
-use std::vec::Vec;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 const FHDR: usize = 28; // sizeof(JEEFSFileHeaderv1)
 const MAX_DATA: usize = 32767; // INT16_MAX: the C API's int16_t byte counts
@@ -77,7 +81,7 @@ impl core::fmt::Display for ImageError {
     }
 }
 
-impl std::error::Error for ImageError {}
+impl core::error::Error for ImageError {}
 
 fn crc32(data: &[u8]) -> u32 {
     crc32fast::hash(data)
@@ -127,7 +131,7 @@ pub fn build_image(
             return Err(ImageError::BadData);
         }
     }
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = alloc::collections::BTreeSet::new();
     for (name, _) in files {
         if !seen.insert(*name) {
             return Err(ImageError::DuplicateName);
