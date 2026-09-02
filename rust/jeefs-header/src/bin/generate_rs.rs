@@ -36,7 +36,7 @@ fn parse_mac(mac_str: &str) -> Option<[u8; 6]> {
 fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
     // ASCII gate first: byte-indexed slicing below panics on a
     // multi-byte character boundary otherwise
-    if !hex.is_ascii() || hex.len() % 2 != 0 {
+    if !hex.is_ascii() || !hex.len().is_multiple_of(2) {
         return None;
     }
     (0..hex.len())
@@ -84,7 +84,11 @@ fn main() {
         pack_string(&mut buf, 44, 32, s);
     }
     // v4 names the serial slot board_serial (same offset)
-    let serial_key = if version == 4 { "board_serial" } else { "serial" };
+    let serial_key = if version == 4 {
+        "board_serial"
+    } else {
+        "serial"
+    };
     if let Some(s) = fields[serial_key].as_str() {
         pack_bounded(&mut buf, 76, 32, s);
     }
