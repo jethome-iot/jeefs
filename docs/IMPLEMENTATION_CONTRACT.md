@@ -108,8 +108,10 @@ fs_version stamp/gate, board-header CRC verified on the raw bytes before
 anything else, unreadable-payload names reported without aborting the
 walk). Each is locked to the C core by the byte-identity of the committed
 goldens it must reproduce (`image_build_py_matches_golden[_v4]`,
-`image_build_rs_matches_golden[_v4]`); the Rust module is std-only and
-leaves the `no_std` header core untouched.
+`image_build_rs_matches_golden[_v4]`); the Rust module is gated on the
+`alloc` feature (a subset of `std`), so a `no_std` firmware with an
+allocator can rebuild whole images too — the allocation-free header core
+is untouched.
 
 Known, accepted deviations:
 
