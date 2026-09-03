@@ -1,0 +1,12 @@
+# fs_version 0 hides the file area; an unknown value is an error.
+init zeros 8192
+format 4
+add a fill:1:24
+poke 10 00
+list
+read a 8192
+poke 10 07
+list
+read a 8192
+poke 10 01
+list

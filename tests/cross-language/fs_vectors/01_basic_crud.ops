@@ -1,0 +1,11 @@
+# Plain lifecycle: format, append, read back, list.
+init zeros 8192
+format 4
+add alpha fill:1:30
+add beta fill:2:50
+add gamma 00112233445566778899aabbccddeeff
+list
+read alpha 8192
+read beta 8192
+read gamma 8192
+consistency

@@ -32,6 +32,11 @@ path = "src/bin/verify_golden_rs.rs"
 required-features = ["bins"]
 
 [[bin]]
+name = "apply_ops_rs"
+path = "src/bin/apply_ops_rs.rs"
+required-features = ["bins"]
+
+[[bin]]
 name = "verify_image_build_rs"
 path = "src/bin/verify_image_build_rs.rs"
 required-features = ["bins"]

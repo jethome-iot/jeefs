@@ -1,0 +1,11 @@
+# Validation and capacity failures must leave the image alone.
+init zeros 512
+format 4
+add a fill:1:100
+add a fill:2:100
+add 0123456789abcdef fill:1:4
+add toobig fill:3:400
+read a 10
+read ghost 64
+delete ghost
+list

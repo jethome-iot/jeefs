@@ -9,6 +9,11 @@ add_executable(generate_c generate_c.c)
 target_include_directories(generate_c PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(generate_c jeefs_header ZLIB::ZLIB)
 
+# Mutation-vector runner: exercises the FS core (not just the header)
+add_executable(apply_ops_c apply_ops_c.c)
+target_include_directories(apply_ops_c PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(apply_ops_c jeefs ZLIB::ZLIB)
+
 # ─── Build C++ verifier & generator ───────────────────────────────────────────
 add_executable(verify_cpp verify_cpp.cpp)
 target_link_libraries(verify_cpp jeefs_headerpp ZLIB::ZLIB)
@@ -24,9 +29,10 @@ if(CARGO)
     set(VERIFY_RS ${RUST_TARGET_DIR}/verify_rs)
     set(VERIFY_GOLDEN_RS ${RUST_TARGET_DIR}/verify_golden_rs)
     set(GENERATE_RS ${RUST_TARGET_DIR}/generate_rs)
+    set(APPLY_OPS_RS ${RUST_TARGET_DIR}/apply_ops_rs)
 
     add_custom_command(
-        OUTPUT ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS}
+        OUTPUT ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS} ${APPLY_OPS_RS}
         COMMAND ${CARGO} build --release --features bins --manifest-path ${RUST_CRATE_DIR}/Cargo.toml
         DEPENDS
             ${RUST_CRATE_DIR}/src/lib.rs
@@ -35,10 +41,12 @@ if(CARGO)
             ${RUST_CRATE_DIR}/src/bin/verify_rs.rs
             ${RUST_CRATE_DIR}/src/bin/verify_golden_rs.rs
             ${RUST_CRATE_DIR}/src/bin/generate_rs.rs
+            ${RUST_CRATE_DIR}/src/bin/apply_ops_rs.rs
+            ${RUST_CRATE_DIR}/src/fs.rs
             ${RUST_CRATE_DIR}/Cargo.toml
         COMMENT "Building Rust verifiers and generators"
     )
-    add_custom_target(rust_verifiers ALL DEPENDS ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS})
+    add_custom_target(rust_verifiers ALL DEPENDS ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS} ${APPLY_OPS_RS})
 endif()
 
 # ─── NxN cross-language test matrix ──────────────────────────────────────────
@@ -177,6 +185,15 @@ if(Python3_FOUND)
 endif()
 
 if(CARGO)
+    add_test(
+        NAME fs_mutation_c_matches_rs
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_fs_mutation.py
+            $<TARGET_FILE:apply_ops_c> ${APPLY_OPS_RS}
+            ${CMAKE_CURRENT_SOURCE_DIR}/fs_vectors
+            ${CMAKE_CURRENT_BINARY_DIR}/fs_mutation
+    )
+
     add_test(
         NAME image_build_rs_matches_golden
         COMMAND ${CARGO} run --quiet --manifest-path ${CMAKE_SOURCE_DIR}/rust/jeefs-header/Cargo.toml
