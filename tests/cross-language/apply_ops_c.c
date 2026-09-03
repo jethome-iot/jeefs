@@ -47,7 +47,9 @@ static const char *err_class(int16_t code) {
 static int parse_payload(const char *spec, uint8_t *out, size_t cap) {
     if (strncmp(spec, "fill:", 5) == 0) {
         unsigned byte = 0, count = 0;
-        if (sscanf(spec + 5, "%u:%u", &byte, &count) != 2 || count > cap)
+        /* A byte above 255 would wrap in memset here while the Rust
+         * runner rejects it outright — refuse it in both. */
+        if (sscanf(spec + 5, "%u:%u", &byte, &count) != 2 || byte > 255 || count > cap)
             return -1;
         memset(out, (int) byte, count);
         return (int) count;
@@ -158,7 +160,11 @@ int main(int argc, char **argv) {
             }
         } else if (strcmp(op, "poke") == 0) {
             /* poke <offset> <hexbyte>: corrupt the medium under the reader */
-            unsigned off = (unsigned) strtoul(arg1, NULL, 0);
+            /* Decimal, or 0x for hex — matching the Rust runner. Plain
+             * strtoul(.., 0) would read a leading zero as octal and make
+             * the two runners disagree on the vector, not on the port. */
+            int base = (arg1[0] == '0' && (arg1[1] == 'x' || arg1[1] == 'X')) ? 16 : 10;
+            unsigned off = (unsigned) strtoul(arg1, NULL, base);
             unsigned val = (unsigned) strtoul(arg2, NULL, 16);
             if (off < image_size)
                 image[off] = (uint8_t) val;

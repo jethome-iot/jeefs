@@ -185,15 +185,19 @@ if(Python3_FOUND)
 endif()
 
 if(CARGO)
-    add_test(
-        NAME fs_mutation_c_matches_rs
-        COMMAND ${Python3_EXECUTABLE}
-            ${CMAKE_CURRENT_SOURCE_DIR}/verify_fs_mutation.py
-            $<TARGET_FILE:apply_ops_c> ${APPLY_OPS_RS}
-            ${CMAKE_CURRENT_SOURCE_DIR}/fs_vectors
-            ${CMAKE_CURRENT_BINARY_DIR}/fs_mutation
-            --random 50
-    )
+    # The driver is a Python script: without an interpreter the command
+    # would be empty, so gate on both toolchains.
+    if(Python3_FOUND)
+        add_test(
+            NAME fs_mutation_c_matches_rs
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/verify_fs_mutation.py
+                $<TARGET_FILE:apply_ops_c> ${APPLY_OPS_RS}
+                ${CMAKE_CURRENT_SOURCE_DIR}/fs_vectors
+                ${CMAKE_CURRENT_BINARY_DIR}/fs_mutation
+                --random 50
+        )
+    endif()
 
     add_test(
         NAME image_build_rs_matches_golden

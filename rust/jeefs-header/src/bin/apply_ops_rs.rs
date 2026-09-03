@@ -10,6 +10,13 @@ use jeefs_header::fs::{add_file, delete_file, files, format, header_check_consis
 use std::fs;
 use std::process;
 
+/// MAX_FILES of the C runner: its ListFiles buffer holds this many names.
+const C_LIST_CAP: usize = 512;
+/// Ceiling for anything a scenario can ask the runner to allocate — the C
+/// runner's static buffers are this size, and a typo in a vector must fail
+/// loudly instead of exhausting memory.
+const MAX_BUF: usize = 65535;
+
 fn err_class(e: FsError) -> &'static str {
     match e {
         FsError::FileNotFound => "not_found",
@@ -26,7 +33,14 @@ fn err_class(e: FsError) -> &'static str {
 fn parse_payload(spec: &str) -> Option<Vec<u8>> {
     if let Some(rest) = spec.strip_prefix("fill:") {
         let (b, n) = rest.split_once(':')?;
-        return Some(vec![b.parse::<u8>().ok()?; n.parse::<usize>().ok()?]);
+        let count = n.parse::<usize>().ok()?;
+        if count > MAX_BUF {
+            return None;
+        }
+        return Some(vec![b.parse::<u8>().ok()?; count]);
+    }
+    if spec.len() / 2 > MAX_BUF {
+        return None;
     }
     if !spec.len().is_multiple_of(2) || !spec.is_ascii() {
         return None;
@@ -72,7 +86,12 @@ fn main() {
 
         match op {
             "init" => {
-                image = init_image(arg1, arg2.parse().unwrap_or(0));
+                let size: usize = arg2.parse().unwrap_or(0);
+                if size > MAX_BUF {
+                    eprintln!("image size out of range: {arg2}");
+                    process::exit(2);
+                }
+                image = init_image(arg1, size);
                 println!("{idx} init ok {}", image.len());
             }
             "format" => match format(&mut image, arg1.parse().unwrap_or(0)) {
@@ -100,7 +119,7 @@ fn main() {
                 Err(e) => println!("{idx} delete err {}", err_class(e)),
             },
             "read" => {
-                let cap: usize = arg2.parse().unwrap_or(0);
+                let cap: usize = arg2.parse().unwrap_or(0).min(MAX_BUF);
                 let mut buf = vec![0u8; cap];
                 match read_file(&image, arg1, &mut buf) {
                     Ok(n) => println!("{idx} read ok {n} {:08x}", crc32fast::hash(&buf[..n])),
@@ -114,6 +133,12 @@ fn main() {
                     let mut count = 0usize;
                     let mut failure = None;
                     for entry in iter {
+                        // The C ListFiles stops at its caller-supplied cap
+                        // and still reports success; mirror that here so the
+                        // journals compare the ports, not the API shapes.
+                        if count >= C_LIST_CAP {
+                            break;
+                        }
                         match entry {
                             Ok(e) => {
                                 out.push(' ');
