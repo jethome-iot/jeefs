@@ -7,14 +7,52 @@ every operation's outcome (the journal on stdout) and on the resulting
 image byte for byte. A drift in chain layout, link rewriting, wiping or
 error classification fails here.
 
+With --random N, N generated scenarios are run on top of the committed
+ones: the same operations in pseudo-random order against pseudo-random
+media, seeded so a failure is reproducible. That is the differential
+counterpart of the C fuzz harness — it hunts for a Rust panic or a
+silent layout drift on inputs nobody wrote by hand.
+
 Usage: verify_fs_mutation.py <apply_ops_c> <apply_ops_rs> <vector_dir> <work_dir>
+                             [--random N] [--seed S]
 """
 
 from __future__ import annotations
 
+import random
 import subprocess
 import sys
 from pathlib import Path
+
+NAMES = ["a", "b", "c", "device.id", "cfg", "0123456789abcde", "x.bin"]
+IMAGE_KINDS = ["zeros", "erased", "garbage"]
+
+
+def random_scenario(rng: random.Random) -> str:
+    """A scenario built from the same ops as the committed vectors."""
+    size = rng.choice([512, 1024, 4096, 8192])
+    lines = [f"init {rng.choice(IMAGE_KINDS)} {size}"]
+    if rng.random() < 0.8:
+        lines.append(f"format {rng.choice([1, 2, 3, 4, 4, 4])}")
+    for _ in range(rng.randint(4, 20)):
+        op = rng.choices(
+            ["add", "write", "delete", "read", "list", "poke", "consistency"],
+            weights=[35, 15, 15, 15, 10, 8, 2],
+        )[0]
+        name = rng.choice(NAMES)
+        if op in ("add", "write"):
+            lines.append(f"{op} {name} fill:{rng.randint(0, 255)}:{rng.randint(1, 400)}")
+        elif op == "delete":
+            lines.append(f"delete {name}")
+        elif op in ("list", "consistency"):
+            lines.append(op)
+        elif op == "read":
+            lines.append(f"read {name} {rng.choice([1, 16, 400, 8192])}")
+        else:
+            lines.append(f"poke {rng.randrange(size)} {rng.randrange(256):02x}")
+    lines.append("list")
+    lines.append("consistency")
+    return "\n".join(lines) + "\n"
 
 
 def run(binary: Path, scenario: Path, out: Path) -> list[str]:
@@ -59,16 +97,37 @@ def compare_images(scenario: Path, c_bin: Path, rs_bin: Path) -> bool:
 
 
 def main() -> None:
-    if len(sys.argv) != 5:
+    args = sys.argv[1:]
+    random_count, seed = 0, 20260903
+    for flag, target in (("--random", "random_count"), ("--seed", "seed")):
+        if flag in args:
+            i = args.index(flag)
+            value = int(args[i + 1])
+            args = args[:i] + args[i + 2 :]
+            if target == "random_count":
+                random_count = value
+            else:
+                seed = value
+    if len(args) != 4:
         print(__doc__)
         sys.exit(2)
-    apply_c, apply_rs, vector_dir, work_dir = (Path(a) for a in sys.argv[1:])
+    apply_c, apply_rs, vector_dir, work_dir = (Path(a) for a in args)
     work_dir.mkdir(parents=True, exist_ok=True)
 
     scenarios = sorted(vector_dir.glob("*.ops"))
     if not scenarios:
         print(f"FAIL: no .ops vectors in {vector_dir}")
         sys.exit(1)
+
+    if random_count:
+        rng = random.Random(seed)
+        generated = work_dir / "generated"
+        generated.mkdir(exist_ok=True)
+        for n in range(random_count):
+            path = generated / f"seed{seed}_{n:04d}.ops"
+            path.write_text(random_scenario(rng))
+            scenarios.append(path)
+        print(f"generated {random_count} random scenarios (seed {seed})")
 
     failures = 0
     for scenario in scenarios:
