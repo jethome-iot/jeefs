@@ -35,6 +35,7 @@ work is tracked in GitHub issues and milestones. The 2026-08 audit backlog
 | v0.9.0 | Rust image tooling | **Rust whole-image API** — `jeefs_header::image` under the `std` feature (#97): the same build/parse semantics as the Python surface, byte-transparent names, `unreadable` reporting; locked to the goldens by `image_build_rs_matches_golden[_v4]`; the `no_std` core is untouched |
 | v0.10.0 | Firmware-side images | **Rust image module re-gated on `alloc`** (#100): a `no_std` firmware with an allocator can parse and rebuild whole EEPROM images; MSRV declared (1.87); CI runs the image tests without std; in-place FS CRUD from Rust tracked in #99 |
 | v0.11.0 | Filesystem in Rust | **Allocation-free Rust FS port** — `jeefs_header::fs` in bare `no_std` (#99): format, chain iteration, read, add, overwrite, delete over a caller buffer, with the C core's rules intact; shared mutation vectors plus differential fuzzing (`fs_mutation_c_matches_rs`) require C and Rust to produce the same journal and the same bytes |
+| v0.11.1 | One version per repository | `version.json` now drives every package including the codegen tool, documentation shows `cargo add` / `pip install` instead of pins that go stale (enforced by `sync_version.py --check`), stale v3-era README copies removed, and the crate finally ships a README to crates.io |
 
 The consumption model settled in #25: *the environment reads the EEPROM
 itself and hands the library bytes* — every operation is a pure function
