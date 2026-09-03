@@ -67,6 +67,12 @@ static int parse_payload(const char *spec, uint8_t *out, size_t cap) {
 }
 
 static void init_image(const char *kind, unsigned size) {
+    /* The scenario is external input: an oversized value would run past
+     * the static buffer and truncate through the uint16_t cast. */
+    if (size == 0 || size > MAX_IMG) {
+        fprintf(stderr, "image size out of range: %u\n", size);
+        exit(2);
+    }
     image_size = (uint16_t) size;
     if (strcmp(kind, "erased") == 0)
         memset(image, 0xFF, size);
