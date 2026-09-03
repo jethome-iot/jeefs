@@ -87,7 +87,7 @@ fn main() {
         match op {
             "init" => {
                 let size: usize = arg2.parse().unwrap_or(0);
-                if size > MAX_BUF {
+                if size == 0 || size > MAX_BUF {
                     eprintln!("image size out of range: {arg2}");
                     process::exit(2);
                 }
