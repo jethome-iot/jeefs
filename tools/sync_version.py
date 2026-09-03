@@ -192,6 +192,8 @@ def main() -> int:
             status = "updated" if changed else "ok"
             print(f"  {status}: {label}")
 
+    # Pins live in prose, which this tool never rewrites: they fail the
+    # check but must not fail an update run, whose job is done.
     pins = find_doc_pins()
     for hit in pins:
         print(f"  PINNED VERSION {hit}")
@@ -199,20 +201,20 @@ def main() -> int:
         print(
             f"\n{len(pins)} documentation pin(s): show `cargo add` or "
             "`pip install` instead of a version that will go stale. "
-            "These are edited by hand — this tool does not rewrite prose."
+            "Edit these by hand."
         )
 
-    if errors or pins:
-        if errors and check_only:
+    if errors:
+        if check_only:
             print(
                 f"\n{errors} file(s) out of sync. "
                 "Run: python tools/sync_version.py"
             )
-        elif errors:
+        else:
             print(f"\n{errors} target file(s) missing.")
         return 1
 
-    return 0
+    return 1 if (pins and check_only) else 0
 
 
 if __name__ == "__main__":
