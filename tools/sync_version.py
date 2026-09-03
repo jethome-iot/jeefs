@@ -123,10 +123,14 @@ def check_c_version_header(path: Path, version: str) -> bool:
 # repository the number refers to. Documentation shows `cargo add` or
 # `pip install` instead; this check keeps it that way.
 _PIN_PATTERNS = (
-    re.compile(r'jeefs-header\s*=\s*"[0-9]'),
-    re.compile(r'jeefs-header\s*=\s*\{[^}]*version\s*=\s*"[0-9]'),
-    re.compile(r'\bjeefs\s*[=><]=\s*[0-9]'),
-    re.compile(r'pip install jeefs==[0-9]'),
+    # Cargo.toml examples
+    re.compile(r'jeefs(-header)?\s*=\s*"[0-9]'),
+    re.compile(r'jeefs(-header)?\s*=\s*\{[^}]*version\s*=\s*"[0-9]'),
+    # cargo add jeefs-header@0.1 / --version 0.1 / --vers 0.1
+    re.compile(r'cargo\s+add\s+\S*jeefs\S*@[0-9]'),
+    re.compile(r'cargo\s+add\s+\S*jeefs\S*[^\n]*--vers(ion)?[= ]\s*[0-9]'),
+    # pip install jeefs==0.1, quoted or not, pip or pip3, with extras
+    re.compile(r'\bjeefs(\[[^\]]*\])?\s*[=><!~]=\s*[0-9]'),
 )
 
 
@@ -194,17 +198,17 @@ def main() -> int:
     if pins:
         print(
             f"\n{len(pins)} documentation pin(s): show `cargo add` or "
-            "`pip install` instead of a version that will go stale."
+            "`pip install` instead of a version that will go stale. "
+            "These are edited by hand — this tool does not rewrite prose."
         )
-        errors += len(pins)
 
-    if errors:
-        if check_only:
+    if errors or pins:
+        if errors and check_only:
             print(
-                f"\n{errors} problem(s). Run: python tools/sync_version.py "
-                "(pins in documentation must be edited by hand)"
+                f"\n{errors} file(s) out of sync. "
+                "Run: python tools/sync_version.py"
             )
-        else:
+        elif errors:
             print(f"\n{errors} target file(s) missing.")
         return 1
 
