@@ -1,0 +1,15 @@
+# A flipped payload byte breaks the data CRC but must not stop the walk;
+# a flipped name byte breaks headerCrc32 and ends it.
+init zeros 8192
+format 4
+add a fill:1:40
+add b fill:2:40
+poke 284 ff
+read a 8192
+list
+init zeros 8192
+format 4
+add a fill:1:40
+poke 258 ff
+list
+read a 8192

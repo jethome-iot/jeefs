@@ -1,0 +1,10 @@
+# device.id must land in the first slot and relink the shifted chain.
+init zeros 8192
+format 4
+add payload fill:7:40
+add second fill:8:10
+add device.id fill:9:256
+list
+read device.id 8192
+read payload 8192
+read second 8192

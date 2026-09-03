@@ -1,0 +1,15 @@
+# Delete from the middle, from the front, and the last remaining file.
+init zeros 8192
+format 4
+add a fill:1:30
+add b fill:2:50
+add c fill:3:20
+delete b
+list
+read c 8192
+delete a
+list
+read c 8192
+delete c
+list
+delete ghost

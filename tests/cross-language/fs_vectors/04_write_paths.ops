@@ -1,0 +1,13 @@
+# Same-size overwrite stays in place; a different size relocates.
+init zeros 8192
+format 4
+add a fill:1:20
+add b fill:2:20
+write a fill:8:20
+list
+read a 8192
+write a fill:9:60
+list
+read a 8192
+read b 8192
+write ghost fill:1:4
