@@ -1,6 +1,11 @@
 # JEEFS Header — Python Package
 
-Pure Python library for parsing and generating JEEFS EEPROM headers. The main API class `EEPROMHeaderV3` handles v3 headers; constants and field offsets for all versions (v1/v2/v3) are available via `jeefs.constants`. No native dependencies.
+Pure Python library for the JEEFS EEPROM format used across JetHome
+devices. `EEPROMHeaderV4` is the current board header and `EEPROMHeaderV3`
+the fielded production one; constants and field offsets for every version
+(v1-v4) live in `jeefs.constants`. `DeviceIdentityV1` handles the signed
+`device.id` record, and `build_image` / `parse_image` assemble and read a
+whole EEPROM image for provisioning tooling. No native dependencies.
 
 ## Installation
 
@@ -119,7 +124,7 @@ See [examples/python/read_header.py](https://github.com/jethome-iot/jeefs/blob/m
 
 ```bash
 cd python
-python -m pytest tests/ -v   # 58 tests
+python -m pytest tests/ -v
 ```
 
 ## Format specification
