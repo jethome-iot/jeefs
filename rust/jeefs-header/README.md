@@ -33,8 +33,9 @@ use jeefs_header::{detect_version, verify_crc, JeepromHeaderV4};
 
 let version = detect_version(&image).expect("no JEEFS header");
 assert!(verify_crc(&image)); // sizes itself by version: 512 for v1, 256 otherwise
+
 let hdr = JeepromHeaderV4::from_bytes(&image).unwrap();
-println!("{} / {}", hdr.boardname_str(), hdr.board_serial_str());
+println!("v{version}: {} / {}", hdr.boardname_str(), hdr.board_serial_str());
 ```
 
 ## Editing files in place, without a heap
