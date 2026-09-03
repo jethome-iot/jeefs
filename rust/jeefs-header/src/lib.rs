@@ -12,6 +12,7 @@ extern crate alloc;
 extern crate std;
 
 pub mod devid;
+pub mod fs;
 pub mod generated;
 pub mod header;
 #[cfg(feature = "alloc")]
