@@ -116,16 +116,47 @@ def check_c_version_header(path: Path, version: str) -> bool:
     return old != _c_version_header_content(version)
 
 
+# --- Documentation pins ---
+
+# A dependency example that spells out a version goes stale the moment
+# the next release ships, and then nobody can tell which parts of the
+# repository the number refers to. Documentation shows `cargo add` or
+# `pip install` instead; this check keeps it that way.
+_PIN_PATTERNS = (
+    re.compile(r'jeefs-header\s*=\s*"[0-9]'),
+    re.compile(r'jeefs-header\s*=\s*\{[^}]*version\s*=\s*"[0-9]'),
+    re.compile(r'\bjeefs\s*[=><]=\s*[0-9]'),
+    re.compile(r'pip install jeefs==[0-9]'),
+)
+
+
+def find_doc_pins() -> list[str]:
+    """Return 'path:line: text' for every hardcoded version pin in docs."""
+    hits = []
+    skip = {".git", "build", "target", ".venv", "node_modules", "htmlcov"}
+    for path in ROOT.rglob("*.md"):
+        if set(path.parts) & skip:
+            continue
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            if any(p.search(line) for p in _PIN_PATTERNS):
+                rel = path.relative_to(ROOT)
+                hits.append(f"{rel}:{lineno}: {line.strip()}")
+    return hits
+
+
 # --- Main ---
 
 _PY_TOML = ROOT / "python" / "pyproject.toml"
 _RS_TOML = ROOT / "rust" / "jeefs-header" / "Cargo.toml"
+_TOOLS_TOML = ROOT / "tools" / "pyproject.toml"
 _C_HDR = ROOT / "include" / "jeefs_version.h"
 
 TARGETS = [
     ("python/pyproject.toml", _PY_TOML,
      update_toml_version, check_toml_version),
     ("rust/jeefs-header/Cargo.toml", _RS_TOML,
+     update_toml_version, check_toml_version),
+    ("tools/pyproject.toml", _TOOLS_TOML,
      update_toml_version, check_toml_version),
     ("include/jeefs_version.h", _C_HDR,
      update_c_version_header, check_c_version_header),
@@ -157,11 +188,21 @@ def main() -> int:
             status = "updated" if changed else "ok"
             print(f"  {status}: {label}")
 
+    pins = find_doc_pins()
+    for hit in pins:
+        print(f"  PINNED VERSION {hit}")
+    if pins:
+        print(
+            f"\n{len(pins)} documentation pin(s): show `cargo add` or "
+            "`pip install` instead of a version that will go stale."
+        )
+        errors += len(pins)
+
     if errors:
         if check_only:
             print(
-                f"\n{errors} file(s) out of sync. "
-                "Run: python tools/sync_version.py"
+                f"\n{errors} problem(s). Run: python tools/sync_version.py "
+                "(pins in documentation must be edited by hand)"
             )
         else:
             print(f"\n{errors} target file(s) missing.")

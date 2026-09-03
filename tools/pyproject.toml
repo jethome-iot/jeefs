@@ -4,7 +4,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "jeefs-codegen"
-version = "0.1.0"
+version = "0.11.0"
 description = "JEEFS code generator — produces C and Python from markdown format specs"
 license = "GPL-2.0-or-later OR Apache-2.0"
 requires-python = ">=3.10"
