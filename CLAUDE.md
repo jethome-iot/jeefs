@@ -9,7 +9,7 @@ JEEFS (JetHome EEPROM File System) — a library for working with a simple linke
 The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/Go/TypeScript) with two areas:
 
 1. **Header parsing/manipulation** (priority) — native implementations per language, `docs/format/*.md` as source of truth, shared binary test vectors
-2. **File system operations** — C/C++ only, CRUD for files stored as a linked list after the header; the Python and Rust ports additionally offer whole-image build/parse (`jeefs.build_image`/`parse_image`, `jeefs_header::image` under the `alloc` feature — usable from `no_std` firmware with an allocator) as a pure-bytes tooling surface — no CRUD, no I/O; a native Rust FS-CRUD port is tracked separately (issue #99)
+2. **File system operations** — CRUD for files stored as a linked list after the header: C/C++ and, since #99, a native allocation-free Rust port (`jeefs_header::fs`, available in bare `no_std`). Python and Rust also offer whole-image build/parse (`jeefs.build_image`/`parse_image`, `jeefs_header::image` under the `alloc` feature) as a pure-bytes tooling surface — no CRUD, no I/O
 
 ### Code generation policy
 
@@ -25,7 +25,7 @@ the two. **Never edit generated files by hand; never change the format outside
 
 Header parsing uses **native implementations per language** (not FFI). Rationale: the header is 256 bytes / ~13 fields — the parsing logic (~80 lines) is comparable in size to an FFI wrapper, and native packages are trivial to deploy (`pip install`, `cargo add`, `go get`). `docs/format/*.md` is the canonical spec (`EEPROM_FORMAT.md` is a human-readable overview); shared binary test vectors in `test-vectors/` ensure cross-language consistency.
 
-FS operations stay in C/C++ — more complex, I/O-dependent, only needed on embedded targets.
+FS operations exist in C/C++ and Rust. The Rust port (#99) is a line-by-line port of `src/jeefs.c` over a caller-owned `&mut [u8]`, allocation-free like the C core, because Rust firmware works with the whole EEPROM too. Both are locked together by the shared mutation vectors in `tests/cross-language/fs_vectors` (ctest `fs_mutation_c_matches_rs`): the same scenario must produce the same operation journal and the same image bytes. Any further FS port carries the same obligation.
 
 ## Build & Test
 
