@@ -110,18 +110,19 @@ default pulls in `<stdio.h>`.
 The `jeefs-header` crate carries the same model, so Rust firmware needs
 no C in the build:
 
-```toml
-jeefs-header = { version = "0.11", default-features = false }
+```bash
+cargo add jeefs-header --no-default-features
 ```
 
-That bare `no_std` build gives the header and `device.id` APIs plus
+That pins whatever version the build resolves; the bare `no_std` build
+gives the header and `device.id` APIs plus
 `jeefs_header::fs` — `format`, `files`, `read_file`, `add_file`,
 `write_file`, `delete_file`, `header_check_consistency` over a
 caller-owned `&mut [u8]`, allocating nothing. Failures are `FsError`
 values, one per `EEPROMError` code; the crate never panics on image
 content (validated by the differential fuzzing described below).
 
-Add `features = ["alloc"]` when the firmware has an allocator and wants
+Add `--features alloc` when the firmware has an allocator and wants
 to rebuild a whole image at once (`jeefs_header::image`) instead of
 editing in place; `std` additionally brings `std::error::Error`
 integration and is the default for host tooling.
