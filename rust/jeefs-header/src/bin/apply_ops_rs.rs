@@ -184,7 +184,9 @@ fn main() {
     });
 }
 
-/// Accept both decimal and 0x-prefixed offsets, like C's strtoul(.., 0).
+/// Decimal, or 0x-prefixed hex — the same two forms the C runner accepts.
+/// Neither reads a leading zero as octal, so a vector cannot make the two
+/// runners disagree on the offset itself.
 fn parse_uint(s: &str) -> usize {
     match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
         Some(hex) => usize::from_str_radix(hex, 16).unwrap_or(usize::MAX),
