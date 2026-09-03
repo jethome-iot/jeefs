@@ -4,10 +4,10 @@
 #ifndef JEEFS_VERSION_H
 #define JEEFS_VERSION_H
 
-#define JEEFS_VERSION "0.11.0"
+#define JEEFS_VERSION "0.11.1"
 #define JEEFS_VERSION_MAJOR 0
 #define JEEFS_VERSION_MINOR 11
-#define JEEFS_VERSION_PATCH 0
+#define JEEFS_VERSION_PATCH 1
 
 #ifdef __cplusplus
 extern "C" {
