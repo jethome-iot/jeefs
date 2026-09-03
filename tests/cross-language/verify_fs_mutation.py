@@ -102,7 +102,12 @@ def main() -> None:
     for flag, target in (("--random", "random_count"), ("--seed", "seed")):
         if flag in args:
             i = args.index(flag)
-            value = int(args[i + 1])
+            try:
+                value = int(args[i + 1])
+            except (IndexError, ValueError):
+                print(f"{flag} needs an integer value\n")
+                print(__doc__)
+                sys.exit(2)
             args = args[:i] + args[i + 2 :]
             if target == "random_count":
                 random_count = value
