@@ -28,10 +28,10 @@ GPL-2.0-or-later / Apache-2.0.
 
 | Language | Where | Install |
 |----------|-------|---------|
-| C (headers + record + FS) | `src/`, `include/` | CMake package `jeefs` (`jeefs::header`, `jeefs::fs`) or pkg-config |
+| C (headers + record + FS + walker) | `src/`, `include/` | CMake package `jeefs` (`jeefs::header`, `jeefs::fs`) or pkg-config |
 | C++17 (header-only wrappers) | `include/*.hpp` | ships with the C package |
 | Python (headers + record + image build/parse) | `python/` | `pip install jeefs` |
-| Rust (headers + record `no_std`; image build/parse under `alloc`) | `rust/jeefs-header/` | `cargo add jeefs-header` |
+| Rust (headers + record + FS, all `no_std`; image build/parse under `alloc`) | `rust/jeefs-header/` | `cargo add jeefs-header` |
 
 All ports conform to the
 [implementation contract](docs/IMPLEMENTATION_CONTRACT.md) and are locked

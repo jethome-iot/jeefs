@@ -11,7 +11,7 @@ planned) gate on this contract from day one. The byte-level ground truth is
 |-------|----------|-------------|
 | **Core** | header parsing/building — pure functions over byte buffers | every port |
 | **Record** | DeviceIdentityV1 (`device.id`) operations | every port |
-| **FS** | linked-list file storage (open/format/add/read/write/delete) | C/C++ only, by design |
+| **FS** | linked-list file storage (format/list/add/read/write/delete) | C/C++ and Rust; optional for a new port |
 
 ## Core operations
 
@@ -88,6 +88,7 @@ Conformance is not a claim, it is the following tests passing in CI:
 | `generate_vectors.py --check` (CI + prek) | committed vector binaries never drift from their JSON descriptions |
 | Committed record vector | `devid_record_v1.bin` parsed by all four languages against the JSON expectations |
 | Per-language unit suites | ctest (C/C++), pytest, cargo test — erased buffers, unknown versions, CRC gates, bounded round-trips, byte-level LE locks |
+| FS mutation vectors (`fs_vectors/*.ops`) | every port implementing FS applies the same scenario — format, append, `device.id` insert, overwrite, delete, claim, corruption, gates — and must produce the same operation journal and the same image bytes as the C core |
 
 ## Conformance status (2026-08)
 
