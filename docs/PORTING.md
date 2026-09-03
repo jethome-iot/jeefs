@@ -104,3 +104,31 @@ default pulls in `<stdio.h>`.
   library never traps, asserts or exits;
 - thread safety = external: one context owns the image during an
   operation.
+
+## Rust firmware
+
+The `jeefs-header` crate carries the same model, so Rust firmware needs
+no C in the build:
+
+```toml
+jeefs-header = { version = "0.11", default-features = false }
+```
+
+That bare `no_std` build gives the header and `device.id` APIs plus
+`jeefs_header::fs` — `format`, `files`, `read_file`, `add_file`,
+`write_file`, `delete_file`, `header_check_consistency` over a
+caller-owned `&mut [u8]`, allocating nothing. Failures are `FsError`
+values, one per `EEPROMError` code; the crate never panics on image
+content (validated by the differential fuzzing described below).
+
+Add `features = ["alloc"]` when the firmware has an allocator and wants
+to rebuild a whole image at once (`jeefs_header::image`) instead of
+editing in place; `std` additionally brings `std::error::Error`
+integration and is the default for host tooling.
+
+The C `jeefs_walk.h` walker has no Rust counterpart: a target too small
+to buffer its EEPROM should call the C walker. Everything else is
+interchangeable — the Rust FS port is held to the C core byte for byte
+by `tests/cross-language/fs_vectors` (ctest `fs_mutation_c_matches_rs`),
+which replays the same scenarios, plus generated random ones, through
+both implementations and compares the resulting images.
