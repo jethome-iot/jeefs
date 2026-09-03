@@ -192,6 +192,7 @@ if(CARGO)
             $<TARGET_FILE:apply_ops_c> ${APPLY_OPS_RS}
             ${CMAKE_CURRENT_SOURCE_DIR}/fs_vectors
             ${CMAKE_CURRENT_BINARY_DIR}/fs_mutation
+            --random 50
     )
 
     add_test(
