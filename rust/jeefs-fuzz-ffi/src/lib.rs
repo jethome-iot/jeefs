@@ -8,6 +8,10 @@
 use core::slice;
 use jeefs_header::fs::{add_file, delete_file, files, format, read_file, write_file, FsError};
 
+/// Width of the name field in a file header — every name pointer crossing
+/// this boundary points at a buffer of exactly this size.
+const NAME_FIELD: usize = 16;
+
 /// Mirrors the C error codes so the two sides can be compared directly.
 fn code(e: FsError) -> i16 {
     match e {
@@ -21,15 +25,21 @@ fn code(e: FsError) -> i16 {
     }
 }
 
-/// Borrow a caller name that is NUL-terminated within `max` bytes.
+/// Borrow a caller name from a fixed 16-byte field, up to its NUL.
+///
+/// Sixteen is the on-wire width of `JEEFSFileHeaderv1::name`, and the whole
+/// field is read regardless of where the terminator sits — searching for the
+/// NUL byte by byte would read the same memory anyway.
 ///
 /// # Safety
-/// `name` must point to at least one readable byte and stay valid for the call.
+/// `name` must be null or point to 16 bytes valid for reads for the duration
+/// of the call. A shorter allocation is undefined behaviour even when the
+/// NUL comes early.
 unsafe fn name_str<'a>(name: *const u8) -> Option<&'a str> {
     if name.is_null() {
         return None;
     }
-    let bytes = slice::from_raw_parts(name, 16);
+    let bytes = slice::from_raw_parts(name, NAME_FIELD);
     let end = bytes.iter().position(|&b| b == 0)?;
     core::str::from_utf8(&bytes[..end]).ok()
 }
@@ -124,7 +134,7 @@ pub unsafe extern "C" fn jeefs_rs_read(image: *const u8, size: u16, name: *const
 #[no_mangle]
 pub unsafe extern "C" fn jeefs_rs_list(image: *const u8, size: u16, out: *mut u8, max_files: u16) -> i16 {
     let img = slice::from_raw_parts(image, size as usize);
-    let names = slice::from_raw_parts_mut(out, max_files as usize * 16);
+    let names = slice::from_raw_parts_mut(out, max_files as usize * NAME_FIELD);
     names.fill(0);
 
     let iter = match files(img) {
@@ -139,7 +149,7 @@ pub unsafe extern "C" fn jeefs_rs_list(image: *const u8, size: u16, out: *mut u8
                     return count; // the C core stops at the caller's cap too
                 }
                 let name = e.name_bytes();
-                let at = count as usize * 16;
+                let at = count as usize * NAME_FIELD;
                 names[at..at + name.len()].copy_from_slice(name);
                 count += 1;
             }

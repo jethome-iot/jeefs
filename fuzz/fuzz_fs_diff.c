@@ -108,7 +108,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {
     static uint8_t payload[MAX_PAYLOAD];
     static uint8_t c_out[MAX_IMG];
     static uint8_t rs_out[MAX_IMG];
+    /* Exactly the width the shim reads: it takes the whole 16-byte name
+     * field, so anything shorter here would be undefined behaviour. */
     static char name_buf[JEEFS_FILE_NAME_LENGTH + 1];
+    _Static_assert(sizeof(name_buf) == 16, "the Rust shim reads a 16-byte name field");
 
     for (int op_index = 0; op_index < MAX_OPS && cur.pos < cur.len; op_index++) {
         uint8_t op = take_u8(&cur) % 6;
