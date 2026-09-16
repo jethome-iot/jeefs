@@ -185,7 +185,7 @@ if(Python3_FOUND)
             ${VECTORS_DIR} ${CMAKE_CURRENT_BINARY_DIR}/rejections
             $<TARGET_FILE:verify_c>
             $<TARGET_FILE:verify_cpp>
-            "${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verify_py.py"
+            "${Python3_EXECUTABLE}\t${CMAKE_CURRENT_SOURCE_DIR}/verify_py.py"
             ${VERIFY_RS}
     )
 
