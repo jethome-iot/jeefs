@@ -143,6 +143,22 @@ fn check_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
     check_int("timestamp", actual_ts, expected_ts);
 }
 
+/// An integer expectation that refuses a present-but-malformed value: a JSON
+/// float or string would otherwise be read as an omitted optional field and
+/// the check skipped entirely, which the other three ports do not do.
+fn check_int_field(name: &str, actual: i64, fields: &serde_json::Value) {
+    let Some(raw) = fields.get(name) else {
+        return;
+    };
+    match raw.as_i64() {
+        Some(expected) => check_int(name, actual, expected),
+        None => {
+            eprintln!("  FAIL: {name} is present but not an integer");
+            unsafe { FAILURES += 1 };
+        }
+    }
+}
+
 fn check_mac(name: &str, actual: &[u8; 6], expected_str: &str) {
     let parts: Vec<u8> = expected_str
         .split(':')
@@ -293,13 +309,7 @@ fn main() {
                     check_mac("mac", &hdr.mac, s);
                 }
                 // V3-specific fields
-                if let Some(sig_ver) = fields["signature_version"].as_i64() {
-                    check_int(
-                        "signature_version",
-                        hdr.signature_version as i64,
-                        sig_ver,
-                    );
-                }
+                check_int_field("signature_version", hdr.signature_version as i64, fields);
                 check_signature(&bin_data, fields);
                 check_timestamp(&bin_data, fields);
             }
@@ -324,13 +334,7 @@ fn main() {
                 if let Some(s) = fields["mac"].as_str() {
                     check_mac("mac", &hdr.mac, s);
                 }
-                if let Some(sig_ver) = fields["signature_version"].as_i64() {
-                    check_int(
-                        "signature_version",
-                        hdr.signature_version as i64,
-                        sig_ver,
-                    );
-                }
+                check_int_field("signature_version", hdr.signature_version as i64, fields);
                 check_signature(&bin_data, fields);
                 check_timestamp(&bin_data, fields);
             }

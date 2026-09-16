@@ -43,6 +43,17 @@ def _parse_mac(data: bytes) -> str:
     return ":".join(f"{b:02X}" for b in data)
 
 
+
+def _strict_int(value: object) -> int | None:
+    """An integer expectation, refusing bools and integral floats.
+
+    JSON `true` and `1.0` both compare equal to 1 in Python, which would let
+    malformed metadata pass a comparison the other three ports reject.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value
+
 def verify(bin_path: str, json_path: str) -> int:
     bin_data = Path(bin_path).read_bytes()
     spec = json.loads(Path(json_path).read_text())
@@ -60,8 +71,16 @@ def verify(bin_path: str, json_path: str) -> int:
     # Every check below indexes fixed offsets, starting with the version
     # byte: a file shorter than the header it claims to be is refused here
     # rather than raising out of the first index that runs off the end.
-    if len(bin_data) < expected_size:
-        print(f"  FAIL: file is {len(bin_data)} bytes, too short for a {expected_size}-byte header")
+    # Size comes from the header the file actually carries, not from the
+    # spec: a spec claiming header_size 0 would otherwise wave a short file
+    # through and the reads below would raise.
+    detected_size = VERSION_HEADER_SIZES.get(bin_data[8]) if len(bin_data) > 8 else None
+    if detected_size is None:
+        print(f"  FAIL: file is {len(bin_data)} bytes with no recognisable header")
+        print("\nResult: 1 failure(s)")
+        return 1
+    if len(bin_data) < detected_size:
+        print(f"  FAIL: file is {len(bin_data)} bytes, too short for a {detected_size}-byte header")
         print("\nResult: 1 failure(s)")
         return 1
 
@@ -128,7 +147,10 @@ def verify(bin_path: str, json_path: str) -> int:
     if version in (3, 4):
         sig_ver = json_fields.get("signature_version", 0)
         actual_sig_ver = bin_data[9]
-        if actual_sig_ver != sig_ver:
+        if "signature_version" in json_fields and _strict_int(sig_ver) is None:
+            print(f"  FAIL: signature_version is present but not an integer: {sig_ver!r}")
+            failures += 1
+        elif actual_sig_ver != sig_ver:
             print(f"  FAIL: signature_version = {actual_sig_ver} (expected {sig_ver})")
             failures += 1
         else:
@@ -136,16 +158,15 @@ def verify(bin_path: str, json_path: str) -> int:
 
         ts_expected = json_fields.get("timestamp", 0)
         ts_actual = struct.unpack("<q", bin_data[244:252])[0]
-        if ts_actual != ts_expected:
+        if "timestamp" in json_fields and _strict_int(ts_expected) is None:
+            print(f"  FAIL: timestamp is present but not an integer: {ts_expected!r}")
+            failures += 1
+        elif ts_actual != ts_expected:
             print(f"  FAIL: timestamp = {ts_actual} (expected {ts_expected})")
             failures += 1
         else:
             print(f"  OK: timestamp = {ts_actual}")
 
-        # The signature field is 64 bytes whatever the algorithm puts in
-        # it: a shorter signature is zero-padded to the end, and "no
-        # signature" means the whole field is zero. Checking only the
-        # populated prefix would let a generator leave anything behind it.
         # The signature field is 64 bytes whatever the algorithm puts in
         # it: a shorter signature is zero-padded to the end, and "no
         # signature" means the whole field is zero. Checking only the

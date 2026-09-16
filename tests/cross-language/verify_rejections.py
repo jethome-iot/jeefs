@@ -106,6 +106,10 @@ def cases(vectors: Path) -> list[tuple[str, bytes, dict]]:
         ("signature_hex is null", v3_bin, spec_with(v3, signature_hex=None)),
         ("timestamp is null", v3_bin, spec_with(v3, timestamp=None)),
         ("timestamp is a float", v3_bin, spec_with(v3, timestamp=1755300000.5)),
+        # Numeric metadata: the ports must agree on what an integer is.
+        ("signature_version as a float", v3_bin, spec_with(v3, signature_version=1.0)),
+        ("timestamp as a float", v3_bin, spec_with(v3, timestamp=float(v3["fields"]["timestamp"]))),
+        ("timestamp out of 64-bit range", v3_bin, spec_with(v3, timestamp=2**63)),
         # Truncated media.
         ("file truncated to 12 bytes", v3_bin[:12], v3),
         ("file truncated to 5 bytes", v3_bin[:5], v3),
