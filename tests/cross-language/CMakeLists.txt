@@ -175,6 +175,20 @@ if(Python3_FOUND)
             ${GOLDEN_BIN_V4} ${GOLDEN_JSON_V4}
     )
 
+    # The matrix only feeds verifiers valid input, so every rejection branch
+    # in them is otherwise unexercised: a verifier that stopped checking the
+    # signature padding would still pass all of it.
+    add_test(
+        NAME verifiers_reject_mutations
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/verify_rejections.py
+            ${VECTORS_DIR} ${CMAKE_CURRENT_BINARY_DIR}/rejections
+            $<TARGET_FILE:verify_c>
+            $<TARGET_FILE:verify_cpp>
+            "${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/verify_py.py"
+            ${VERIFY_RS}
+    )
+
     # The committed test-vectors/vectors/*.bin must match their .json
     # descriptions — they exist for cross-commit stability (#19).
     add_test(

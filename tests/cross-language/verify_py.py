@@ -150,7 +150,11 @@ def verify(bin_path: str, json_path: str) -> int:
         # signature" means the whole field is zero. Checking only the
         # populated prefix would let a generator leave anything behind it.
         sig_hex = json_fields.get("signature_hex", "")
+        if sig_hex is None:
+            sig_hex = ""
         try:
+            if not isinstance(sig_hex, str):
+                raise ValueError("signature_hex must be a string")
             expected_sig = bytes.fromhex(sig_hex) if sig_hex else b""
         except ValueError:
             # A malformed expectation is reported like any other failure
@@ -160,6 +164,22 @@ def verify(bin_path: str, json_path: str) -> int:
             expected_sig = None
         if expected_sig is not None and len(expected_sig) > 64:
             print(f"  FAIL: signature_hex is {len(expected_sig)} bytes, field holds 64")
+            failures += 1
+            expected_sig = None
+
+        # The declared algorithm fixes the length; a vector that supplies a
+        # different one is malformed however well the bytes match.
+        wire_sig_ver = bin_data[9]
+        want_len = {0: 0, 1: 48, 2: 64}.get(wire_sig_ver)
+        if expected_sig is not None and want_len is None:
+            print(f"  FAIL: unknown signature_version {wire_sig_ver}")
+            failures += 1
+            expected_sig = None
+        elif expected_sig is not None and want_len != len(expected_sig):
+            print(
+                f"  FAIL: signature_version {wire_sig_ver} wants {want_len} bytes, "
+                f"vector supplies {len(expected_sig)}"
+            )
             failures += 1
             expected_sig = None
 
