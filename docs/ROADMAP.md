@@ -54,9 +54,12 @@ throughout rather than blocking anything.
 1. **Extend the vector set** (#107) — new `.json` vectors are picked up by
    the matrix automatically. First, so a new port faces the full matrix
    rather than a reduced one.
-2. **Differential fuzzing C↔Rust + longer campaigns** (#108) — the Rust FS
-   port is what ships in firmware and nothing fuzzes it today. Fuzzing time
-   accrues by the calendar, so this starts early and runs in the background.
+2. **Coverage-guided differential fuzzing C↔Rust + longer campaigns**
+   (#108) — the Rust FS port is what ships in firmware; today it is held by
+   randomized differential scenarios (`verify_fs_mutation.py --random 50`
+   per ctest run), which explore blindly, without coverage feedback or a
+   corpus that survives the run. Fuzzing evidence accrues by the calendar,
+   so this starts early and runs in the background.
 3. **Rust walker** (#109) — the last gap in Rust/C parity: bounded-RAM
    targets currently have to link the C core.
 4. **Go port** (#110) — the contract's first external validation; the matrix
