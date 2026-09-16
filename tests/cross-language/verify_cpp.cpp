@@ -95,7 +95,9 @@ static int json_get_long(const char *json, const char *key, long long *out) {
      * timestamp whenever the wire value happens to be zero. */
     char *end = nullptr;
     long long value = strtoll(pos, &end, 10);
-    if (end == pos)
+    /* The token must end here: "1755300000.0" is a valid JSON number but not
+     * an integer, and truncating it would accept malformed metadata. */
+    if (end == pos || (*end != ',' && *end != '}' && *end != ' ' && *end != '\n' && *end != '\r' && *end != '\t'))
         return -1;
     *out = value;
     return 0;
@@ -188,6 +190,23 @@ int main(int argc, char *argv[]) {
 
     /* String fields via C++ API */
     char expected_str[256];
+    /* Every check below reads fixed offsets. A file with no recognisable
+     * header, or one shorter than the header it claims to be, has nothing
+     * there: refuse it before the first read. */
+    {
+        int claimed = hdr.header_size();
+        if (claimed <= 0) {
+            fprintf(stderr, "  FAIL: no JEEFS header to verify\n");
+            printf("\nResult: %d failure(s)\n", failures + 1);
+            return 1;
+        }
+        if (bin_data.size() < static_cast<size_t>(claimed)) {
+            fprintf(stderr, "  FAIL: file is %zu bytes, too short for a %d-byte header\n", bin_data.size(), claimed);
+            printf("\nResult: %d failure(s)\n", failures + 1);
+            return 1;
+        }
+    }
+
     if (json_get_string(json, "boardname", expected_str, sizeof(expected_str)) == 0)
         check_sv("boardname", hdr.boardname(), expected_str);
     if (json_get_string(json, "boardversion", expected_str, sizeof(expected_str)) == 0)
@@ -205,12 +224,7 @@ int main(int argc, char *argv[]) {
         check_mac("mac", hdr.mac(), expected_str);
 
     /* V3/V4 tail via direct struct access (identical layout) */
-    if (((ver && *ver == 3) || is_v4) && bin_data.size() < 256) {
-        /* A file shorter than the header it claims to be has no tail to
-         * read — stop before touching bytes that were never loaded. */
-        fprintf(stderr, "  FAIL: file is %zu bytes, too short for a v3/v4 tail\n", bin_data.size());
-        failures++;
-    } else if ((ver && *ver == 3) || is_v4) {
+    if ((ver && *ver == 3) || is_v4) {
         int expected_sig_ver = 0;
         if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
             check_int("signature_version",
