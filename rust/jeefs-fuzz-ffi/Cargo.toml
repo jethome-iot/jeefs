@@ -1,0 +1,18 @@
+# Not published: a C-ABI shim so the differential fuzz harness can drive the
+# Rust filesystem port from the same libFuzzer target as the C core.
+[package]
+name = "jeefs-fuzz-ffi"
+version = "0.11.2-dev"
+edition = "2021"
+rust-version = "1.87"
+license = "GPL-2.0+ OR Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+jeefs-header = { path = "../jeefs-header", default-features = false }
+
+[profile.release]
+debug = true

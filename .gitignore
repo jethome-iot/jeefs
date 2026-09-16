@@ -84,3 +84,9 @@ python/.venv/
 # local tooling artifacts
 graphify-out/
 docs/wrapup/
+
+# Fuzzing: curated seeds live in fuzz/corpus/ and are reviewed; what a
+# campaign discovers is rebuildable and would bury a diff.
+fuzz/corpus-grown/
+fuzz/crashes/
+fuzz/campaign.log
