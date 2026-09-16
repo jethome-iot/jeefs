@@ -4,6 +4,8 @@
  * Usage: verify_cpp <bin_file> <json_file>
  */
 
+#include <climits>
+#include <cerrno>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -82,27 +84,6 @@ static int json_key_present(const char *json, const char *key) {
     return strstr(json, search) != NULL;
 }
 
-static int json_get_long(const char *json, const char *key, long long *out) {
-    char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *pos = strstr(json, search);
-    if (!pos)
-        return -1;
-    pos += strlen(search);
-    while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
-        pos++;
-    /* atoll returns 0 for text, which would silently accept a malformed
-     * timestamp whenever the wire value happens to be zero. */
-    char *end = nullptr;
-    long long value = strtoll(pos, &end, 10);
-    /* The token must end here: "1755300000.0" is a valid JSON number but not
-     * an integer, and truncating it would accept malformed metadata. */
-    if (end == pos || (*end != ',' && *end != '}' && *end != ' ' && *end != '\n' && *end != '\r' && *end != '\t'))
-        return -1;
-    *out = value;
-    return 0;
-}
-
 static int json_get_string(const char *json, const char *key, char *out, size_t out_size) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -126,6 +107,33 @@ static int json_get_string(const char *json, const char *key, char *out, size_t 
     return 0;
 }
 
+static int json_get_long(const char *json, const char *key, long long *out) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *pos = strstr(json, search);
+    if (!pos)
+        return -1;
+    pos += strlen(search);
+    while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
+        pos++;
+    /* atoll returns 0 for text, which would silently accept a malformed
+     * timestamp whenever the wire value happens to be zero. */
+    char *end = nullptr;
+    errno = 0;
+    long long value = strtoll(pos, &end, 10);
+    /* strtoll saturates at LLONG_MAX/MIN and sets ERANGE; without this an
+     * out-of-range expectation would compare equal to a saturated wire
+     * value. */
+    if (errno == ERANGE)
+        return -1;
+    /* The token must end here: "1755300000.0" is a valid JSON number but not
+     * an integer, and truncating it would accept malformed metadata. */
+    if (end == pos || (*end != ',' && *end != '}' && *end != ' ' && *end != '\n' && *end != '\r' && *end != '\t'))
+        return -1;
+    *out = value;
+    return 0;
+}
+
 static int json_get_int(const char *json, const char *key, int *out) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -135,7 +143,12 @@ static int json_get_int(const char *json, const char *key, int *out) {
     pos += strlen(search);
     while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
         pos++;
-    *out = atoi(pos);
+    /* atoi cannot report failure: "1.0" would read as 1 and a malformed
+     * algorithm or version would pass as valid metadata. */
+    long long wide = 0;
+    if (json_get_long(json, key, &wide) != 0 || wide < INT_MIN || wide > INT_MAX)
+        return -1;
+    *out = (int) wide;
     return 0;
 }
 
@@ -226,10 +239,15 @@ int main(int argc, char *argv[]) {
     /* V3/V4 tail via direct struct access (identical layout) */
     if ((ver && *ver == 3) || is_v4) {
         int expected_sig_ver = 0;
-        if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
+        if (json_get_int(json, "signature_version", &expected_sig_ver) != 0 &&
+            json_key_present(json, "signature_version")) {
+            fprintf(stderr, "  FAIL: signature_version is present but not an integer\n");
+            failures++;
+        } else if (json_get_int(json, "signature_version", &expected_sig_ver) == 0) {
             check_int("signature_version",
                       (ver && *ver == 3) ? hdr.as_v3().signature_version : hdr.as_v4().signature_version,
                       expected_sig_ver);
+        }
 
         /* The signature field is 64 bytes whatever the algorithm puts in it:
          * a shorter signature is zero-padded to the end, and "no signature"

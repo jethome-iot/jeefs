@@ -10,6 +10,8 @@
  * by simple string search. Sufficient for our well-defined test vectors.
  */
 
+#include <limits.h>
+#include <errno.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,6 +103,33 @@ static int json_get_string(const char *json, const char *key, char *out, size_t 
 }
 
 /* Extract a JSON integer value for a given key */
+static int json_get_long(const char *json, const char *key, long long *out) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *pos = strstr(json, search);
+    if (!pos)
+        return -1;
+    pos += strlen(search);
+    while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
+        pos++;
+    /* atoll returns 0 for text, which would silently accept a malformed
+     * timestamp whenever the wire value happens to be zero. */
+    char *end = NULL;
+    errno = 0;
+    long long value = strtoll(pos, &end, 10);
+    /* strtoll saturates at LLONG_MAX/MIN and sets ERANGE; without this an
+     * out-of-range expectation would compare equal to a saturated wire
+     * value. */
+    if (errno == ERANGE)
+        return -1;
+    /* The token must end here: "1755300000.0" is a valid JSON number but not
+     * an integer, and truncating it would accept malformed metadata. */
+    if (end == pos || (*end != ',' && *end != '}' && *end != ' ' && *end != '\n' && *end != '\r' && *end != '\t'))
+        return -1;
+    *out = value;
+    return 0;
+}
+
 static int json_get_int(const char *json, const char *key, int *out) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -110,7 +139,12 @@ static int json_get_int(const char *json, const char *key, int *out) {
     pos += strlen(search);
     while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
         pos++;
-    *out = atoi(pos);
+    /* atoi cannot report failure: "1.0" would read as 1 and a malformed
+     * algorithm or version would pass as valid metadata. */
+    long long wide = 0;
+    if (json_get_long(json, key, &wide) != 0 || wide < INT_MIN || wide > INT_MAX)
+        return -1;
+    *out = (int) wide;
     return 0;
 }
 
@@ -136,27 +170,6 @@ static int json_key_present(const char *json, const char *key) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
     return strstr(json, search) != NULL;
-}
-
-static int json_get_long(const char *json, const char *key, long long *out) {
-    char search[128];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *pos = strstr(json, search);
-    if (!pos)
-        return -1;
-    pos += strlen(search);
-    while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
-        pos++;
-    /* atoll returns 0 for text, which would silently accept a malformed
-     * timestamp whenever the wire value happens to be zero. */
-    char *end = NULL;
-    long long value = strtoll(pos, &end, 10);
-    /* The token must end here: "1755300000.0" is a valid JSON number but not
-     * an integer, and truncating it would accept malformed metadata. */
-    if (end == pos || (*end != ',' && *end != '}' && *end != ' ' && *end != '\n' && *end != '\r' && *end != '\t'))
-        return -1;
-    *out = value;
-    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -257,7 +270,11 @@ int main(int argc, char *argv[]) {
 
     if (detected_version == 3 || detected_version == 4) {
         int expected_sig_ver = 0;
-        if (json_get_int(json, "signature_version", &expected_sig_ver) == 0) {
+        if (json_get_int(json, "signature_version", &expected_sig_ver) != 0 &&
+            json_key_present(json, "signature_version")) {
+            fprintf(stderr, "  FAIL: signature_version is present but not an integer\n");
+            failures++;
+        } else if (json_get_int(json, "signature_version", &expected_sig_ver) == 0) {
             check_int("signature_version", bin_data[9], expected_sig_ver);
         }
 
