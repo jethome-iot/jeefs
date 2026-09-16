@@ -10,9 +10,9 @@
  * by simple string search. Sufficient for our well-defined test vectors.
  */
 
-#include <limits.h>
-#include <errno.h>
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
