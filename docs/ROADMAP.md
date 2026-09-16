@@ -45,8 +45,11 @@ CI proves LE-correctness structurally rather than on BE hosts.
 
 ## Next — ordered
 
-The order is a dependency chain, not a preference: each step makes the next
-one cheaper or provable.
+The order is the owner's, agreed 2026-09-16. One step is a genuine
+prerequisite — the vector set grows before a new port is measured against
+the matrix; the rest is priority: Rust ships in firmware, so its gaps close
+before a host-side port starts, and fuzzing runs in the background
+throughout rather than blocking anything.
 
 1. **Extend the vector set** (#107) — new `.json` vectors are picked up by
    the matrix automatically. First, so a new port faces the full matrix
@@ -76,8 +79,10 @@ A TypeScript port follows Go's path when a consumer materializes.
 2. At least one port implemented from the contract alone (Go) with no
    contract corrections required — the contract is proven descriptive,
    not aspirational.
-3. Accumulated fuzzing time without findings across all three harnesses;
-   the cross-language matrix and both goldens green throughout.
+3. Accumulated fuzzing time without findings across every harness
+   configured in `fuzz/` — `fuzz_header`, `fuzz_devid`, `fuzz_fs` today, plus
+   the differential C↔Rust harness once #108 lands; the cross-language
+   matrix and both goldens green throughout.
 4. Docs audit: README reflects the multi-language scope, the Outline mirror
    matches the release, PORTING.md verified against a real embedding.
 
