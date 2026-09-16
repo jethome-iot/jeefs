@@ -55,11 +55,11 @@ throughout rather than blocking anything.
    the matrix automatically. First, so a new port faces the full matrix
    rather than a reduced one.
 2. **Coverage-guided differential fuzzing C↔Rust + longer campaigns**
-   (#108) — the Rust FS port is what ships in firmware; today it is held by
-   randomized differential scenarios (`verify_fs_mutation.py --random 50`
-   per ctest run), which explore blindly, without coverage feedback or a
-   corpus that survives the run. Fuzzing evidence accrues by the calendar,
-   so this starts early and runs in the background.
+   (#108) — `fuzz_fs_diff` drives both implementations from one libFuzzer
+   input and fails on any difference in result or image bytes;
+   `fuzz/campaign.sh` runs longer than the CI smoke and records what it
+   ran. Fuzzing evidence accrues by the calendar, so campaigns keep
+   running in the background while later steps proceed.
 3. **Rust walker** (#109) — the last gap in Rust/C parity: bounded-RAM
    targets currently have to link the C core.
 4. **Go port** (#110) — the contract's first external validation; the matrix
