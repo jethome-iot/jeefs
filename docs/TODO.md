@@ -1,15 +1,16 @@
 # JEEFS — Tactical TODO
 
-Strategic direction and freeze criteria live in [ROADMAP.md](ROADMAP.md).
+Strategic direction and freeze criteria live in [ROADMAP.md](ROADMAP.md),
+whose "Next — ordered" section carries the current plan and its issues.
 The 2026-08 audit backlog (#5–#30) is fully resolved; this file keeps only
 small tactical items that have no issue of their own yet.
 
-- **Extend the vector set**: `v3_header_secp192r1` (48-byte signature,
-  zero-padded tail), all-zero and all-FF MAC variants, v1/v2 vectors with
-  non-trivial USID/CPUID. Mechanical — `test-vectors/generate_vectors.py`
-  + the NxN matrix pick new `.json` files up automatically.
-- **Longer fuzzing campaigns**: the CI job is a bounded 60s smoke; corpus
-  growth and overnight runs are manual for now.
-- New language ports (Go, TypeScript) and `examples/uboot/` — tracked in
-  [ROADMAP.md](ROADMAP.md), gated on the
-  [implementation contract](IMPLEMENTATION_CONTRACT.md) checklist.
+- **Human review of the Rust FS core** (`rust/jeefs-header/src/fs.rs`):
+  in-place mutation logic is safety-critical, and the automated reviewers
+  that passed it said as much. No defect is known — it is held by the
+  shared mutation vectors and differential runs against C — but it has not
+  been read by a person outside the change.
+
+Everything else that was listed here — vector set, fuzzing campaigns, new
+language ports, the U-Boot example — now has an issue and an order; see
+ROADMAP.
