@@ -12,6 +12,9 @@ to fail — so those branches cannot rot unnoticed.
 Each mutation repairs the header CRC afterwards, so what is being tested
 is the field check itself and not the CRC gate standing in front of it.
 
+A verifier is given as one argument; if it needs an interpreter, separate
+the parts with a tab so a path containing spaces stays intact.
+
 Usage: verify_rejections.py <vectors_dir> <work_dir> <verifier> [verifier ...]
 """
 
@@ -81,6 +84,15 @@ def cases(vectors: Path) -> list[tuple[str, bytes, dict]]:
         ("signature_hex not hex", v3_bin, spec_with(v3, signature_hex="0g" * 24)),
         ("signature_hex longer than the field", v3_bin, spec_with(v3, signature_hex="00" * 65)),
         ("signature_hex is not a string", v3_bin, spec_with(v3, signature_hex=17)),
+        # Metadata a verifier must not quietly normalise or ignore: the four
+        # ports have to agree on what a malformed expectation is.
+        ("signature_hex padded with spaces", v3_bin, spec_with(v3, signature_hex="a1 a2 " + "00" * 46)),
+        ("timestamp is not an integer", v3_bin, spec_with(v3, timestamp="garbage")),
+        (
+            "no-signature header with a non-string signature_hex",
+            mutate_bin(v3_bin, 9, b"\x00"),
+            spec_with(v3, signature_version=0, signature_hex=17),
+        ),
         # Truncated media.
         ("file truncated to 12 bytes", v3_bin[:12], v3),
         ("file truncated to 5 bytes", v3_bin[:5], v3),
@@ -104,18 +116,26 @@ def main() -> None:
         json_path.write_text(json.dumps(spec, indent=2))
 
         for verifier in verifiers:
-            argv = verifier.split() + [str(bin_path), str(json_path)]
+            parts = verifier.split("\t")
+            argv = parts + [str(bin_path), str(json_path)]
             proc = subprocess.run(argv, capture_output=True, text=True, check=False)
-            label = Path(argv[-3] if argv[0].endswith("python3") else argv[0]).name
+            label = Path(parts[-1]).name
+
+            # Exactly 1 is "I checked this and it is wrong". Anything else —
+            # 0 for acceptance, 2 for a usage error, 101 for a Rust panic, a
+            # negative value for a signal — means the verifier did not do the
+            # job, and counting those as rejections would hide a crash.
+            if proc.returncode == 1 and "Traceback" not in proc.stderr:
+                continue
             if proc.returncode == 0:
                 print(f"FAIL: {label} accepted a header with: {name}")
-                failures += 1
             elif proc.returncode < 0:
-                print(f"FAIL: {label} crashed (signal {-proc.returncode}) on: {name}")
-                failures += 1
+                print(f"FAIL: {label} died on signal {-proc.returncode} with: {name}")
             elif "Traceback" in proc.stderr:
-                print(f"FAIL: {label} raised instead of reporting on: {name}")
-                failures += 1
+                print(f"FAIL: {label} raised instead of reporting with: {name}")
+            else:
+                print(f"FAIL: {label} exited {proc.returncode}, not a verification failure, with: {name}")
+            failures += 1
 
     total = len(cases(vectors)) * len(verifiers)
     if failures:

@@ -73,6 +73,15 @@ static int expected_signature_size(int sig_ver) {
     }
 }
 
+/* Distinguish "key absent" from "key present but not a string": the
+ * signature and timestamp checks must report malformed metadata instead of
+ * treating it as an omitted optional field. */
+static int json_key_present(const char *json, const char *key) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    return strstr(json, search) != NULL;
+}
+
 static int json_get_long(const char *json, const char *key, long long *out) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -82,7 +91,13 @@ static int json_get_long(const char *json, const char *key, long long *out) {
     pos += strlen(search);
     while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
         pos++;
-    *out = atoll(pos);
+    /* atoll returns 0 for text, which would silently accept a malformed
+     * timestamp whenever the wire value happens to be zero. */
+    char *end = nullptr;
+    long long value = strtoll(pos, &end, 10);
+    if (end == pos)
+        return -1;
+    *out = value;
     return 0;
 }
 
@@ -212,7 +227,11 @@ int main(int argc, char *argv[]) {
          * value is seen as over-long instead of being silently truncated
          * into something that fits. */
         char sig_hex[130] = {0};
-        if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) == 0) {
+        if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) != 0 &&
+            json_key_present(json, "signature_hex")) {
+            fprintf(stderr, "  FAIL: signature_hex is present but not a string\n");
+            failures++;
+        } else if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) == 0) {
             size_t hex_len = strlen(sig_hex);
             if (hex_len % 2 != 0 || hex_len / 2 > sizeof(expected_sig)) {
                 fprintf(stderr, "  FAIL: signature_hex length %zu\n", hex_len);
@@ -265,7 +284,12 @@ int main(int argc, char *argv[]) {
         }
 
         long long expected_ts = 0;
-        if (json_get_long(json, "timestamp", &expected_ts) == 0) {
+        if (json_get_long(json, "timestamp", &expected_ts) != 0 && json_key_present(json, "timestamp")) {
+            /* Present but unparseable is malformed metadata, not an omitted
+             * optional field: skipping it would accept any wire value. */
+            fprintf(stderr, "  FAIL: timestamp is present but not an integer\n");
+            failures++;
+        } else if (json_get_long(json, "timestamp", &expected_ts) == 0) {
             /* The field is little-endian on the wire; memcpy into an
              * int64_t would read it host-endian. */
             uint64_t raw_ts = 0;

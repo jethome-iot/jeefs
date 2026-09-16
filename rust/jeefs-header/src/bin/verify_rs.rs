@@ -118,8 +118,17 @@ fn check_signature(bin_data: &[u8], fields: &serde_json::Value) {
 /// must not decide whether the timestamp gets validated, or this port would
 /// quietly verify less than C, C++ and Python do for the same vector.
 fn check_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
-    let Some(expected_ts) = fields["timestamp"].as_i64() else {
-        return;
+    // as_i64() says None for both an absent key and a present non-integer;
+    // only the first is an omission, the second is malformed metadata.
+    let raw = &fields["timestamp"];
+    let expected_ts = match raw.as_i64() {
+        Some(v) => v,
+        None if raw.is_null() => return,
+        None => {
+            eprintln!("  FAIL: timestamp is present but not an integer");
+            unsafe { FAILURES += 1 };
+            return;
+        }
     };
     if bin_data.len() < 252 {
         eprintln!("  FAIL: file is {} bytes, too short for a timestamp", bin_data.len());

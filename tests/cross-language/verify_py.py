@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import binascii
 import json
+import re
 import struct
 import sys
 from pathlib import Path
@@ -155,6 +156,10 @@ def verify(bin_path: str, json_path: str) -> int:
         try:
             if not isinstance(sig_hex, str):
                 raise ValueError("signature_hex must be a string")
+            # bytes.fromhex tolerates ASCII whitespace; the C, C++ and Rust
+            # parsers do not, so require plain pairs of hex digits here too.
+            if sig_hex and not re.fullmatch(r"(?:[0-9a-fA-F]{2})+", sig_hex):
+                raise ValueError("signature_hex must be pairs of hex digits")
             expected_sig = bytes.fromhex(sig_hex) if sig_hex else b""
         except ValueError:
             # A malformed expectation is reported like any other failure
