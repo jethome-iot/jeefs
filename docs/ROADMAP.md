@@ -43,18 +43,30 @@ over a caller-owned image buffer. No hardware backends, ever; the
 deployment targets (x86_64 / aarch64 / riscv64) are all little-endian, so
 CI proves LE-correctness structurally rather than on BE hosts.
 
-## Next (unscheduled, owner-prioritized)
+## Next — ordered
 
-- **Go port** — the first external validation of the
-  [implementation contract](IMPLEMENTATION_CONTRACT.md); follows its 7-step
-  checklist, grows the matrix to 5×5. TypeScript follows the same path when
-  a consumer materializes.
-- **`examples/uboot/` skeleton** — a compilable integration example on top of
-  [PORTING.md](PORTING.md), when production integration starts.
-- **Consumer migration** — jethome-iot/testsuite\* onto the `jeefs` PyPI
-  package; production tooling writing v4 headers and `device.id` records
-  (conventions in RFC #26).
-- Continuous fuzzing beyond the CI smoke (longer campaigns, corpus growth).
+The order is a dependency chain, not a preference: each step makes the next
+one cheaper or provable.
+
+1. **Extend the vector set** (#107) — new `.json` vectors are picked up by
+   the matrix automatically. First, so a new port faces the full matrix
+   rather than a reduced one.
+2. **Differential fuzzing C↔Rust + longer campaigns** (#108) — the Rust FS
+   port is what ships in firmware and nothing fuzzes it today. Fuzzing time
+   accrues by the calendar, so this starts early and runs in the background.
+3. **Rust walker** (#109) — the last gap in Rust/C parity: bounded-RAM
+   targets currently have to link the C core.
+4. **Go port** (#110) — the contract's first external validation; the matrix
+   grows to 5×5. Needs a `go_generator.py`, which does not exist yet.
+5. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
+   against a real embedding, which needs production integration to start.
+
+Out of this repository's scope, but gating the freeze: **consumer
+migration** — jethome-iot/testsuite\* onto the `jeefs` PyPI package, and
+production tooling writing v4 headers and `device.id` records (conventions
+in RFC #26). Freeze criterion 1 cannot be met without it.
+
+A TypeScript port follows Go's path when a consumer materializes.
 
 ## v1.0.0 — Freeze criteria
 
