@@ -30,7 +30,15 @@ fn check_int(name: &str, actual: i64, expected: i64) {
 /// shorter signature is zero-padded to the end, and "no signature" means the
 /// whole field is zero. Checking only the populated prefix would let a
 /// generator leave anything behind it.
-fn check_signature_and_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
+fn check_signature(bin_data: &[u8], fields: &serde_json::Value) {
+    if bin_data.len() < 244 {
+        // A file shorter than the header it claims to be has no signature to
+        // read — say so instead of panicking on the slice.
+        eprintln!("  FAIL: file is {} bytes, too short for a signature", bin_data.len());
+        unsafe { FAILURES += 1 };
+        return;
+    }
+
     let expected: Vec<u8> = match fields["signature_hex"].as_str() {
         Some(hex) if !hex.is_empty() => {
             if !hex.len().is_multiple_of(2) || hex.len() / 2 > 64 {
@@ -54,13 +62,6 @@ fn check_signature_and_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
         _ => Vec::new(),
     };
 
-    if bin_data.len() < 252 {
-        // A file shorter than the header it claims to be has no tail to
-        // read — say so instead of panicking on the slice.
-        eprintln!("  FAIL: file is {} bytes, too short for a v3/v4 tail", bin_data.len());
-        unsafe { FAILURES += 1 };
-        return;
-    }
     let field = &bin_data[180..244];
     if field[..expected.len()] != expected[..] {
         eprintln!("  FAIL: signature mismatch");
@@ -74,11 +75,22 @@ fn check_signature_and_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
     } else {
         println!("  OK: signature ({} bytes, zero-padded to 64)", expected.len());
     }
+}
 
-    if let Some(expected_ts) = fields["timestamp"].as_i64() {
-        let actual_ts = i64::from_le_bytes(bin_data[244..252].try_into().unwrap());
-        check_int("timestamp", actual_ts, expected_ts);
+/// Kept separate from the signature check: a broken signature expectation
+/// must not decide whether the timestamp gets validated, or this port would
+/// quietly verify less than C, C++ and Python do for the same vector.
+fn check_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
+    let Some(expected_ts) = fields["timestamp"].as_i64() else {
+        return;
+    };
+    if bin_data.len() < 252 {
+        eprintln!("  FAIL: file is {} bytes, too short for a timestamp", bin_data.len());
+        unsafe { FAILURES += 1 };
+        return;
     }
+    let actual_ts = i64::from_le_bytes(bin_data[244..252].try_into().unwrap());
+    check_int("timestamp", actual_ts, expected_ts);
 }
 
 fn check_mac(name: &str, actual: &[u8; 6], expected_str: &str) {
@@ -238,7 +250,8 @@ fn main() {
                         sig_ver,
                     );
                 }
-                check_signature_and_timestamp(&bin_data, fields);
+                check_signature(&bin_data, fields);
+                check_timestamp(&bin_data, fields);
             }
         }
         4 => {
@@ -268,7 +281,8 @@ fn main() {
                         sig_ver,
                     );
                 }
-                check_signature_and_timestamp(&bin_data, fields);
+                check_signature(&bin_data, fields);
+                check_timestamp(&bin_data, fields);
             }
         }
         _ => {
