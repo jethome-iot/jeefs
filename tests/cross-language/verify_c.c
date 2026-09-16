@@ -267,8 +267,12 @@ int main(int argc, char *argv[]) {
 
         long long expected_ts = 0;
         if (json_get_long(json, "timestamp", &expected_ts) == 0) {
-            int64_t actual_ts;
-            memcpy(&actual_ts, bin_data + 244, 8);
+            /* The field is little-endian on the wire; memcpy into an
+             * int64_t would read it host-endian. */
+            uint64_t raw_ts = 0;
+            for (int i = 7; i >= 0; i--)
+                raw_ts = (raw_ts << 8) | bin_data[244 + i];
+            int64_t actual_ts = (int64_t) raw_ts;
             if (actual_ts != expected_ts) {
                 fprintf(stderr, "  FAIL: timestamp = %lld (expected %lld)\n", (long long) actual_ts, expected_ts);
                 failures++;
