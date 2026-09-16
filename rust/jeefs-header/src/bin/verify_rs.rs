@@ -54,6 +54,13 @@ fn check_signature_and_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
         _ => Vec::new(),
     };
 
+    if bin_data.len() < 252 {
+        // A file shorter than the header it claims to be has no tail to
+        // read — say so instead of panicking on the slice.
+        eprintln!("  FAIL: file is {} bytes, too short for a v3/v4 tail", bin_data.len());
+        unsafe { FAILURES += 1 };
+        return;
+    }
     let field = &bin_data[180..244];
     if field[..expected.len()] != expected[..] {
         eprintln!("  FAIL: signature mismatch");
