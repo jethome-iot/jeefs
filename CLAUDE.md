@@ -25,7 +25,7 @@ the two. **Never edit generated files by hand; never change the format outside
 
 Header parsing uses **native implementations per language** (not FFI). Rationale: the header is 256 bytes / ~13 fields — the parsing logic (~80 lines) is comparable in size to an FFI wrapper, and native packages are trivial to deploy (`pip install`, `cargo add`, `go get`). `docs/format/*.md` is the canonical spec (`EEPROM_FORMAT.md` is a human-readable overview); shared binary test vectors in `test-vectors/` ensure cross-language consistency.
 
-FS operations exist in C/C++ and Rust. The Rust port (#99) is a line-by-line port of `src/jeefs.c` over a caller-owned `&mut [u8]`, allocation-free like the C core, because Rust firmware works with the whole EEPROM too. Both are locked together by the shared mutation vectors in `tests/cross-language/fs_vectors` (ctest `fs_mutation_c_matches_rs`): the same scenario must produce the same operation journal and the same image bytes. Any further FS port carries the same obligation.
+FS operations exist in C/C++ and Rust. The Rust port (#99) is a line-by-line port of `src/jeefs.c` over a caller-owned `&mut [u8]`, allocation-free like the C core, because Rust firmware works with the whole EEPROM too. Both are locked together by the shared mutation vectors in `tests/cross-language/fs_vectors` (ctest `fs_mutation_c_matches_rs`): the same scenario must produce the same operation journal and the same image bytes. Any further FS port carries the same obligation. Two harnesses enforce it: the shared vectors replay fixed and randomised scenarios, and `fuzz_fs_diff` (#108) drives both implementations from one libFuzzer input so coverage feedback finds the operation streams nobody wrote by hand.
 
 ## Build & Test
 
@@ -50,6 +50,20 @@ cd build && ctest --verbose
 ```
 
 **Dependencies:** zlib (for CRC32), CMake 3.19+, C11, C++17.
+
+### Fuzzing
+
+```bash
+# CI runs a 60s smoke per target; this is the longer form.
+./fuzz/campaign.sh 30                  # 30 min per target, all four
+./fuzz/campaign.sh 120 fuzz_fs_diff    # just the C-vs-Rust differential
+```
+
+Curated seeds live in `fuzz/corpus/` and are reviewed like any other file;
+what a campaign discovers goes to `fuzz/corpus-grown/`, which is ignored by
+git and rebuildable. Findings land in `fuzz/crashes/` and the script exits
+non-zero. libFuzzer needs a clang that ships its runtime — Apple's does not,
+so on macOS install `llvm` from Homebrew and the script will find it.
 
 ### Python
 
