@@ -10,6 +10,7 @@
  * by simple string search. Sufficient for our well-defined test vectors.
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -204,8 +205,13 @@ int main(int argc, char *argv[]) {
         check_mac("mac", bin_data + 172, expected_str);
     }
 
-    /* V3/V4 tail: signature_version, timestamp */
-    if (detected_version == 3 || detected_version == 4) {
+    /* V3/V4 tail: signature_version, signature, timestamp. A file shorter
+     * than the header it claims to be has no tail to read — stop before
+     * touching bytes that were never loaded. */
+    if ((detected_version == 3 || detected_version == 4) && bin_size < 256) {
+        fprintf(stderr, "  FAIL: file is %zu bytes, too short for a v%d tail\n", bin_size, detected_version);
+        failures++;
+    } else if (detected_version == 3 || detected_version == 4) {
         int expected_sig_ver = 0;
         if (json_get_int(json, "signature_version", &expected_sig_ver) == 0) {
             check_int("signature_version", bin_data[9], expected_sig_ver);
@@ -215,7 +221,10 @@ int main(int argc, char *argv[]) {
          * it: a shorter signature is zero-padded to the end, and "no
          * signature" means the whole field is zero. Checking only the
          * populated prefix would let a generator leave anything behind it. */
-        char sig_hex[129] = {0};
+        /* One char of slack past the 128 a full field needs, so an
+         * over-long value is seen as over-long instead of being silently
+         * truncated into something that fits. */
+        char sig_hex[130] = {0};
         unsigned char expected_sig[64] = {0};
         size_t expected_len = 0;
         if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) == 0) {
@@ -226,13 +235,16 @@ int main(int argc, char *argv[]) {
             } else {
                 expected_len = hex_len / 2;
                 for (size_t i = 0; i < expected_len; i++) {
-                    unsigned byte;
-                    if (sscanf(sig_hex + i * 2, "%2x", &byte) != 1) {
+                    /* sscanf("%2x") accepts one digit and stops, so "0g"
+                     * would read as 0x0; require both characters. */
+                    if (!isxdigit((unsigned char) sig_hex[i * 2]) || !isxdigit((unsigned char) sig_hex[i * 2 + 1])) {
                         fprintf(stderr, "  FAIL: signature_hex not hex\n");
                         failures++;
                         expected_len = 0;
                         break;
                     }
+                    unsigned byte;
+                    sscanf(sig_hex + i * 2, "%2x", &byte);
                     expected_sig[i] = (unsigned char) byte;
                 }
             }

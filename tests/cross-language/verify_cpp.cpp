@@ -4,6 +4,7 @@
  * Usage: verify_cpp <bin_file> <json_file>
  */
 
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -174,7 +175,12 @@ int main(int argc, char *argv[]) {
         check_mac("mac", hdr.mac(), expected_str);
 
     /* V3/V4 tail via direct struct access (identical layout) */
-    if ((ver && *ver == 3) || is_v4) {
+    if (((ver && *ver == 3) || is_v4) && bin_data.size() < 256) {
+        /* A file shorter than the header it claims to be has no tail to
+         * read — stop before touching bytes that were never loaded. */
+        fprintf(stderr, "  FAIL: file is %zu bytes, too short for a v3/v4 tail\n", bin_data.size());
+        failures++;
+    } else if ((ver && *ver == 3) || is_v4) {
         int expected_sig_ver = 0;
         if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
             check_int("signature_version",
@@ -187,7 +193,10 @@ int main(int argc, char *argv[]) {
          * would let a generator leave anything behind it. */
         unsigned char expected_sig[64] = {0};
         size_t expected_len = 0;
-        char sig_hex[129] = {0};
+        /* One char of slack past the 128 a full field needs, so an over-long
+         * value is seen as over-long instead of being silently truncated
+         * into something that fits. */
+        char sig_hex[130] = {0};
         if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) == 0) {
             size_t hex_len = strlen(sig_hex);
             if (hex_len % 2 != 0 || hex_len / 2 > sizeof(expected_sig)) {
@@ -196,13 +205,17 @@ int main(int argc, char *argv[]) {
             } else {
                 expected_len = hex_len / 2;
                 for (size_t i = 0; i < expected_len; i++) {
-                    unsigned byte = 0;
-                    if (sscanf(sig_hex + i * 2, "%2x", &byte) != 1) {
+                    /* sscanf("%2x") accepts one digit and stops, so "0g"
+                     * would read as 0x0; require both characters. */
+                    if (!isxdigit(static_cast<unsigned char>(sig_hex[i * 2])) ||
+                        !isxdigit(static_cast<unsigned char>(sig_hex[i * 2 + 1]))) {
                         fprintf(stderr, "  FAIL: signature_hex not hex\n");
                         failures++;
                         expected_len = 0;
                         break;
                     }
+                    unsigned byte = 0;
+                    sscanf(sig_hex + i * 2, "%2x", &byte);
                     expected_sig[i] = static_cast<unsigned char>(byte);
                 }
             }

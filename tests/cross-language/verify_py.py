@@ -81,6 +81,12 @@ def verify(bin_path: str, json_path: str) -> int:
 
     # Check CRC32
     crc_off = expected_size - 4
+    if len(bin_data) < expected_size:
+        # A file shorter than the header it claims to be has nothing left to
+        # check; report it rather than raising out of struct.unpack.
+        print(f"  FAIL: file is {len(bin_data)} bytes, too short for a {expected_size}-byte header")
+        print(f"\nResult: {failures + 1} failure(s)")
+        return failures + 1
     stored_crc = struct.unpack("<I", bin_data[crc_off : crc_off + 4])[0]
     calc_crc = binascii.crc32(bin_data[:crc_coverage]) & 0xFFFFFFFF
     if stored_crc != calc_crc:
@@ -136,17 +142,34 @@ def verify(bin_path: str, json_path: str) -> int:
         # it: a shorter signature is zero-padded to the end, and "no
         # signature" means the whole field is zero. Checking only the
         # populated prefix would let a generator leave anything behind it.
+        # The signature field is 64 bytes whatever the algorithm puts in
+        # it: a shorter signature is zero-padded to the end, and "no
+        # signature" means the whole field is zero. Checking only the
+        # populated prefix would let a generator leave anything behind it.
         sig_hex = json_fields.get("signature_hex", "")
-        expected_sig = bytes.fromhex(sig_hex) if sig_hex else b""
-        sig_field = bin_data[180:244]
-        if sig_field[: len(expected_sig)] != expected_sig:
-            print("  FAIL: signature mismatch")
+        try:
+            expected_sig = bytes.fromhex(sig_hex) if sig_hex else b""
+        except ValueError:
+            # A malformed expectation is reported like any other failure
+            # rather than raised at the caller.
+            print("  FAIL: signature_hex is not hex")
             failures += 1
-        elif sig_field[len(expected_sig) :] != bytes(64 - len(expected_sig)):
-            print(f"  FAIL: signature tail not zero-padded past {len(expected_sig)} bytes")
+            expected_sig = None
+        if expected_sig is not None and len(expected_sig) > 64:
+            print(f"  FAIL: signature_hex is {len(expected_sig)} bytes, field holds 64")
             failures += 1
-        else:
-            print(f"  OK: signature ({len(expected_sig)} bytes, zero-padded to 64)")
+            expected_sig = None
+
+        if expected_sig is not None:
+            sig_field = bin_data[180:244]
+            if sig_field[: len(expected_sig)] != expected_sig:
+                print("  FAIL: signature mismatch")
+                failures += 1
+            elif sig_field[len(expected_sig) :] != bytes(64 - len(expected_sig)):
+                print(f"  FAIL: signature tail not zero-padded past {len(expected_sig)} bytes")
+                failures += 1
+            else:
+                print(f"  OK: signature ({len(expected_sig)} bytes, zero-padded to 64)")
 
     print(f"\nResult: {failures} failure(s)")
     return failures
