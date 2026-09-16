@@ -114,6 +114,21 @@ static int json_get_int(const char *json, const char *key, int *out) {
     return 0;
 }
 
+/* Signature sizes per algorithm (header-common.md): the field is 64 bytes,
+ * but the algorithm decides how many of them carry the signature. */
+static int expected_signature_size(int sig_ver) {
+    switch (sig_ver) {
+        case 0:
+            return 0;
+        case 1:
+            return 48;
+        case 2:
+            return 64;
+        default:
+            return -1;
+    }
+}
+
 static int json_get_long(const char *json, const char *key, long long *out) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -249,7 +264,17 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
-        if (memcmp(bin_data + 180, expected_sig, expected_len) != 0) {
+        /* The declared algorithm fixes the length; a vector that supplies a
+         * different one is malformed however well the bytes match. */
+        int want_len = expected_signature_size(bin_data[9]);
+        if (want_len < 0) {
+            fprintf(stderr, "  FAIL: unknown signature_version %u\n", bin_data[9]);
+            failures++;
+        } else if ((size_t) want_len != expected_len) {
+            fprintf(stderr, "  FAIL: signature_version %u wants %d bytes, vector supplies %zu\n", bin_data[9],
+                    want_len, expected_len);
+            failures++;
+        } else if (memcmp(bin_data + 180, expected_sig, expected_len) != 0) {
             fprintf(stderr, "  FAIL: signature mismatch\n");
             failures++;
         } else {

@@ -39,7 +39,16 @@ fn check_signature(bin_data: &[u8], fields: &serde_json::Value) {
         return;
     }
 
-    let expected: Vec<u8> = match fields["signature_hex"].as_str() {
+    // A present-but-not-a-string value is malformed metadata, not an absent
+    // signature: say so instead of quietly expecting an empty field.
+    let raw = &fields["signature_hex"];
+    if !raw.is_null() && !raw.is_string() {
+        eprintln!("  FAIL: signature_hex is not a string");
+        unsafe { FAILURES += 1 };
+        return;
+    }
+
+    let expected: Vec<u8> = match raw.as_str() {
         Some(hex) if !hex.is_empty() => {
             // Slicing by byte pairs below is only valid on ASCII: a
             // multi-byte character has an even byte length but no char
@@ -69,6 +78,26 @@ fn check_signature(bin_data: &[u8], fields: &serde_json::Value) {
         }
         _ => Vec::new(),
     };
+
+    // The declared algorithm fixes the length; a vector that supplies a
+    // different one is malformed however well the bytes match.
+    let wire_sig_ver = bin_data[9];
+    let want_len = match SignatureAlgorithm::from_u8(wire_sig_ver) {
+        Ok(algo) => algo.signature_size(),
+        Err(v) => {
+            eprintln!("  FAIL: unknown signature_version {v}");
+            unsafe { FAILURES += 1 };
+            return;
+        }
+    };
+    if want_len != expected.len() {
+        eprintln!(
+            "  FAIL: signature_version {wire_sig_ver} wants {want_len} bytes, vector supplies {}",
+            expected.len()
+        );
+        unsafe { FAILURES += 1 };
+        return;
+    }
 
     let field = &bin_data[180..244];
     if field[..expected.len()] != expected[..] {

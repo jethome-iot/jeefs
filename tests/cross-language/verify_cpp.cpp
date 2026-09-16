@@ -58,6 +58,21 @@ static void check_mac(const char *name, const uint8_t *actual, const char *expec
 }
 
 /* Simple JSON string extraction */
+/* Signature sizes per algorithm (header-common.md): the field is 64 bytes,
+ * but the algorithm decides how many of them carry the signature. */
+static int expected_signature_size(int sig_ver) {
+    switch (sig_ver) {
+        case 0:
+            return 0;
+        case 1:
+            return 48;
+        case 2:
+            return 64;
+        default:
+            return -1;
+    }
+}
+
 static int json_get_long(const char *json, const char *key, long long *out) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -222,7 +237,18 @@ int main(int argc, char *argv[]) {
         }
         unsigned char sig_field[64];
         std::memcpy(sig_field, bin_data.data() + 180, sizeof(sig_field));
-        if (std::memcmp(sig_field, expected_sig, expected_len) != 0) {
+        /* The declared algorithm fixes the length; a vector that supplies a
+         * different one is malformed however well the bytes match. */
+        int wire_sig_ver = bin_data[9];
+        int want_len = expected_signature_size(wire_sig_ver);
+        if (want_len < 0) {
+            fprintf(stderr, "  FAIL: unknown signature_version %d\n", wire_sig_ver);
+            failures++;
+        } else if (static_cast<size_t>(want_len) != expected_len) {
+            fprintf(stderr, "  FAIL: signature_version %d wants %d bytes, vector supplies %zu\n", wire_sig_ver,
+                    want_len, expected_len);
+            failures++;
+        } else if (std::memcmp(sig_field, expected_sig, expected_len) != 0) {
             fprintf(stderr, "  FAIL: signature mismatch\n");
             failures++;
         } else {
