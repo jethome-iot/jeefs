@@ -113,13 +113,20 @@ pub unsafe extern "C" fn jeefs_rs_read(image: *const u8, size: u16, name: *const
     }
 }
 
-/// Count the files the walk reaches, or return the error that stopped it.
+/// Write the names the walk reaches into `out` and return how many, or the
+/// error that stopped the walk. The layout matches the C `EEPROM_ListFiles`
+/// array — 16 bytes per entry, NUL-padded — so the caller can compare the
+/// two side by side rather than just counting.
 ///
 /// # Safety
-/// `image` must be valid for reads of `size` bytes.
+/// `image` must be valid for reads of `size` bytes, and `out` for writes of
+/// `max_files * 16` bytes.
 #[no_mangle]
-pub unsafe extern "C" fn jeefs_rs_list(image: *const u8, size: u16) -> i16 {
+pub unsafe extern "C" fn jeefs_rs_list(image: *const u8, size: u16, out: *mut u8, max_files: u16) -> i16 {
     let img = slice::from_raw_parts(image, size as usize);
+    let names = slice::from_raw_parts_mut(out, max_files as usize * 16);
+    names.fill(0);
+
     let iter = match files(img) {
         Ok(it) => it,
         Err(e) => return code(e),
@@ -127,7 +134,15 @@ pub unsafe extern "C" fn jeefs_rs_list(image: *const u8, size: u16) -> i16 {
     let mut count: i16 = 0;
     for entry in iter {
         match entry {
-            Ok(_) => count += 1,
+            Ok(e) => {
+                if count as usize >= max_files as usize {
+                    return count; // the C core stops at the caller's cap too
+                }
+                let name = e.name_bytes();
+                let at = count as usize * 16;
+                names[at..at + name.len()].copy_from_slice(name);
+                count += 1;
+            }
             Err(e) => return code(e),
         }
     }
