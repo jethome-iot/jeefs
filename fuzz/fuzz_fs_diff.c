@@ -33,7 +33,7 @@ int16_t jeefs_rs_add(uint8_t *image, uint16_t size, const uint8_t *name, const u
 int16_t jeefs_rs_write(uint8_t *image, uint16_t size, const uint8_t *name, const uint8_t *data, uint16_t data_len);
 int16_t jeefs_rs_delete(uint8_t *image, uint16_t size, const uint8_t *name);
 int16_t jeefs_rs_read(const uint8_t *image, uint16_t size, const uint8_t *name, uint8_t *out, uint16_t out_len);
-int16_t jeefs_rs_list(const uint8_t *image, uint16_t size);
+int16_t jeefs_rs_list(const uint8_t *image, uint16_t size, uint8_t *out, uint16_t max_files);
 
 /* A small pool of names: the interesting collisions are repeats and the
  * reserved identity name, not the space of all 15-character strings. */
@@ -163,13 +163,31 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {
                 compare_result(c_rc, rs_rc, "read");
                 if (c_rc > 0 && memcmp(c_out, rs_out, (size_t) c_rc) != 0)
                     divergence("read payload");
+                /* Reading must not write. Comparing here as well means an
+                 * accidental mutation is caught at the operation that made
+                 * it, instead of being erased by a later format. */
+                compare_images(c_img, rs_img, size, "read");
                 break;
             }
             default: { /* list */
-                static char names[MAX_IMG / 28 + 1][JEEFS_FILE_NAME_LENGTH + 1];
-                int16_t c_rc = EEPROM_ListFiles(c_img, size, names, (uint16_t) (MAX_IMG / 28 + 1));
-                int16_t rs_rc = jeefs_rs_list(rs_img, size);
+                enum { LIST_CAP = MAX_IMG / 28 + 1 };
+                static char c_names[LIST_CAP][JEEFS_FILE_NAME_LENGTH + 1];
+                static uint8_t rs_names[LIST_CAP * 16];
+                memset(c_names, 0, sizeof(c_names));
+                int16_t c_rc = EEPROM_ListFiles(c_img, size, c_names, (uint16_t) LIST_CAP);
+                int16_t rs_rc = jeefs_rs_list(rs_img, size, rs_names, (uint16_t) LIST_CAP);
                 compare_result(c_rc, rs_rc, "list");
+                compare_images(c_img, rs_img, size, "list");
+                /* Counting alone would miss a wrong name or a different
+                 * order, which is exactly the kind of drift a port rewrite
+                 * introduces. */
+                for (int16_t i = 0; i < c_rc; i++) {
+                    if (strncmp(c_names[i], (const char *) &rs_names[i * 16], JEEFS_FILE_NAME_LENGTH) != 0) {
+                        fprintf(stderr, "list entry %d: C \"%s\", Rust \"%.15s\"\n", (int) i, c_names[i],
+                                (const char *) &rs_names[i * 16]);
+                        divergence("listed names");
+                    }
+                }
                 break;
             }
         }

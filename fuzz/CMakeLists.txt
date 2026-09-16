@@ -33,17 +33,29 @@ endforeach()
 # ─── Differential C vs Rust target ───────────────────────────────────────────
 if(CARGO_FOR_FUZZ)
     set(FFI_DIR ${jeefs_SOURCE_DIR}/rust/jeefs-fuzz-ffi)
-    set(FFI_LIB ${FFI_DIR}/target/release/libjeefs_fuzz_ffi.a)
+
+    # Without coverage instrumentation on the Rust side, libFuzzer would steer
+    # by the C core alone and a branch only the Rust port has could never guide
+    # the search. The flags go to a target-specific build so they do not reach
+    # build scripts, which are compiled for the host and would fail with them.
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE FFI_TRIPLE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND rustc -vV OUTPUT_VARIABLE RUSTC_VV)
+    string(REGEX MATCH "host: ([^
+]+)" _ "${RUSTC_VV}")
+    set(FFI_TRIPLE ${CMAKE_MATCH_1})
+    set(FFI_LIB ${FFI_DIR}/target/${FFI_TRIPLE}/release/libjeefs_fuzz_ffi.a)
+    set(FFI_RUSTFLAGS "-Cpasses=sancov-module -Cllvm-args=-sanitizer-coverage-level=4 -Cllvm-args=-sanitizer-coverage-inline-8bit-counters -Cllvm-args=-sanitizer-coverage-pc-table -Cllvm-args=-sanitizer-coverage-trace-compares")
 
     add_custom_command(
         OUTPUT ${FFI_LIB}
-        COMMAND ${CARGO_FOR_FUZZ} build --release --manifest-path ${FFI_DIR}/Cargo.toml
+        COMMAND ${CMAKE_COMMAND} -E env RUSTFLAGS=${FFI_RUSTFLAGS}
+                ${CARGO_FOR_FUZZ} build --release --target ${FFI_TRIPLE} --manifest-path ${FFI_DIR}/Cargo.toml
         DEPENDS
             ${FFI_DIR}/src/lib.rs
             ${FFI_DIR}/Cargo.toml
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/fs.rs
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/lib.rs
-        COMMENT "Building the Rust FS shim for the differential fuzzer"
+        COMMENT "Building the instrumented Rust FS shim for the differential fuzzer"
     )
     add_custom_target(jeefs_fuzz_ffi DEPENDS ${FFI_LIB})
 

@@ -44,19 +44,39 @@ pick_clang() {
 }
 
 BUILD="build-fuzz"
-if [ ! -x "$BUILD/fuzz/fuzz_fs" ]; then
-    CLANG="$(pick_clang)"
-    if [ -z "$CLANG" ]; then
-        echo "No clang with a libFuzzer runtime found." >&2
-        echo "On macOS: brew install llvm, then re-run (or set CC to a suitable clang)." >&2
-        echo "The cross-language mutation vectors still run without it: ctest -R fs_mutation" >&2
-        exit 2
-    fi
-    echo "Building fuzzers into $BUILD with $CLANG"
-    CC="$CLANG" CXX="${CLANG}++" cmake -B "$BUILD" -DJEEFS_BUILD_FUZZERS=ON -DJEEFS_FUZZ_DRIVER=OFF \
-        -DJEEFS_BUILD_TESTS=OFF -DJEEFS_BUILD_EXAMPLES=OFF -DJEEFS_INSTALL=OFF >/dev/null
-    cmake --build "$BUILD" >/dev/null
+CLANG="$(pick_clang)"
+if [ -z "$CLANG" ]; then
+    echo "No clang with a libFuzzer runtime found." >&2
+    echo "On macOS: brew install llvm, then re-run (or set CC to a suitable clang)." >&2
+    echo "The cross-language mutation vectors still run without it: ctest -R fs_mutation" >&2
+    exit 2
 fi
+
+# Always configure and rebuild. Reusing whatever sits in build-fuzz would run
+# the campaign against stale code, and a tree configured with
+# JEEFS_FUZZ_DRIVER=ON builds corpus runners that ignore every libFuzzer
+# argument and exit 0 — the script would then record campaign time for a run
+# that never fuzzed anything.
+echo "Configuring $BUILD with $CLANG"
+CC="$CLANG" CXX="${CLANG}++" cmake -B "$BUILD" -DJEEFS_BUILD_FUZZERS=ON -DJEEFS_FUZZ_DRIVER=OFF \
+    -DJEEFS_BUILD_TESTS=OFF -DJEEFS_BUILD_EXAMPLES=OFF -DJEEFS_INSTALL=OFF >/dev/null
+cmake --build "$BUILD" >/dev/null
+
+is_libfuzzer() {
+    # A libFuzzer binary answers -help=1 with its flag list; the corpus runner
+    # built by JEEFS_FUZZ_DRIVER treats the argument as a file name and says
+    # nothing of the sort.
+    #
+    # The output is captured rather than piped: under `set -o pipefail`, a
+    # `grep -q` that exits early sends SIGPIPE to the binary and the whole
+    # pipeline then reports failure for a perfectly good fuzzer.
+    local help_text
+    help_text="$("$1" -help=1 </dev/null 2>&1 || true)"
+    case "$help_text" in
+        *"Number of individual test runs"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 mkdir -p fuzz/crashes
 LOG="fuzz/campaign.log"
@@ -93,6 +113,11 @@ for target in "${TARGETS[@]}"; do
         echo "skip $target: not built (cargo missing for the differential target?)"
         continue
     fi
+    if ! is_libfuzzer "$bin"; then
+        echo "$target is not a libFuzzer binary — refusing to record time for a run that cannot fuzz" >&2
+        failed=1
+        continue
+    fi
 
     seed_corpus="$(seed_corpus_for "$target")"
     grown="$(grown_corpus_for "$target")"
@@ -110,8 +135,14 @@ for target in "${TARGETS[@]}"; do
     fi
 
     # Keep what the run learned, minimised, so the next campaign starts ahead.
-    "$bin" -merge=1 "$grown" "$work" >/dev/null 2>&1 || true
-    rm -rf "$work"
+    # If the merge fails, the working corpus is the only copy of what this
+    # run discovered — keep it and say where, rather than deleting it.
+    if "$bin" -merge=1 "$grown" "$work" >/dev/null 2>&1; then
+        rm -rf "$work"
+    else
+        echo "merge failed for $target; discovered inputs kept in $work" >&2
+        failed=1
+    fi
     echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $target ${MINUTES}m grown=$(ls "$grown" | wc -l | tr -d ' ')" >> "$LOG"
 done
 
