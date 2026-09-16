@@ -55,6 +55,8 @@ def cases(vectors: Path) -> list[tuple[str, bytes, dict]]:
     v4_bin = (vectors / "v4_header_mac_erased.bin").read_bytes()
     v1 = json.loads((vectors / "v1_header_identifiers.json").read_text())
     v1_bin = (vectors / "v1_header_identifiers.bin").read_bytes()
+    nosig = json.loads((vectors / "v3_header_nosig.json").read_text())
+    nosig_bin = (vectors / "v3_header_nosig.bin").read_bytes()
 
     return [
         # The padding convention a short signature relies on.
@@ -93,6 +95,17 @@ def cases(vectors: Path) -> list[tuple[str, bytes, dict]]:
             mutate_bin(v3_bin, 9, b"\x00"),
             spec_with(v3, signature_version=0, signature_hex=17),
         ),
+        # The v4 arm is separate code in every port: a check dropped from it
+        # alone would pass every v3 case above.
+        ("v4 signature padding filled with garbage", mutate_bin(v4_bin, 200, b"\xDE" * 40), v4),
+        ("v4 timestamp altered", mutate_bin(v4_bin, 244, struct.pack("<q", 1)), v4),
+        # An absent signature means all 64 bytes are zero, not just the ones
+        # a shorter algorithm would have used.
+        ("no-signature field carrying bytes", mutate_bin(nosig_bin, 180, b"\x7F" * 64), nosig),
+        # An explicit null is malformed metadata, not an omitted field.
+        ("signature_hex is null", v3_bin, spec_with(v3, signature_hex=None)),
+        ("timestamp is null", v3_bin, spec_with(v3, timestamp=None)),
+        ("timestamp is a float", v3_bin, spec_with(v3, timestamp=1755300000.5)),
         # Truncated media.
         ("file truncated to 12 bytes", v3_bin[:12], v3),
         ("file truncated to 5 bytes", v3_bin[:5], v3),

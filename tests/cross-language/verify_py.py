@@ -150,9 +150,9 @@ def verify(bin_path: str, json_path: str) -> int:
         # it: a shorter signature is zero-padded to the end, and "no
         # signature" means the whole field is zero. Checking only the
         # populated prefix would let a generator leave anything behind it.
+        # An explicitly present null is malformed metadata; only an absent
+        # key means "no signature", which is what C and C++ enforce too.
         sig_hex = json_fields.get("signature_hex", "")
-        if sig_hex is None:
-            sig_hex = ""
         try:
             if not isinstance(sig_hex, str):
                 raise ValueError("signature_hex must be a string")

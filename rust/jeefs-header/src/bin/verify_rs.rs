@@ -41,8 +41,11 @@ fn check_signature(bin_data: &[u8], fields: &serde_json::Value) {
 
     // A present-but-not-a-string value is malformed metadata, not an absent
     // signature: say so instead of quietly expecting an empty field.
+    // Indexing yields Null for both an absent key and an explicit null, so
+    // ask the map: a present null is malformed metadata, like in C and C++.
     let raw = &fields["signature_hex"];
-    if !raw.is_null() && !raw.is_string() {
+    let present = fields.get("signature_hex").is_some();
+    if present && !raw.is_string() {
         eprintln!("  FAIL: signature_hex is not a string");
         unsafe { FAILURES += 1 };
         return;
@@ -121,9 +124,10 @@ fn check_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
     // as_i64() says None for both an absent key and a present non-integer;
     // only the first is an omission, the second is malformed metadata.
     let raw = &fields["timestamp"];
+    let present = fields.get("timestamp").is_some();
     let expected_ts = match raw.as_i64() {
         Some(v) => v,
-        None if raw.is_null() => return,
+        None if !present => return,
         None => {
             eprintln!("  FAIL: timestamp is present but not an integer");
             unsafe { FAILURES += 1 };
