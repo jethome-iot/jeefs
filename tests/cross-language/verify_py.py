@@ -132,15 +132,21 @@ def verify(bin_path: str, json_path: str) -> int:
         else:
             print(f"  OK: timestamp = {ts_actual}")
 
+        # The signature field is 64 bytes whatever the algorithm puts in
+        # it: a shorter signature is zero-padded to the end, and "no
+        # signature" means the whole field is zero. Checking only the
+        # populated prefix would let a generator leave anything behind it.
         sig_hex = json_fields.get("signature_hex", "")
-        if sig_hex:
-            expected_sig = bytes.fromhex(sig_hex)
-            actual_sig = bin_data[180 : 180 + len(expected_sig)]
-            if actual_sig != expected_sig:
-                print(f"  FAIL: signature mismatch")
-                failures += 1
-            else:
-                print(f"  OK: signature ({len(expected_sig)} bytes)")
+        expected_sig = bytes.fromhex(sig_hex) if sig_hex else b""
+        sig_field = bin_data[180:244]
+        if sig_field[: len(expected_sig)] != expected_sig:
+            print("  FAIL: signature mismatch")
+            failures += 1
+        elif sig_field[len(expected_sig) :] != bytes(64 - len(expected_sig)):
+            print(f"  FAIL: signature tail not zero-padded past {len(expected_sig)} bytes")
+            failures += 1
+        else:
+            print(f"  OK: signature ({len(expected_sig)} bytes, zero-padded to 64)")
 
     print(f"\nResult: {failures} failure(s)")
     return failures

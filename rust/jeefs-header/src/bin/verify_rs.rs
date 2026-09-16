@@ -26,6 +26,54 @@ fn check_int(name: &str, actual: i64, expected: i64) {
     }
 }
 
+/// The signature field is 64 bytes whatever the algorithm puts in it: a
+/// shorter signature is zero-padded to the end, and "no signature" means the
+/// whole field is zero. Checking only the populated prefix would let a
+/// generator leave anything behind it.
+fn check_signature_and_timestamp(bin_data: &[u8], fields: &serde_json::Value) {
+    let expected: Vec<u8> = match fields["signature_hex"].as_str() {
+        Some(hex) if !hex.is_empty() => {
+            if !hex.len().is_multiple_of(2) || hex.len() / 2 > 64 {
+                eprintln!("  FAIL: signature_hex length {}", hex.len());
+                unsafe { FAILURES += 1 };
+                return;
+            }
+            match (0..hex.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
+                .collect::<Option<Vec<u8>>>()
+            {
+                Some(bytes) => bytes,
+                None => {
+                    eprintln!("  FAIL: signature_hex not hex");
+                    unsafe { FAILURES += 1 };
+                    return;
+                }
+            }
+        }
+        _ => Vec::new(),
+    };
+
+    let field = &bin_data[180..244];
+    if field[..expected.len()] != expected[..] {
+        eprintln!("  FAIL: signature mismatch");
+        unsafe { FAILURES += 1 };
+    } else if field[expected.len()..].iter().any(|&b| b != 0) {
+        eprintln!(
+            "  FAIL: signature tail not zero-padded past {} bytes",
+            expected.len()
+        );
+        unsafe { FAILURES += 1 };
+    } else {
+        println!("  OK: signature ({} bytes, zero-padded to 64)", expected.len());
+    }
+
+    if let Some(expected_ts) = fields["timestamp"].as_i64() {
+        let actual_ts = i64::from_le_bytes(bin_data[244..252].try_into().unwrap());
+        check_int("timestamp", actual_ts, expected_ts);
+    }
+}
+
 fn check_mac(name: &str, actual: &[u8; 6], expected_str: &str) {
     let parts: Vec<u8> = expected_str
         .split(':')
@@ -183,6 +231,7 @@ fn main() {
                         sig_ver,
                     );
                 }
+                check_signature_and_timestamp(&bin_data, fields);
             }
         }
         4 => {
@@ -212,6 +261,7 @@ fn main() {
                         sig_ver,
                     );
                 }
+                check_signature_and_timestamp(&bin_data, fields);
             }
         }
         _ => {

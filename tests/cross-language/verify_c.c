@@ -211,6 +211,48 @@ int main(int argc, char *argv[]) {
             check_int("signature_version", bin_data[9], expected_sig_ver);
         }
 
+        /* The signature field is 64 bytes whatever the algorithm puts in
+         * it: a shorter signature is zero-padded to the end, and "no
+         * signature" means the whole field is zero. Checking only the
+         * populated prefix would let a generator leave anything behind it. */
+        char sig_hex[129] = {0};
+        unsigned char expected_sig[64] = {0};
+        size_t expected_len = 0;
+        if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) == 0) {
+            size_t hex_len = strlen(sig_hex);
+            if (hex_len % 2 != 0 || hex_len / 2 > sizeof(expected_sig)) {
+                fprintf(stderr, "  FAIL: signature_hex length %zu\n", hex_len);
+                failures++;
+            } else {
+                expected_len = hex_len / 2;
+                for (size_t i = 0; i < expected_len; i++) {
+                    unsigned byte;
+                    if (sscanf(sig_hex + i * 2, "%2x", &byte) != 1) {
+                        fprintf(stderr, "  FAIL: signature_hex not hex\n");
+                        failures++;
+                        expected_len = 0;
+                        break;
+                    }
+                    expected_sig[i] = (unsigned char) byte;
+                }
+            }
+        }
+        if (memcmp(bin_data + 180, expected_sig, expected_len) != 0) {
+            fprintf(stderr, "  FAIL: signature mismatch\n");
+            failures++;
+        } else {
+            int tail_ok = 1;
+            for (size_t i = expected_len; i < 64; i++)
+                if (bin_data[180 + i] != 0)
+                    tail_ok = 0;
+            if (!tail_ok) {
+                fprintf(stderr, "  FAIL: signature tail not zero-padded past %zu bytes\n", expected_len);
+                failures++;
+            } else {
+                printf("  OK: signature (%zu bytes, zero-padded to 64)\n", expected_len);
+            }
+        }
+
         long long expected_ts = 0;
         if (json_get_long(json, "timestamp", &expected_ts) == 0) {
             int64_t actual_ts;

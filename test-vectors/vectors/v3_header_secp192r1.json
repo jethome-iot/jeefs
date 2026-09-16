@@ -1,0 +1,17 @@
+{
+    "struct": "JEEPROMHeaderv3",
+    "version": 3,
+    "header_size": 256,
+    "crc_coverage": 252,
+    "fields": {
+        "boardname": "JXD-CPU-P192",
+        "boardversion": "1.1",
+        "serial": "SN-P192-0001",
+        "usid": "00112233445566778899AABBCCDDEEFF",
+        "cpuid": "0F1E2D3C4B5A6978",
+        "mac": "F0:57:8D:01:02:03",
+        "signature_version": 1,
+        "signature_hex": "a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0",
+        "timestamp": 1755300000
+    }
+}

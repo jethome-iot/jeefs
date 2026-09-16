@@ -1,0 +1,14 @@
+{
+    "struct": "JEEPROMHeaderv1",
+    "version": 1,
+    "header_size": 512,
+    "crc_coverage": 508,
+    "fields": {
+        "boardname": "JetHub-D1-legacy",
+        "boardversion": "1.2",
+        "serial": "SN-LEGACY-FULLWIDTH-000000000001",
+        "usid": "USID-V1-901234567890123456789012",
+        "cpuid": "CPUID-V1-01234567890123456789012",
+        "mac": "00:11:22:33:44:55"
+    }
+}

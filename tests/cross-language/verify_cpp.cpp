@@ -57,6 +57,19 @@ static void check_mac(const char *name, const uint8_t *actual, const char *expec
 }
 
 /* Simple JSON string extraction */
+static int json_get_long(const char *json, const char *key, long long *out) {
+    char search[128];
+    snprintf(search, sizeof(search), "\"%s\"", key);
+    const char *pos = strstr(json, search);
+    if (!pos)
+        return -1;
+    pos += strlen(search);
+    while (*pos && (*pos == ' ' || *pos == ':' || *pos == '\t'))
+        pos++;
+    *out = atoll(pos);
+    return 0;
+}
+
 static int json_get_string(const char *json, const char *key, char *out, size_t out_size) {
     char search[128];
     snprintf(search, sizeof(search), "\"%s\"", key);
@@ -161,14 +174,68 @@ int main(int argc, char *argv[]) {
         check_mac("mac", hdr.mac(), expected_str);
 
     /* V3/V4 tail via direct struct access (identical layout) */
-    if (ver && *ver == 3) {
+    if ((ver && *ver == 3) || is_v4) {
         int expected_sig_ver = 0;
         if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
-            check_int("signature_version", hdr.as_v3().signature_version, expected_sig_ver);
-    } else if (is_v4) {
-        int expected_sig_ver = 0;
-        if (json_get_int(json, "signature_version", &expected_sig_ver) == 0)
-            check_int("signature_version", hdr.as_v4().signature_version, expected_sig_ver);
+            check_int("signature_version",
+                      (ver && *ver == 3) ? hdr.as_v3().signature_version : hdr.as_v4().signature_version,
+                      expected_sig_ver);
+
+        /* The signature field is 64 bytes whatever the algorithm puts in it:
+         * a shorter signature is zero-padded to the end, and "no signature"
+         * means the whole field is zero. Checking only the populated prefix
+         * would let a generator leave anything behind it. */
+        unsigned char expected_sig[64] = {0};
+        size_t expected_len = 0;
+        char sig_hex[129] = {0};
+        if (json_get_string(json, "signature_hex", sig_hex, sizeof(sig_hex)) == 0) {
+            size_t hex_len = strlen(sig_hex);
+            if (hex_len % 2 != 0 || hex_len / 2 > sizeof(expected_sig)) {
+                fprintf(stderr, "  FAIL: signature_hex length %zu\n", hex_len);
+                failures++;
+            } else {
+                expected_len = hex_len / 2;
+                for (size_t i = 0; i < expected_len; i++) {
+                    unsigned byte = 0;
+                    if (sscanf(sig_hex + i * 2, "%2x", &byte) != 1) {
+                        fprintf(stderr, "  FAIL: signature_hex not hex\n");
+                        failures++;
+                        expected_len = 0;
+                        break;
+                    }
+                    expected_sig[i] = static_cast<unsigned char>(byte);
+                }
+            }
+        }
+        unsigned char sig_field[64];
+        std::memcpy(sig_field, bin_data.data() + 180, sizeof(sig_field));
+        if (std::memcmp(sig_field, expected_sig, expected_len) != 0) {
+            fprintf(stderr, "  FAIL: signature mismatch\n");
+            failures++;
+        } else {
+            bool tail_ok = true;
+            for (size_t i = expected_len; i < sizeof(sig_field); i++)
+                if (sig_field[i] != 0)
+                    tail_ok = false;
+            if (!tail_ok) {
+                fprintf(stderr, "  FAIL: signature tail not zero-padded past %zu bytes\n", expected_len);
+                failures++;
+            } else {
+                printf("  OK: signature (%zu bytes, zero-padded to 64)\n", expected_len);
+            }
+        }
+
+        long long expected_ts = 0;
+        if (json_get_long(json, "timestamp", &expected_ts) == 0) {
+            int64_t actual_ts = 0;
+            std::memcpy(&actual_ts, bin_data.data() + 244, sizeof(actual_ts));
+            if (actual_ts != expected_ts) {
+                fprintf(stderr, "  FAIL: timestamp = %lld (expected %lld)\n", (long long) actual_ts, expected_ts);
+                failures++;
+            } else {
+                printf("  OK: timestamp = %lld\n", (long long) actual_ts);
+            }
+        }
     }
 
     printf("\nResult: %d failure(s)\n", failures);
