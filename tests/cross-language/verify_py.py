@@ -56,6 +56,15 @@ def verify(bin_path: str, json_path: str) -> int:
 
     print(f"Verifying: {bin_path} (version {version}, {len(bin_data)} bytes)")
 
+    # Every check below indexes fixed offsets, starting with the version
+    # byte: a file shorter than the header it claims to be is refused here
+    # rather than raising out of the first index that runs off the end.
+    if len(bin_data) < expected_size:
+        print(f"  FAIL: file is {len(bin_data)} bytes, too short for a {expected_size}-byte header")
+        print("\nResult: 1 failure(s)")
+        return 1
+
+
     # Check magic
     magic = bin_data[0:8]
     if magic != b"JETHOME\x00":
@@ -81,12 +90,6 @@ def verify(bin_path: str, json_path: str) -> int:
 
     # Check CRC32
     crc_off = expected_size - 4
-    if len(bin_data) < expected_size:
-        # A file shorter than the header it claims to be has nothing left to
-        # check; report it rather than raising out of struct.unpack.
-        print(f"  FAIL: file is {len(bin_data)} bytes, too short for a {expected_size}-byte header")
-        print(f"\nResult: {failures + 1} failure(s)")
-        return failures + 1
     stored_crc = struct.unpack("<I", bin_data[crc_off : crc_off + 4])[0]
     calc_crc = binascii.crc32(bin_data[:crc_coverage]) & 0xFFFFFFFF
     if stored_crc != calc_crc:

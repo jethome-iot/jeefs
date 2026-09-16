@@ -41,6 +41,14 @@ fn check_signature(bin_data: &[u8], fields: &serde_json::Value) {
 
     let expected: Vec<u8> = match fields["signature_hex"].as_str() {
         Some(hex) if !hex.is_empty() => {
+            // Slicing by byte pairs below is only valid on ASCII: a
+            // multi-byte character has an even byte length but no char
+            // boundary at index 2, which panics rather than failing.
+            if !hex.is_ascii() {
+                eprintln!("  FAIL: signature_hex is not hex");
+                unsafe { FAILURES += 1 };
+                return;
+            }
             if !hex.len().is_multiple_of(2) || hex.len() / 2 > 64 {
                 eprintln!("  FAIL: signature_hex length {}", hex.len());
                 unsafe { FAILURES += 1 };
