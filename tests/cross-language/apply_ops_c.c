@@ -67,6 +67,34 @@ static int parse_offset(const char *s, unsigned long *out) {
     return 1;
 }
 
+/* A byte value for poke, in the one form both runners accept: an
+ * optional 0x or 0X prefix, then one or two hex digits, and nothing
+ * else. strtoul read "1ff" as 511 and the cast made it 0xFF, while Rust
+ * overflowed u8 and wrote 0x00 — the same malformed vector produced
+ * different media. */
+static int parse_byte(const char *s, unsigned *out) {
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+        s += 2;
+    size_t n = strlen(s);
+    if (n == 0 || n > 2)
+        return 0;
+    unsigned v = 0;
+    for (; *s != '\0'; s++) {
+        unsigned d;
+        if (*s >= '0' && *s <= '9')
+            d = (unsigned) (*s - '0');
+        else if (*s >= 'a' && *s <= 'f')
+            d = (unsigned) (*s - 'a') + 10;
+        else if (*s >= 'A' && *s <= 'F')
+            d = (unsigned) (*s - 'A') + 10;
+        else
+            return 0;
+        v = v * 16 + d;
+    }
+    *out = v;
+    return 1;
+}
+
 static const char *err_class(int16_t code) {
     switch (code) {
         case FILENOTFOUND:
@@ -212,8 +240,8 @@ int main(int argc, char **argv) {
         } else if (strcmp(op, "poke") == 0) {
             /* poke <offset> <hexbyte>: corrupt the medium under the reader */
             unsigned long off;
-            unsigned val = (unsigned) strtoul(arg2, NULL, 16);
-            if (parse_offset(arg1, &off) && off < image_size) {
+            unsigned val;
+            if (parse_offset(arg1, &off) && parse_byte(arg2, &val) && off < image_size) {
                 image[off] = (uint8_t) val;
                 printf("%d poke ok %lu\n", idx, off);
             } else {
