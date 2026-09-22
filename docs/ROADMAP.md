@@ -59,18 +59,16 @@ libFuzzer input and fails on any difference in result or image bytes,
 while `fuzz/campaign.sh` runs longer than the CI smoke and records what it
 ran; **the filename character domain** (#116), stated in the spec and
 enforced by every port instead of inherited from each one's string type;
-and **the Rust walker** (#109), which closes Rust/C parity — a firmware
-too small to buffer its EEPROM no longer has to link the C core. Fuzzing
+**the Rust walker** (#109), which closes Rust/C parity — a firmware too
+small to buffer its EEPROM no longer has to link the C core; and **one
+parser for the mutation scenarios** (#119), which the Go port needed
+before it added a third. Fuzzing
 evidence accrues by the calendar, so campaigns keep running in the
 background while the steps below proceed.
 
-1. **One parser for the mutation vectors** (#119) — the `.ops` scenarios had
-   a hand-written parser per runner, and they disagreed on malformed input
-   in ways that surfaced as divergences between the ports. Before the Go
-   port, because that port would add a third parser to the same format.
-2. **Go port** (#110) — the contract's first external validation; the matrix
+1. **Go port** (#110) — the contract's first external validation; the matrix
    grows to 5×5. Needs a `go_generator.py`, which does not exist yet.
-3. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
+2. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
    against a real embedding, which needs production integration to start.
 
 Out of this repository's scope, but gating the freeze: **consumer

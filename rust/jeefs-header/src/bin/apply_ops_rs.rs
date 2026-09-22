@@ -124,15 +124,22 @@ fn init_image(kind: u8, size: usize) -> Vec<u8> {
     }
 }
 
+/// A name blob as a `&str` the library can be called with.
+///
 /// A name field is bytes, because the format's name domain is printable
 /// ASCII (#116) and a scenario names something outside it to watch every
-/// port refuse it. `fs` and `walk` take `&str`, so a non-UTF-8 name cannot
-/// be passed through — but it must not be skipped either: any byte outside
-/// printable ASCII is outside the domain, so the library would answer
-/// FileNameNotValid whatever the encoding. The caller prints that answer,
-/// which is the line the C runner prints for the same program.
-fn name_of(blob: &[u8]) -> Option<&str> {
-    str::from_utf8(blob).ok()
+/// port refuse it. `fs` and `walk` take `&str`, so a blob that is not
+/// UTF-8 — which only a corrupted artifact can contain, since the compiler
+/// encodes names from text — is replaced by one the library refuses for
+/// the same reason it would refuse the original: a byte outside the
+/// printable-ASCII domain.
+///
+/// Substituting rather than answering keeps the library's order of checks
+/// in charge. Printing `name_invalid` here instead got that order wrong:
+/// `Walk::begin` rejects a short prefix before it ever looks at the name,
+/// and the C runner said so while this one did not.
+fn name_of(blob: &[u8]) -> &str {
+    str::from_utf8(blob).unwrap_or("\u{1}")
 }
 
 fn main() {
@@ -190,41 +197,29 @@ fn main() {
                 if data.len() > MAX_BUF {
                     broken_program(&format!("payload too large: {}", data.len()));
                 }
-                match name_of(name) {
-                    None => println!("{idx} {op_name} err name_invalid"),
-                    Some(name) => {
-                        let r = if op == OP_ADD {
-                            add_file(&mut image, name, data)
-                        } else {
-                            write_file(&mut image, name, data)
-                        };
-                        match r {
-                            Ok(n) => println!("{idx} {op_name} ok {n}"),
-                            Err(e) => println!("{idx} {op_name} err {}", err_class(e)),
-                        }
-                    }
+                let name = name_of(name);
+                let r = if op == OP_ADD {
+                    add_file(&mut image, name, data)
+                } else {
+                    write_file(&mut image, name, data)
+                };
+                match r {
+                    Ok(n) => println!("{idx} {op_name} ok {n}"),
+                    Err(e) => println!("{idx} {op_name} err {}", err_class(e)),
                 }
             }
-            OP_DELETE => match name_of(prog.blob()) {
-                None => println!("{idx} delete err name_invalid"),
-                Some(name) => match delete_file(&mut image, name) {
-                    // The C core reports a completed delete as 1.
-                    Ok(()) => println!("{idx} delete ok 1"),
-                    Err(e) => println!("{idx} delete err {}", err_class(e)),
-                },
+            OP_DELETE => match delete_file(&mut image, name_of(prog.blob())) {
+                // The C core reports a completed delete as 1.
+                Ok(()) => println!("{idx} delete ok 1"),
+                Err(e) => println!("{idx} delete err {}", err_class(e)),
             },
             OP_READ => {
                 let name = prog.blob();
                 let cap = (prog.u32() as usize).min(MAX_BUF);
-                match name_of(name) {
-                    None => println!("{idx} read err name_invalid"),
-                    Some(name) => {
-                        let mut buf = vec![0u8; cap];
-                        match read_file(&image, name, &mut buf) {
-                            Ok(n) => println!("{idx} read ok {n} {:08x}", crc32fast::hash(&buf[..n])),
-                            Err(e) => println!("{idx} read err {}", err_class(e)),
-                        }
-                    }
+                let mut buf = vec![0u8; cap];
+                match read_file(&image, name_of(name), &mut buf) {
+                    Ok(n) => println!("{idx} read ok {n} {:08x}", crc32fast::hash(&buf[..n])),
+                    Err(e) => println!("{idx} read err {}", err_class(e)),
                 }
             }
             OP_LIST => match files(&image) {
@@ -305,46 +300,41 @@ fn main() {
                 let name = prog.blob();
                 let prefix_len = image.len().min(256);
                 let mut hops = 0usize;
-                // A name walk_begin would refuse costs no hop, so the
-                // refused-name line carries the same 0 the C runner prints.
-                match name_of(name) {
-                    None => println!("{idx} walk err name_invalid {hops}"),
-                    Some(name) => match Walk::begin(&image[..prefix_len], image.len() as u16, name) {
-                        Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
-                        Ok(mut w) => {
-                            let outcome = loop {
-                                match w.step() {
-                                    Step::Want { offset, len } => {
-                                        let at = offset as usize;
-                                        hops += 1;
-                                        if let Err(e) = w.feed(&image[at..at + len as usize]) {
-                                            break Err(e);
-                                        }
+                match Walk::begin(&image[..prefix_len], image.len() as u16, name_of(name)) {
+                    Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
+                    Ok(mut w) => {
+                        let outcome = loop {
+                            match w.step() {
+                                Step::Want { offset, len } => {
+                                    let at = offset as usize;
+                                    hops += 1;
+                                    if let Err(e) = w.feed(&image[at..at + len as usize]) {
+                                        break Err(e);
                                     }
-                                    Step::Failed(e) => break Err(e),
-                                    terminal => break Ok(terminal),
                                 }
-                            };
-                            match outcome {
-                                Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
-                                Ok(Step::Found(f)) => {
-                                    let at = f.offset() as usize;
-                                    let mut v = DataVerifier::new(&f);
-                                    for chunk in image[at..at + f.size() as usize].chunks(64) {
-                                        v.update(chunk);
-                                    }
-                                    println!(
-                                        "{idx} walk ok found {hops} {} {} {:08x} {}",
-                                        f.offset(),
-                                        f.size(),
-                                        f.crc32(),
-                                        if v.finish() { 1 } else { 0 }
-                                    );
-                                }
-                                Ok(_) => println!("{idx} walk ok notfound {hops}"),
+                                Step::Failed(e) => break Err(e),
+                                terminal => break Ok(terminal),
                             }
+                        };
+                        match outcome {
+                            Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
+                            Ok(Step::Found(f)) => {
+                                let at = f.offset() as usize;
+                                let mut v = DataVerifier::new(&f);
+                                for chunk in image[at..at + f.size() as usize].chunks(64) {
+                                    v.update(chunk);
+                                }
+                                println!(
+                                    "{idx} walk ok found {hops} {} {} {:08x} {}",
+                                    f.offset(),
+                                    f.size(),
+                                    f.crc32(),
+                                    if v.finish() { 1 } else { 0 }
+                                );
+                            }
+                            Ok(_) => println!("{idx} walk ok notfound {hops}"),
                         }
-                    },
+                    }
                 }
             }
             OP_POKE => {
