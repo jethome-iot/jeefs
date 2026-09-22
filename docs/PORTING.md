@@ -127,9 +127,18 @@ to rebuild a whole image at once (`jeefs_header::image`) instead of
 editing in place; `std` additionally brings `std::error::Error`
 integration and is the default for host tooling.
 
-The C `jeefs_walk.h` walker has no Rust counterpart: a target too small
-to buffer its EEPROM should call the C walker. Everything else is
-interchangeable — the Rust FS port is held to the C core byte for byte
-by `tests/cross-language/fs_vectors` (ctest `fs_mutation_c_matches_rs`),
-which replays the same scenarios, plus generated random ones, through
-both implementations and compares the resulting images.
+A target too small to buffer its EEPROM uses `jeefs_header::walk`, the
+Rust form of the same pull model: `Walk::begin`, then `step()` for the
+window the environment must read and `feed()` for the bytes it read, with
+the terminals as variants of `Step`. `DataVerifier` is the running-CRC
+form of `jeefs_crc32_update`; it refuses a stream that is short or
+overlong, so a truncated read cannot pass for a verified file. Peak RAM
+is the same as the C walker's: the struct plus one 28-byte window.
+
+The two ports are interchangeable, and held to it rather than asserted:
+`tests/cross-language/fs_vectors` (ctest `fs_mutation_c_matches_rs`)
+replays the same scenarios, plus generated random ones, through both
+implementations and compares the resulting images — and, since #109, the
+journal of each walk: the terminal state, the number of header reads it
+took to get there, the located file's offset, size and CRC, and whether
+the streamed payload verified.
