@@ -61,8 +61,10 @@ CTestTestfile.cmake
 Makefile
 Testing/
 
-# Rust
+# Rust: the normal build tree, plus the extra ones a fuzzing build creates
+# for an instrumented target triple.
 rust/*/target/
+rust/*/target-*/
 
 # Python
 __pycache__/
@@ -90,8 +92,3 @@ docs/wrapup/
 fuzz/corpus-grown/
 fuzz/crashes/
 fuzz/campaign.log
-
-# Cargo build trees, including the extra ones a fuzzing build creates for an
-# instrumented target triple.
-rust/*/target/
-rust/*/target-*/
