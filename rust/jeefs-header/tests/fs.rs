@@ -206,6 +206,25 @@ fn names_are_validated() {
 }
 
 #[test]
+fn names_are_printable_ascii() {
+    // The domain is a stated rule, not a side effect of taking &str: without
+    // the check this port accepts every non-ASCII name that happens to be
+    // valid UTF-8, while the C core accepts bytes UTF-8 cannot even carry.
+    let mut img = fresh();
+    assert!(matches!(add_file(&mut img, "пр", b"x"), Err(FsError::FileNameNotValid)));
+    assert!(matches!(add_file(&mut img, "a\tb", b"x"), Err(FsError::FileNameNotValid)));
+    assert!(matches!(add_file(&mut img, "a\u{7f}", b"x"), Err(FsError::FileNameNotValid)));
+    assert!(matches!(
+        read_file(&img, "пр", &mut [0u8; 4]),
+        Err(FsError::FileNameNotValid)
+    ));
+    assert!(matches!(write_file(&mut img, "пр", b"x"), Err(FsError::FileNameNotValid)));
+    assert!(matches!(delete_file(&mut img, "пр"), Err(FsError::FileNameNotValid)));
+    // Space is inside 0x20-0x7E, so it stays legal.
+    assert_eq!(add_file(&mut img, "my file", b"x").unwrap(), 1);
+}
+
+#[test]
 fn payload_sizes_are_validated() {
     let mut img = fresh();
     assert!(matches!(add_file(&mut img, "a", b""), Err(FsError::BufferNotValid)));
