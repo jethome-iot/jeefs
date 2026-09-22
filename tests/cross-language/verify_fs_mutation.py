@@ -133,6 +133,56 @@ def compare_images(scenario: Path, c_bin: Path, rs_bin: Path) -> bool:
     return False
 
 
+def damaged_programs(good: bytes) -> dict[str, bytes]:
+    """Programs no compiler would emit, for checking the runners agree anyway.
+
+    A program is a build artifact, so a damaged one means a broken build
+    rather than a test outcome — but each runner decides that for itself,
+    and two decoders that disagree about what is broken are the shape of
+    problem this harness just spent a change removing. Nothing else
+    exercises those paths.
+    """
+    cases = {
+        "empty": b"",
+        "magic only": good[:4],
+        "bad magic": b"XOPS" + good[4:],
+        "no version": good[:4],
+        "unknown version": good[:4] + bytes([99]) + good[5:],
+        "header only": good[:5],
+        "unknown opcode": good[:5] + bytes([200]),
+        "truncated mid-operation": good[:-1],
+    }
+    for cut in (6, 9, 12):
+        if len(good) > cut:
+            cases[f"cut at {cut}"] = good[:cut]
+    return cases
+
+
+def check_damaged(apply_c: Path, apply_rs: Path, work_dir: Path, good: bytes) -> int:
+    failures = 0
+    for label, program in damaged_programs(good).items():
+        path = work_dir / "damaged.jops"
+        path.write_bytes(program)
+        results = []
+        for binary in (apply_c, apply_rs):
+            proc = subprocess.run(
+                [str(binary), str(path), str(work_dir / "damaged.bin")],
+                capture_output=True,
+                check=False,
+            )
+            results.append((proc.returncode, proc.stdout))
+        (c_code, c_out), (rs_code, rs_out) = results
+        # Exit code and journal must match. A negative code means a signal:
+        # a decoder that crashes on a damaged artifact is a decoder that
+        # would crash on a damaged medium.
+        if c_code < 0 or rs_code < 0 or c_code != rs_code or c_out != rs_out:
+            print(f"FAIL: damaged program {label!r}: C exit {c_code}, Rust exit {rs_code}")
+            failures += 1
+    if not failures:
+        print(f"OK: C and Rust agree on all {len(damaged_programs(good))} damaged programs")
+    return failures
+
+
 def main() -> None:
     args = sys.argv[1:]
     random_count, seed = 0, 20260903
@@ -172,6 +222,9 @@ def main() -> None:
         print(f"generated {random_count} random scenarios (seed {seed})")
 
     failures = 0
+    first = compile_to(scenarios[0], work_dir)
+    failures += check_damaged(apply_c, apply_rs, work_dir, first.read_bytes())
+
     for scenario in scenarios:
         program = compile_to(scenario, work_dir)
         c_bin = work_dir / f"{scenario.stem}.c.bin"
