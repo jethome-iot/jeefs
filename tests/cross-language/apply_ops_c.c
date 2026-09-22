@@ -184,11 +184,19 @@ int main(int argc, char **argv) {
              * WRITTEN with unusual content rather than merely corrupted. */
             int base = (arg1[0] == '0' && (arg1[1] == 'x' || arg1[1] == 'X')) ? 16 : 10;
             unsigned off = (unsigned) strtoul(arg1, NULL, base);
-            if (off + sizeof(JEEFSFileHeaderv1) <= image_size) {
+            /* Compare against the room left rather than adding to off: a
+             * scenario naming a huge offset would wrap the sum and write
+             * past the image. */
+            if (off < image_size && image_size - off >= sizeof(JEEFSFileHeaderv1)) {
                 uint32_t c = jeefs_crc32(image + off, offsetof(JEEFSFileHeaderv1, headerCrc32));
                 jeefs_put_le32(image + off + offsetof(JEEFSFileHeaderv1, headerCrc32), c);
+                printf("%d reseal ok %u\n", idx, off);
+            } else {
+                /* Out of range prints no number: the two runners parse an
+                 * oversized offset into different widths, and the journal
+                 * must compare the ports, not the parsers. */
+                printf("%d reseal skip\n", idx);
             }
-            printf("%d reseal ok %u\n", idx, off);
         } else if (strcmp(op, "walk") == 0) {
             /* Locate the file the way a bounded-RAM environment does: the
              * pull-model walker plus a running CRC over the payload. The

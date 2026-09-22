@@ -168,11 +168,18 @@ fn main() {
                 let base = if arg1.starts_with("0x") || arg1.starts_with("0X") { 16 } else { 10 };
                 let off = usize::from_str_radix(arg1.trim_start_matches("0x").trim_start_matches("0X"), base)
                     .unwrap_or(usize::MAX);
-                if off != usize::MAX && off + 28 <= image.len() {
+                // Checked: a scenario naming a huge offset would otherwise
+                // wrap the bound and slice out of range.
+                if off.checked_add(28).is_some_and(|end| end <= image.len()) {
                     let c = crc32fast::hash(&image[off..off + 24]);
                     image[off + 24..off + 28].copy_from_slice(&c.to_le_bytes());
+                    println!("{idx} reseal ok {off}");
+                } else {
+                    // Out of range prints no number: the two runners parse
+                    // an oversized offset into different widths, and the
+                    // journal must compare the ports, not the parsers.
+                    println!("{idx} reseal skip");
                 }
-                println!("{idx} reseal ok {off}");
             }
             "walk" => {
                 // Locate the file the way a bounded-RAM environment does:
@@ -194,6 +201,7 @@ fn main() {
                                         break Err(e);
                                     }
                                 }
+                                Step::Failed(e) => break Err(e),
                                 terminal => break Ok(terminal),
                             }
                         };
