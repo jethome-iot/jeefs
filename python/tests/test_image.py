@@ -201,6 +201,16 @@ class TestParseImage:
         img = build_image(v4_header(), [("my file", b"x")], 512)
         assert [f.name for f in parse_image(img).files] == ["my file"]
 
+    def test_name_from_before_the_rule_still_parses(self):
+        # The character domain binds writers, not readers: an image carrying
+        # a name that predates the rule must still parse and report it,
+        # rather than failing the whole walk.
+        img = bytearray(build_image(v4_header(), [("a", b"x")], 512))
+        off = 256  # the v4 header is 256 bytes, so the first file header sits here
+        img[off : off + 16] = b"A\xff" + b"\x00" * 14
+        struct.pack_into("<I", img, off + 24, binascii.crc32(bytes(img[off : off + 24])) & 0xFFFFFFFF)
+        assert [f.name for f in parse_image(bytes(img)).files] == ["A\xff"]
+
     def test_erased_tail_is_clean_end(self):
         img = bytearray(build_image(v4_header(), [("a", b"x")], 1024))
         img[256 + FHDR + 1 :] = b"\xff" * (1024 - 256 - FHDR - 1)  # erased free space
