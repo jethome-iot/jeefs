@@ -86,6 +86,27 @@ fn build_rejections() {
         build_image(&h, &[("a\0b", b"x")], 512),
         Err(ImageError::BadName)
     ));
+    // This surface had a private name rule that allowed anything latin-1
+    // could encode, so it wrote images the by-name operations then refused
+    // to touch (#116). It now applies the same domain as everything else.
+    assert!(matches!(
+        build_image(&h, &[("пр", b"x")], 512),
+        Err(ImageError::BadName)
+    ));
+    assert!(matches!(
+        build_image(&h, &[("a\u{ff}", b"x")], 512),
+        Err(ImageError::BadName)
+    ));
+    assert!(matches!(
+        build_image(&h, &[("a\tb", b"x")], 512),
+        Err(ImageError::BadName)
+    ));
+    // A space is inside the domain, so this one builds and round-trips.
+    let img = build_image(&h, &[("my file", b"x")], 512).unwrap();
+    assert_eq!(
+        parse_image(&img).unwrap().files.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(),
+        ["my file"]
+    );
     assert!(matches!(
         build_image(&h, &[("a", b"")], 512),
         Err(ImageError::BadData)

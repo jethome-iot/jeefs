@@ -152,7 +152,13 @@ fn header_size_of(image: &[u8]) -> Option<usize> {
     Some(size)
 }
 
-fn filename_valid(name: &str) -> bool {
+/// Is this a name a caller may pass to a by-name file operation?
+///
+/// Visible to the crate because `image` builds file headers too: it used to
+/// carry its own rule and accepted names this one refuses (#116). The domain
+/// is defined in `docs/format/filesystem-v1.md`; names read back from an
+/// image are reported as they are, never filtered through this.
+pub(crate) fn filename_valid(name: &str) -> bool {
     let len = name.len();
     if len == 0 || len > FILE_NAME_LENGTH {
         return false;

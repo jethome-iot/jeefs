@@ -12,6 +12,7 @@
 //! [`build_image`] a replacement to write back.
 
 use crate::generated::{DEVICE_ID_FILENAME, FILE_NAME_LENGTH, FS_VERSION, FS_VERSION_OFFSET};
+use crate::fs::filename_valid;
 use crate::header::{detect_version, header_size};
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -89,9 +90,8 @@ fn crc32(data: &[u8]) -> u32 {
 
 fn seal_file_header(name: &str, data: &[u8], next_addr: u16) -> [u8; FHDR] {
     let mut raw = [0u8; FHDR];
-    for (i, ch) in name.chars().enumerate() {
-        raw[i] = ch as u8; // validated byte-range chars only
-    }
+    // Printable ASCII, so one byte per character; the caller validated it.
+    raw[..name.len()].copy_from_slice(name.as_bytes());
     raw[16..18].copy_from_slice(&(data.len() as u16).to_le_bytes());
     raw[18..22].copy_from_slice(&crc32(data).to_le_bytes());
     raw[22..24].copy_from_slice(&next_addr.to_le_bytes());
@@ -123,8 +123,11 @@ pub fn build_image(
     }
 
     for (name, data) in files {
-        let n = name.chars().count();
-        if n == 0 || n > FILE_NAME_LENGTH || name.chars().any(|c| c == '\0' || c as u32 > 0xFF) {
+        // The same rule the by-name operations apply. This used to be a
+        // private copy that counted characters and allowed anything latin-1
+        // could encode, so this surface wrote images the rest of the crate
+        // would then refuse to operate on (#116).
+        if !filename_valid(name) {
             return Err(ImageError::BadName);
         }
         if data.is_empty() || data.len() > MAX_DATA {
