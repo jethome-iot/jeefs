@@ -67,12 +67,9 @@ class ParsedImage:
 
 def _seal_file_header(name: str, data: bytes, next_addr: int) -> bytes:
     raw = bytearray(_FHDR)
-    # latin-1 is byte-transparent: the wire format constrains only the
-    # length and the NUL terminator, not the byte values (filesystem-v1.md)
-    try:
-        encoded = name.encode("latin-1")
-    except UnicodeEncodeError as exc:
-        raise ValueError(f"file name {name!r}: contains characters above U+00FF, which do not fit the wire bytes") from exc
+    # The name field is printable ASCII (filesystem-v1.md); the caller has
+    # already checked that, so the encode cannot fail here.
+    encoded = name.encode("ascii")
     raw[0 : len(encoded)] = encoded
     struct.pack_into("<H", raw, 16, len(data))
     struct.pack_into("<I", raw, 18, binascii.crc32(data) & 0xFFFFFFFF)
@@ -102,8 +99,12 @@ def build_image(
     normalized: list[ImageFile] = []
     for f in files:
         item = f if isinstance(f, ImageFile) else ImageFile(f[0], f[1])
-        if not 0 < len(item.name) <= EEPROM_FILE_NAME_LENGTH or "\x00" in item.name:
-            raise ValueError(f"file name {item.name!r} must be 1..{EEPROM_FILE_NAME_LENGTH} chars without NUL")
+        if not 0 < len(item.name) <= EEPROM_FILE_NAME_LENGTH:
+            raise ValueError(f"file name {item.name!r} must be 1..{EEPROM_FILE_NAME_LENGTH} chars")
+        if not all("\x20" <= c <= "\x7e" for c in item.name):
+            raise ValueError(
+                f"file name {item.name!r} must be printable ASCII (0x20-0x7E) — see filesystem-v1.md"
+            )
         if not 0 < len(item.data) <= _MAX_DATA:
             raise ValueError(f"file {item.name!r} data must be 1..{_MAX_DATA} bytes")
         normalized.append(item)

@@ -173,7 +173,7 @@ class TestParseImage:
             parse_image(bytes(img))
 
     def test_wide_char_name_rejected_on_build(self):
-        with pytest.raises(ValueError, match="above U\\+00FF"):
+        with pytest.raises(ValueError, match="printable ASCII"):
             build_image(v4_header(), [("имя", b"x")], 512)
 
     def test_crc_gate_fires_before_field_rules(self):
@@ -188,6 +188,18 @@ class TestParseImage:
     def test_nul_in_name_rejected_on_build(self):
         with pytest.raises(ValueError, match="name"):
             build_image(v4_header(), [("a\x00b", b"x")], 512)
+
+    @pytest.mark.parametrize("name", ["пр", "Aÿ", "a\tb", "a\x7f"])
+    def test_non_printable_ascii_name_rejected_on_build(self, name):
+        # The name field is printable ASCII (0x20-0x7E). Encoding latin-1
+        # instead let this port write names the Rust port cannot express and
+        # the C core cannot round-trip, for the same spec page.
+        with pytest.raises(ValueError, match="name"):
+            build_image(v4_header(), [(name, b"x")], 512)
+
+    def test_space_in_name_accepted_on_build(self):
+        img = build_image(v4_header(), [("my file", b"x")], 512)
+        assert [f.name for f in parse_image(img).files] == ["my file"]
 
     def test_erased_tail_is_clean_end(self):
         img = bytearray(build_image(v4_header(), [("a", b"x")], 1024))
