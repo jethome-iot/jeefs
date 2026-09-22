@@ -23,13 +23,6 @@
 // Internal state values (public terminals live in jeefs_walk.h).
 #define WALK_WANTING 0
 
-static int filename_ok(const char *filename) {
-    if (!filename)
-        return 0;
-    size_t len = strnlen(filename, JEEFS_FILE_NAME_LENGTH + 1);
-    return len > 0 && len <= JEEFS_FILE_NAME_LENGTH;
-}
-
 int16_t jeefs_walk_begin(JEEFSWalk *w, const uint8_t *prefix, uint16_t prefix_len, uint16_t image_size,
                          const char *filename) {
     if (!w)
@@ -37,7 +30,11 @@ int16_t jeefs_walk_begin(JEEFSWalk *w, const uint8_t *prefix, uint16_t prefix_le
     memset(w, 0, sizeof(*w));
     if (!prefix || prefix_len < sizeof(JEEPROMHeaderversion))
         return w->state = BUFFERNOTVALID;
-    if (!filename_ok(filename))
+    /* Same name domain as the FS core: the walker takes a caller-supplied
+     * target, and the shared rule lives in jeefs_header.h because checking
+     * only the length here let jeefs_walk_begin accept a target
+     * EEPROM_ReadFile refuses (#116). */
+    if (!jeefs_filename_valid(filename))
         return w->state = FILENAMENOTVALID;
 
     int version = jeefs_header_detect_version(prefix, prefix_len);

@@ -78,6 +78,35 @@ int jeefs_header_init(uint8_t *data, size_t len, int version);
  */
 int jeefs_header_is_empty(const uint8_t *data, size_t len);
 
+/*
+ * Is this a name a caller may pass to a by-name file operation?
+ * Returns 1 for 1 to JEEFS_FILE_NAME_LENGTH bytes of printable ASCII
+ * (0x20-0x7E, space included), 0 otherwise — the domain
+ * docs/format/filesystem-v1.md defines for the name field.
+ *
+ * It lives here, in the header both library families include, because the
+ * rule already existed twice with two different answers: the FS core and
+ * the walker each validated the length alone and the ports each filled the
+ * gap from their own string type. One rule, one implementation (#116).
+ *
+ * This validates what a CALLER supplies. Names read back from the medium
+ * are reported as they are — enumeration never refuses to list a file
+ * because something wrote a name outside the domain.
+ */
+static inline int jeefs_filename_valid(const char *filename) {
+    if (!filename)
+        return 0;
+    size_t i = 0;
+    for (; filename[i] != '\0'; i++) {
+        if (i >= JEEFS_FILE_NAME_LENGTH)
+            return 0;
+        unsigned char c = (unsigned char) filename[i];
+        if (c < 0x20 || c > 0x7E)
+            return 0;
+    }
+    return i > 0;
+}
+
 #ifdef __cplusplus
 }
 #endif
