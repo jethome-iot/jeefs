@@ -101,8 +101,8 @@ Conformance is not a claim, it is the following tests passing in CI:
 | `generate_vectors.py --check` (CI + prek) | committed vector binaries never drift from their JSON descriptions |
 | Committed record vector | `devid_record_v1.bin` parsed by all four languages against the JSON expectations |
 | Per-language unit suites | ctest (C/C++), pytest, cargo test — erased buffers, unknown versions, CRC gates, bounded round-trips, byte-level LE locks |
-| FS mutation vectors (`fs_vectors/*.ops`) | every port implementing FS applies the same scenario — format, append, `device.id` insert, overwrite, delete, claim, corruption, gates — and must produce the same operation journal and the same image bytes as the C core |
-| Differential fuzzing (`fuzz_fs_diff`) | the same operation stream is applied to the C core and the Rust port on byte-identical images; libFuzzer steers it toward untaken paths, and any difference in a return value or a single image byte aborts the run |
+| FS mutation vectors (`fs_vectors/*.ops`) | every port implementing FS applies the same scenario — format, append, `device.id` insert, overwrite, delete, claim, corruption, gates — and must produce the same operation journal and the same image bytes as the C core. A port that also implements the bounded-RAM locator answers the `walk` op: the terminal state, the number of header reads it took, the located file's offset, size and CRC, and whether the streamed payload verified |
+| Differential fuzzing (`fuzz_fs_diff`) | the same operation stream is applied to the C core and the Rust port on byte-identical images; libFuzzer steers it toward untaken paths, and any difference in a return value or a single image byte aborts the run. The stream includes the bounded-RAM locator, so the two walkers are compared on the same generated images |
 | Verifier rejection suite (`verifiers_reject_mutations`) | the matrix only feeds verifiers valid input, so each one is also required to reject a set of deliberately broken headers and malformed vector metadata — otherwise a check could be dropped and every matrix cell would stay green |
 
 ## Conformance status (2026-08)

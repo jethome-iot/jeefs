@@ -58,6 +58,37 @@ reads the whole device identity from a bounded 540-byte prefix. An image
 with no header is claimed on first write; a failed operation leaves the
 buffer untouched.
 
+## Reading a file without buffering the EEPROM
+
+When the image does not fit in RAM, `walk` locates one file from 28-byte
+windows. The caller still owns every read:
+
+```rust
+use jeefs_header::walk::{DataVerifier, Step, Walk};
+# fn env_read(_off: u32, _buf: &mut [u8]) {}
+# let prefix = [0u8; 256];
+# let image_size = 8192u16;
+
+let mut w = Walk::begin(&prefix, image_size, "wifi.conf")?;
+let mut hdr = [0u8; 28];
+let found = loop {
+    match w.step() {
+        Step::Want { offset, len } => {
+            env_read(offset, &mut hdr[..len as usize]);
+            w.feed(&hdr[..len as usize])?;
+        }
+        Step::Found(f) => break Some(f),
+        Step::NotFound => break None,
+    }
+};
+# Ok::<(), jeefs_header::fs::FsError>(())
+```
+
+Peak RAM is the walker plus one window. The located file's payload is
+verified as it streams, through `DataVerifier`, which refuses a stream
+that is short or overlong so a truncated read cannot pass for a verified
+file.
+
 ## Conformance
 
 The format lives in [`docs/format/`](https://github.com/jethome-iot/jeefs/tree/master/docs/format);
