@@ -66,13 +66,17 @@ Every port provides these over raw byte buffers, with no I/O dependency:
   *nothing written*, not *corrupt*.
 - **Filenames are printable ASCII** (`0x20`-`0x7E`, punctuation included,
   space legal), 1 to 15 content bytes, NUL-terminated
-  ([filesystem-v1.md](format/filesystem-v1.md)). Every port implementing FS
-  validates the range itself and returns its invalid-name error; none may
-  leave the domain to whatever its string type happens to allow. The rule
-  exists because that is precisely how the ports drifted apart: length-only
-  validation let C accept any byte, Rust accept any character UTF-8 can
-  carry, and Python accept anything latin-1 could encode — three domains
-  for one 16-byte field (#116).
+  ([filesystem-v1.md](format/filesystem-v1.md)). The rule binds names the
+  caller supplies — create, read, overwrite, delete, locate — and every
+  port implementing FS validates the range itself and returns its
+  invalid-name error; none may leave the domain to whatever its string
+  type happens to allow. Names read back from the medium are reported as
+  they are, so enumeration and whole-image parse still handle an image
+  older than the rule. The rule exists because that is precisely how the
+  ports drifted apart: length-only validation let C accept any byte, Rust
+  accept any character UTF-8 can carry, and Python accept anything latin-1
+  could encode — and each port's image-building surface added a fourth and
+  fifth answer of its own (#116).
 - **Wire is little-endian** everywhere; implementations must be correct on
   big-endian hosts (C: `jeefs_endian.h`; Rust: generated `from_le`
   accessors; Python: explicit `<` struct formats).
