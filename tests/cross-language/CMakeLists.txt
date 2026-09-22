@@ -31,19 +31,24 @@ if(CARGO)
     set(GENERATE_RS ${RUST_TARGET_DIR}/generate_rs)
     set(APPLY_OPS_RS ${RUST_TARGET_DIR}/apply_ops_rs)
 
+    # Glob rather than list: the hand-written list had gone stale (devid.rs
+    # and image.rs were never on it), so editing those left the matrix
+    # running against a stale binary. CONFIGURE_DEPENDS re-globs at build
+    # time, so a new module cannot be forgotten here.
+    file(GLOB RUST_CRATE_SOURCES CONFIGURE_DEPENDS
+        ${RUST_CRATE_DIR}/src/*.rs
+        ${RUST_CRATE_DIR}/src/bin/*.rs
+    )
+
     add_custom_command(
         OUTPUT ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS} ${APPLY_OPS_RS}
         COMMAND ${CARGO} build --release --features bins --manifest-path ${RUST_CRATE_DIR}/Cargo.toml
         DEPENDS
-            ${RUST_CRATE_DIR}/src/lib.rs
-            ${RUST_CRATE_DIR}/src/generated.rs
-            ${RUST_CRATE_DIR}/src/header.rs
-            ${RUST_CRATE_DIR}/src/bin/verify_rs.rs
-            ${RUST_CRATE_DIR}/src/bin/verify_golden_rs.rs
-            ${RUST_CRATE_DIR}/src/bin/generate_rs.rs
-            ${RUST_CRATE_DIR}/src/bin/apply_ops_rs.rs
-            ${RUST_CRATE_DIR}/src/fs.rs
+            ${RUST_CRATE_SOURCES}
             ${RUST_CRATE_DIR}/Cargo.toml
+            # The lockfile picks the dependency versions these binaries are
+            # built from, so a lockfile-only update has to rebuild too.
+            ${RUST_CRATE_DIR}/Cargo.lock
         COMMENT "Building Rust verifiers and generators"
     )
     add_custom_target(rust_verifiers ALL DEPENDS ${VERIFY_RS} ${VERIFY_GOLDEN_RS} ${GENERATE_RS} ${APPLY_OPS_RS})
