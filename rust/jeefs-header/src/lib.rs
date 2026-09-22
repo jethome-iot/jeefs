@@ -17,6 +17,7 @@ pub mod generated;
 pub mod header;
 #[cfg(feature = "alloc")]
 pub mod image;
+pub mod walk;
 
 pub use devid::*;
 pub use generated::*;

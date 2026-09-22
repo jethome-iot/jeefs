@@ -18,9 +18,9 @@ use crate::generated::{HEADER_VERSION, MAGIC, MAGIC_LENGTH};
 use crate::header::{detect_version, header_size, initialize_header, update_crc, verify_crc};
 
 /// File header size on the wire (`JEEFSFileHeaderv1`).
-const FHDR: usize = 28;
+pub(crate) const FHDR: usize = 28;
 /// Bytes of the file header covered by `headerCrc32`.
-const FHDR_CRC_COVERAGE: usize = 24;
+pub(crate) const FHDR_CRC_COVERAGE: usize = 24;
 /// Payload ceiling: the C API reports sizes in an `int16_t`.
 const MAX_DATA: usize = 32767;
 /// Chain links are `uint16_t`, so nothing past 64 KiB is addressable.
@@ -63,12 +63,15 @@ impl core::fmt::Display for FsError {
 
 impl core::error::Error for FsError {}
 
-fn crc32(data: &[u8]) -> u32 {
+pub(crate) fn crc32(data: &[u8]) -> u32 {
     crc32fast::hash(data)
 }
 
 /// A byte is empty in either domain: written zero or erased 0xFF.
-fn byte_is_empty(b: u8) -> bool {
+///
+/// Shared with [`crate::walk`]: the walker applies the same terminal rule
+/// to an unwritten slot, and a second copy would be a second answer.
+pub(crate) fn byte_is_empty(b: u8) -> bool {
     b == 0x00 || b == 0xFF
 }
 
@@ -318,12 +321,15 @@ pub fn files(image: &[u8]) -> Result<FileIter<'_>, FsError> {
 }
 
 /// Result of a full chain walk: the match (if any) and the first free byte.
-struct Walk {
+///
+/// Named apart from [`crate::walk::Walk`], which is the bounded-RAM
+/// locator rather than this in-memory sweep.
+struct ChainWalk {
     found: Option<(u16, u16, u16, u32)>, // addr, prev, data_size, data crc32
     chain_end: usize,
 }
 
-fn chain_walk(image: &[u8], filename: Option<&str>) -> Result<Walk, FsError> {
+fn chain_walk(image: &[u8], filename: Option<&str>) -> Result<ChainWalk, FsError> {
     let mut it = iter_begin(image)?;
     let mut end = it.fs_start as usize;
     let mut found = None;
@@ -342,7 +348,7 @@ fn chain_walk(image: &[u8], filename: Option<&str>) -> Result<Walk, FsError> {
             }
         }
     }
-    Ok(Walk { found, chain_end: end })
+    Ok(ChainWalk { found, chain_end: end })
 }
 
 /// Stamp the current filesystem version into the board header and refresh
