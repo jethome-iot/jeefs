@@ -4,6 +4,12 @@ format 4
 add a fill:1:100
 add a fill:2:100
 add 0123456789abcdef fill:1:4
+# Outside printable ASCII: every port must refuse it the same way, or the
+# same 16 bytes come to mean different things per language (#116).
+add имя fill:1:4
+write имя fill:1:4
+read имя 64
+delete имя
 add toobig fill:3:400
 read a 10
 read ghost 64

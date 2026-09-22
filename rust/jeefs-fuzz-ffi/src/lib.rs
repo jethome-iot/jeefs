@@ -31,6 +31,12 @@ fn code(e: FsError) -> i16 {
 /// field is read regardless of where the terminator sits — searching for the
 /// NUL byte by byte would read the same memory anyway.
 ///
+/// `None` means the bytes are not a name the library accepts, and every
+/// caller turns that into `FILENAMENOTVALID` — the same code the C core
+/// returns for such a name. A name outside printable ASCII fails here when
+/// it is not valid UTF-8 and inside `filename_valid` when it is; both roads
+/// lead to the same answer, which is what the differential harness checks.
+///
 /// # Safety
 /// `name` must be null or point to 16 bytes valid for reads for the duration
 /// of the call. A shorter allocation is undefined behaviour even when the

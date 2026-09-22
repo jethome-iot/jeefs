@@ -36,8 +36,22 @@ int16_t jeefs_rs_read(const uint8_t *image, uint16_t size, const uint8_t *name, 
 int16_t jeefs_rs_list(const uint8_t *image, uint16_t size, uint8_t *out, uint16_t max_files);
 
 /* A small pool of names: the interesting collisions are repeats and the
- * reserved identity name, not the space of all 15-character strings. */
-static const char *const NAMES[] = {"a", "b", "cfg", JEEFS_DEVICE_ID_FILENAME, "0123456789abcde", "x.bin", "", "dup"};
+ * reserved identity name, not the space of all 15-character strings. The
+ * last two are outside the printable-ASCII domain the format defines — one
+ * that UTF-8 can carry and one it cannot — so both ports have to reject
+ * them the same way. Left out, each port inherits a different name domain
+ * from its own string type and nothing notices (#116). */
+static const char *const NAMES[] = {"a",
+                                    "b",
+                                    "cfg",
+                                    JEEFS_DEVICE_ID_FILENAME,
+                                    "0123456789abcde",
+                                    "x.bin",
+                                    "",
+                                    "dup",
+                                    "my file",
+                                    "\xd0\xbf\xd1\x80",
+                                    "A\xff"};
 #define NAME_COUNT (sizeof(NAMES) / sizeof(NAMES[0]))
 
 struct cursor {
