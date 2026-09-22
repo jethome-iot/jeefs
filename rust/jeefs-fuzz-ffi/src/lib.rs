@@ -229,6 +229,9 @@ pub unsafe extern "C" fn jeefs_rs_walk(
                 return 1;
             }
             Step::NotFound => return 2,
+            // Unreachable while feed's error is handled above, but the
+            // state is real and the C walker reports it the same way.
+            Step::Failed(e) => return code(e),
         }
     }
 }

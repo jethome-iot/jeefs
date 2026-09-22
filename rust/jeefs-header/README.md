@@ -79,6 +79,7 @@ let found = loop {
         }
         Step::Found(f) => break Some(f),
         Step::NotFound => break None,
+        Step::Failed(e) => return Err(e),
     }
 };
 # Ok::<(), jeefs_header::fs::FsError>(())
