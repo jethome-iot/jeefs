@@ -27,6 +27,12 @@ const C_LIST_CAP: usize = 512;
 /// runner's static buffers are this size, and a typo in a vector must fail
 /// loudly instead of exhausting memory.
 const MAX_BUF: usize = 65535;
+/// The format's ceiling for a name blob, and the format's rule that one
+/// never holds a NUL. Both are enforced rather than assumed: the C runner
+/// hands the FS API a NUL-terminated string, so an embedded NUL would
+/// shorten a name there and not here, and the readers have to agree on a
+/// damaged artifact too (#119).
+const MAX_NAME: usize = 255;
 
 const MAGIC: &[u8] = b"JOPS";
 const PROGRAM_VERSION: u8 = 1;
@@ -142,6 +148,18 @@ fn name_of(blob: &[u8]) -> &str {
     str::from_utf8(blob).unwrap_or("\u{1}")
 }
 
+/// Read a name blob, holding it to the format's two rules.
+fn take_name<'a>(prog: &mut Program<'a>) -> &'a [u8] {
+    let blob = prog.blob();
+    if blob.len() > MAX_NAME {
+        broken_program(&format!("name blob of {} bytes, over the format's limit", blob.len()));
+    }
+    if blob.contains(&0) {
+        broken_program("NUL inside a name blob");
+    }
+    blob
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 3 {
@@ -191,7 +209,7 @@ fn main() {
                 }
             }
             OP_ADD | OP_WRITE => {
-                let name = prog.blob();
+                let name = take_name(&mut prog);
                 let data = prog.blob();
                 let op_name = if op == OP_ADD { "add" } else { "write" };
                 if data.len() > MAX_BUF {
@@ -208,13 +226,13 @@ fn main() {
                     Err(e) => println!("{idx} {op_name} err {}", err_class(e)),
                 }
             }
-            OP_DELETE => match delete_file(&mut image, name_of(prog.blob())) {
+            OP_DELETE => match delete_file(&mut image, name_of(take_name(&mut prog))) {
                 // The C core reports a completed delete as 1.
                 Ok(()) => println!("{idx} delete ok 1"),
                 Err(e) => println!("{idx} delete err {}", err_class(e)),
             },
             OP_READ => {
-                let name = prog.blob();
+                let name = take_name(&mut prog);
                 let cap = (prog.u32() as usize).min(MAX_BUF);
                 let mut buf = vec![0u8; cap];
                 match read_file(&image, name_of(name), &mut buf) {
@@ -297,7 +315,7 @@ fn main() {
                 // payload. The journal records the read count too, so a
                 // port that reaches the same terminal by a different
                 // number of hops diverges.
-                let name = prog.blob();
+                let name = take_name(&mut prog);
                 let prefix_len = image.len().min(256);
                 let mut hops = 0usize;
                 match Walk::begin(&image[..prefix_len], image.len() as u16, name_of(name)) {
