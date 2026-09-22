@@ -61,6 +61,10 @@ if(CARGO_FOR_FUZZ)
     endif()
     set(FFI_LIB ${FFI_TARGET_DIR}/${FFI_TRIPLE}/release/libjeefs_fuzz_ffi.a)
 
+    file(GLOB HEADER_CRATE_SOURCES CONFIGURE_DEPENDS
+        ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/*.rs
+    )
+
     add_custom_command(
         OUTPUT ${FFI_LIB}
         COMMAND ${CMAKE_COMMAND} -E env RUSTFLAGS=${FFI_RUSTFLAGS}
@@ -76,11 +80,12 @@ if(CARGO_FOR_FUZZ)
             # from, so a lockfile-only update has to rebuild it too.
             ${FFI_DIR}/Cargo.lock
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/Cargo.toml
-            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/lib.rs
-            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/fs.rs
-            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/header.rs
-            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/devid.rs
-            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/generated.rs
+            # Globbed, not listed: the hand-written list here missed walk.rs
+            # the moment the shim started using it, which would have left
+            # fuzz_fs_diff linked against a stale walker after the first
+            # build. CONFIGURE_DEPENDS re-globs, so a new module cannot be
+            # forgotten.
+            ${HEADER_CRATE_SOURCES}
         COMMENT "Building the Rust FS shim for the differential fuzzer"
     )
     add_custom_target(jeefs_fuzz_ffi DEPENDS ${FFI_LIB})
