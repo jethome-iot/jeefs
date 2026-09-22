@@ -43,18 +43,38 @@ if(CARGO_FOR_FUZZ)
     string(REGEX MATCH "host: ([^
 ]+)" _ "${RUSTC_VV}")
     set(FFI_TRIPLE ${CMAKE_MATCH_1})
-    set(FFI_LIB ${FFI_DIR}/target/${FFI_TRIPLE}/release/libjeefs_fuzz_ffi.a)
-    set(FFI_RUSTFLAGS "-Cpasses=sancov-module -Cllvm-args=-sanitizer-coverage-level=4 -Cllvm-args=-sanitizer-coverage-inline-8bit-counters -Cllvm-args=-sanitizer-coverage-pc-table -Cllvm-args=-sanitizer-coverage-trace-compares")
+    # Only the libFuzzer build gets coverage instrumentation: the standalone
+    # corpus runner links without the sanitizer runtimes, so an instrumented
+    # archive would leave __sanitizer_cov_* unresolved at link time.
+    # Cargo keys its cache on the source tree, not on RUSTFLAGS, so the two
+    # modes need separate target directories — otherwise switching between
+    # them silently reuses an archive built with the wrong flags.
+    if(JEEFS_FUZZ_DRIVER)
+        set(FFI_RUSTFLAGS "")
+        set(FFI_TARGET_DIR ${FFI_DIR}/target/plain)
+    else()
+        set(FFI_RUSTFLAGS "-Cpasses=sancov-module -Cllvm-args=-sanitizer-coverage-level=4 -Cllvm-args=-sanitizer-coverage-inline-8bit-counters -Cllvm-args=-sanitizer-coverage-pc-table -Cllvm-args=-sanitizer-coverage-trace-compares")
+        set(FFI_TARGET_DIR ${FFI_DIR}/target/instrumented)
+    endif()
+    set(FFI_LIB ${FFI_TARGET_DIR}/${FFI_TRIPLE}/release/libjeefs_fuzz_ffi.a)
 
     add_custom_command(
         OUTPUT ${FFI_LIB}
         COMMAND ${CMAKE_COMMAND} -E env RUSTFLAGS=${FFI_RUSTFLAGS}
-                ${CARGO_FOR_FUZZ} build --release --target ${FFI_TRIPLE} --manifest-path ${FFI_DIR}/Cargo.toml
+                ${CARGO_FOR_FUZZ} build --release --target ${FFI_TRIPLE}
+                --target-dir ${FFI_TARGET_DIR} --manifest-path ${FFI_DIR}/Cargo.toml
+        # The shim pulls in the whole jeefs-header crate, so a change to any of
+        # its sources must rebuild the archive — listing only fs.rs and lib.rs
+        # would let fuzz_fs_diff link a stale Rust implementation.
         DEPENDS
             ${FFI_DIR}/src/lib.rs
             ${FFI_DIR}/Cargo.toml
-            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/fs.rs
+            ${jeefs_SOURCE_DIR}/rust/jeefs-header/Cargo.toml
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/lib.rs
+            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/fs.rs
+            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/header.rs
+            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/devid.rs
+            ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/generated.rs
         COMMENT "Building the instrumented Rust FS shim for the differential fuzzer"
     )
     add_custom_target(jeefs_fuzz_ffi DEPENDS ${FFI_LIB})
