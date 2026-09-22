@@ -21,7 +21,7 @@ const FHDR: usize = 28; // sizeof(JEEFSFileHeaderv1)
 const MAX_DATA: usize = 32767; // INT16_MAX: the C API's int16_t byte counts
 const MAX_IMAGE: usize = 65535; // uint16_t addressing
 
-/// One file of the chain: a name (<= 15 byte-range chars) and its payload.
+/// One file of the chain: a name (1 to 15 printable-ASCII bytes) and its payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImageFile {
     pub name: String,

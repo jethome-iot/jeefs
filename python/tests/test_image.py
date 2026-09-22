@@ -154,9 +154,10 @@ class TestParseImage:
         assert parsed.unreadable == ["big"]
 
     def test_non_ascii_name_bytes_parse(self):
-        # The wire format constrains only name length and the terminator,
-        # not byte values (C's filename check is length-only) — a name
-        # byte above 0x7F must parse, not crash.
+        # The character domain binds what an implementation writes, not what
+        # it reports back: a name byte outside 0x20-0x7E, written before the
+        # rule or by something that ignored it, must still parse rather than
+        # fail the whole walk (filesystem-v1.md).
         img = bytearray(build_image(v4_header(), [("a", b"x")], 512))
         img[256] = 0xE9
         img[256 + 24 : 256 + 28] = struct.pack("<I", binascii.crc32(bytes(img[256 : 256 + 24])) & 0xFFFFFFFF)
@@ -200,16 +201,6 @@ class TestParseImage:
     def test_space_in_name_accepted_on_build(self):
         img = build_image(v4_header(), [("my file", b"x")], 512)
         assert [f.name for f in parse_image(img).files] == ["my file"]
-
-    def test_name_from_before_the_rule_still_parses(self):
-        # The character domain binds writers, not readers: an image carrying
-        # a name that predates the rule must still parse and report it,
-        # rather than failing the whole walk.
-        img = bytearray(build_image(v4_header(), [("a", b"x")], 512))
-        off = 256  # the v4 header is 256 bytes, so the first file header sits here
-        img[off : off + 16] = b"A\xff" + b"\x00" * 14
-        struct.pack_into("<I", img, off + 24, binascii.crc32(bytes(img[off : off + 24])) & 0xFFFFFFFF)
-        assert [f.name for f in parse_image(bytes(img)).files] == ["A\xff"]
 
     def test_erased_tail_is_clean_end(self):
         img = bytearray(build_image(v4_header(), [("a", b"x")], 1024))
