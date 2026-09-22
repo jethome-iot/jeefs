@@ -64,9 +64,13 @@ too small to buffer its EEPROM no longer has to link the C core. Fuzzing
 evidence accrues by the calendar, so campaigns keep running in the
 background while the steps below proceed.
 
-1. **Go port** (#110) — the contract's first external validation; the matrix
+1. **One parser for the mutation vectors** (#119) — the `.ops` scenarios had
+   a hand-written parser per runner, and they disagreed on malformed input
+   in ways that surfaced as divergences between the ports. Before the Go
+   port, because that port would add a third parser to the same format.
+2. **Go port** (#110) — the contract's first external validation; the matrix
    grows to 5×5. Needs a `go_generator.py`, which does not exist yet.
-2. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
+3. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
    against a real embedding, which needs production integration to start.
 
 Out of this repository's scope, but gating the freeze: **consumer
