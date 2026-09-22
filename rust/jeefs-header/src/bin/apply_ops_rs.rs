@@ -160,6 +160,20 @@ fn main() {
                     }
                 }
             },
+            "reseal" => {
+                // reseal <offset>: recompute a file header's headerCrc32
+                // after a poke, so a scenario can present a header that was
+                // legally WRITTEN with unusual content rather than merely
+                // corrupted.
+                let base = if arg1.starts_with("0x") || arg1.starts_with("0X") { 16 } else { 10 };
+                let off = usize::from_str_radix(arg1.trim_start_matches("0x").trim_start_matches("0X"), base)
+                    .unwrap_or(usize::MAX);
+                if off != usize::MAX && off + 28 <= image.len() {
+                    let c = crc32fast::hash(&image[off..off + 24]);
+                    image[off + 24..off + 28].copy_from_slice(&c.to_le_bytes());
+                }
+                println!("{idx} reseal ok {off}");
+            }
             "walk" => {
                 // Locate the file the way a bounded-RAM environment does:
                 // the pull-model walker plus a running CRC over the

@@ -8,12 +8,14 @@
  * Usage: apply_ops_c <scenario.ops> <out.bin>
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "eepromerr.h"
 #include "jeefs.h"
+#include "jeefs_endian.h"
 #include "jeefs_port.h"
 #include "jeefs_walk.h"
 
@@ -176,6 +178,17 @@ int main(int argc, char **argv) {
             if (off < image_size)
                 image[off] = (uint8_t) val;
             printf("%d poke ok %u\n", idx, off);
+        } else if (strcmp(op, "reseal") == 0) {
+            /* reseal <offset>: recompute a file header's headerCrc32 after a
+             * poke, so a scenario can present a header that was legally
+             * WRITTEN with unusual content rather than merely corrupted. */
+            int base = (arg1[0] == '0' && (arg1[1] == 'x' || arg1[1] == 'X')) ? 16 : 10;
+            unsigned off = (unsigned) strtoul(arg1, NULL, base);
+            if (off + sizeof(JEEFSFileHeaderv1) <= image_size) {
+                uint32_t c = jeefs_crc32(image + off, offsetof(JEEFSFileHeaderv1, headerCrc32));
+                jeefs_put_le32(image + off + offsetof(JEEFSFileHeaderv1, headerCrc32), c);
+            }
+            printf("%d reseal ok %u\n", idx, off);
         } else if (strcmp(op, "walk") == 0) {
             /* Locate the file the way a bounded-RAM environment does: the
              * pull-model walker plus a running CRC over the payload. The
