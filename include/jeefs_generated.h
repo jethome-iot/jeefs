@@ -143,7 +143,7 @@ typedef struct {
 
 // JEEFSFileHeaderv1 (28 bytes)
 typedef struct {
-    char name[16];  // 16B, offset 0, Filename, null-terminated (max 15 ch.)
+    char name[16];  // 16B, offset 0, Filename, printable ASCII, null-terminated (max 15 ch.)
     uint16_t dataSize;  // 2B, offset 16, File data size in bytes
     uint32_t crc32;  // 4B, offset 18, CRC32 of file data only (not header)
     uint16_t nextFileAddress;  // 2B, offset 22, Absolute offset of next file, 0 = end
