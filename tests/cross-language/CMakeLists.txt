@@ -207,6 +207,14 @@ if(CARGO)
     # The driver is a Python script: without an interpreter the command
     # would be empty, so gate on both toolchains.
     if(Python3_FOUND)
+        # The compiler is the only reader of a scenario, so its refusals are
+        # the only thing standing between a malformed vector and two runners
+        # that would agree about whatever it produced.
+        add_test(
+            NAME ops_program_refuses_malformed
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_ops_program.py
+        )
+
         add_test(
             NAME fs_mutation_c_matches_rs
             COMMAND ${Python3_EXECUTABLE}

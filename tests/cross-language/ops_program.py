@@ -40,12 +40,20 @@ Opcodes and fields:
     9  reseal       u32 offset
     10 consistency  —
 
+A name blob holds at most 255 bytes and never a NUL. The limit is part of
+the format rather than each runner's buffer size, and the exclusion is
+what keeps the readers equal: C hands the FS API a NUL-terminated string,
+so an embedded NUL would silently shorten a name there and not elsewhere.
+A program breaking either rule is malformed, and every runner must refuse
+it — the compiler cannot produce one.
+
 The compiler is strict: a scenario it cannot read is an error here, in
 one place, rather than an outcome two runners might disagree about.
 """
 
 from __future__ import annotations
 
+import re
 import struct
 
 MAGIC = b"JOPS"
@@ -55,6 +63,9 @@ OP_INIT, OP_FORMAT, OP_ADD, OP_WRITE, OP_DELETE = 0, 1, 2, 3, 4
 OP_READ, OP_LIST, OP_WALK, OP_POKE, OP_RESEAL, OP_CONSISTENCY = 5, 6, 7, 8, 9, 10
 
 IMAGE_KINDS = {"zeros": 0, "erased": 1, "garbage": 2}
+
+# What separates one token from the next, and nothing else.
+ASCII_SPACE = " \t\r\x0b\x0c"
 
 MAX_IMAGE = 65535
 MAX_DATA = 32767
@@ -161,10 +172,14 @@ def compile_scenario(text: str, source: str = "<scenario>") -> bytes:
 
     out = bytearray(MAGIC + bytes([VERSION]))
     for lineno, raw in enumerate(text.splitlines(), start=1):
-        line = raw.strip()
+        # Tokens are separated by ASCII spaces and tabs, stated rather than
+        # inherited: str.split() also breaks on U+00A0 and the rest of
+        # Unicode's whitespace, which would quietly decide what a name may
+        # contain — the kind of rule this format exists to pin down.
+        line = raw.strip(ASCII_SPACE)
         if not line or line.startswith("#"):
             continue
-        parts = line.split()
+        parts = [p for p in re.split(f"[{ASCII_SPACE}]+", line) if p]
         op, args = parts[0], parts[1:]
         where = f"{source}:{lineno} ({op})"
 

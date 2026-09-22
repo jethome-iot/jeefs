@@ -32,7 +32,9 @@
 /* Room for a name far beyond the format's 15-byte limit: a scenario names a
  * file the format must refuse, so the bytes have to reach the API intact,
  * but a name this long can only come from a damaged program. */
-#define MAX_NAME 4096
+/* The format's ceiling for a name blob; the buffer below is larger so the
+ * limit is the format's rather than this runner's. */
+#define MAX_NAME 255
 
 /* Opcodes and image kinds, as ops_program.py emits them. */
 enum {
@@ -109,15 +111,22 @@ static const uint8_t *take_blob(struct reader *r, uint32_t *len, const char *wha
 }
 
 /* The FS API takes a NUL-terminated string, the program carries the name as
- * bytes. Copy and terminate, but do not inspect: a scenario deliberately
- * names a file outside the format's printable-ASCII domain to watch every
- * port refuse it (#116), and the compiler has already guaranteed the bytes
- * hold no NUL of their own. */
+ * bytes. Copy and terminate, but do not inspect the content: a scenario
+ * deliberately names a file outside the format's printable-ASCII domain to
+ * watch every port refuse it (#116).
+ *
+ * The two format rules are enforced, not assumed. A name past MAX_NAME or
+ * carrying a NUL is a malformed program: terminating here would silently
+ * shorten such a name, where a reader that hands the bytes to its own
+ * length check would refuse it — the readers have to agree on a damaged
+ * artifact too (#119). */
 static const char *take_name(struct reader *r, char *buf, size_t cap) {
     uint32_t len;
     const uint8_t *p = take_blob(r, &len, "name");
-    if (len >= cap)
-        malformed("name longer than this runner's buffer");
+    if (len > MAX_NAME || len >= cap)
+        malformed("name blob over the format's limit");
+    if (memchr(p, '\0', len) != NULL)
+        malformed("NUL inside a name blob");
     memcpy(buf, p, len);
     buf[len] = '\0';
     return buf;
@@ -215,7 +224,7 @@ int main(int argc, char **argv) {
         malformed("unsupported program version");
 
     static char names[MAX_FILES][JEEFS_FILE_NAME_LENGTH + 1];
-    static char name[MAX_NAME];
+    static char name[MAX_NAME + 1]; /* the terminator this runner adds */
     int idx = 0;
 
     init_image(IMG_ZEROS, 8192);

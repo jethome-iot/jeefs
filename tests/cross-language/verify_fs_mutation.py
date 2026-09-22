@@ -73,7 +73,15 @@ def compile_to(scenario: Path, work_dir: Path) -> Path:
     (#119). Now the text has exactly one reader.
     """
     try:
-        program = compile_scenario(scenario.read_text(), scenario.name)
+        # UTF-8 explicitly: a vector names files outside ASCII on purpose, and
+        # read_text() would otherwise follow the process locale and reject a
+        # perfectly good vector on a machine set to one.
+        text = scenario.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        print(f"FAIL: {scenario.name}: not UTF-8 text: {exc}")
+        sys.exit(1)
+    try:
+        program = compile_scenario(text, scenario.name)
     except ScenarioError as exc:
         print(f"FAIL: {scenario.name}: {exc}")
         sys.exit(1)
@@ -217,7 +225,7 @@ def main() -> None:
         generated.mkdir(exist_ok=True)
         for n in range(random_count):
             path = generated / f"seed{seed}_{n:04d}.ops"
-            path.write_text(random_scenario(rng))
+            path.write_text(random_scenario(rng), encoding="utf-8")
             scenarios.append(path)
         print(f"generated {random_count} random scenarios (seed {seed})")
 
