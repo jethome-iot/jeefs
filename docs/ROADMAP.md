@@ -45,26 +45,32 @@ CI proves LE-correctness structurally rather than on BE hosts.
 
 ## Next — ordered
 
-The order is the owner's, agreed 2026-09-16. One step is a genuine
-prerequisite — the vector set grows before a new port is measured against
-the matrix; the rest is priority: Rust ships in firmware, so its gaps close
-before a host-side port starts, and fuzzing runs in the background
-throughout rather than blocking anything.
+The order is the owner's, agreed 2026-09-16 and amended 2026-09-22 when
+the differential harness turned up a contract gap. Two steps are genuine
+prerequisites — the vector set grows before a new port is measured against
+the matrix, and the filename domain is settled before a port is written
+against the contract; the rest is priority: Rust ships in firmware, so its
+gaps close before a host-side port starts, and fuzzing runs in the
+background throughout rather than blocking anything.
 
-1. **Extend the vector set** (#107) — new `.json` vectors are picked up by
-   the matrix automatically. First, so a new port faces the full matrix
-   rather than a reduced one.
-2. **Coverage-guided differential fuzzing C↔Rust + longer campaigns**
-   (#108) — `fuzz_fs_diff` drives both implementations from one libFuzzer
-   input and fails on any difference in result or image bytes;
-   `fuzz/campaign.sh` runs longer than the CI smoke and records what it
-   ran. Fuzzing evidence accrues by the calendar, so campaigns keep
-   running in the background while later steps proceed.
-3. **Rust walker** (#109) — the last gap in Rust/C parity: bounded-RAM
+Done and on master, shipping in the next release: **the extended vector
+set** (#107) and **coverage-guided differential fuzzing C↔Rust with longer
+campaigns** (#108) — `fuzz_fs_diff` drives both implementations from one
+libFuzzer input and fails on any difference in result or image bytes,
+while `fuzz/campaign.sh` runs longer than the CI smoke and records what it
+ran. Fuzzing evidence accrues by the calendar, so campaigns keep running in
+the background while the steps below proceed.
+
+1. **Filename character domain** (#116) — the spec constrained the name
+   field by length only, so each port inherited a different domain from its
+   own string type and the same 16 bytes meant three things. Ahead of the
+   Go port for that reason: a port written against an unsettled contract
+   becomes the fourth answer.
+2. **Rust walker** (#109) — the last gap in Rust/C parity: bounded-RAM
    targets currently have to link the C core.
-4. **Go port** (#110) — the contract's first external validation; the matrix
+3. **Go port** (#110) — the contract's first external validation; the matrix
    grows to 5×5. Needs a `go_generator.py`, which does not exist yet.
-5. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
+4. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
    against a real embedding, which needs production integration to start.
 
 Out of this repository's scope, but gating the freeze: **consumer
