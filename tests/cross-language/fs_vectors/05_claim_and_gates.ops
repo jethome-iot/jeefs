@@ -4,7 +4,9 @@ add first fill:5:16
 consistency
 list
 read first 8192
+walk first
 init erased 4096
 add only fill:6:8
 list
 consistency
+walk only

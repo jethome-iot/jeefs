@@ -9,7 +9,10 @@ list
 read c 8192
 delete a
 list
+walk c
 read c 8192
 delete c
 list
 delete ghost
+# An empty chain ends the walk without a match.
+walk c

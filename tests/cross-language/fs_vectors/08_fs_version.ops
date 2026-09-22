@@ -5,8 +5,11 @@ add a fill:1:24
 poke 10 00
 list
 read a 8192
+walk a
 poke 10 07
 list
 read a 8192
+walk a
 poke 10 01
 list
+walk a

@@ -8,3 +8,6 @@ list
 read device.id 8192
 read payload 8192
 read second 8192
+# device.id is always the first slot: one header read, never more.
+walk device.id
+walk second

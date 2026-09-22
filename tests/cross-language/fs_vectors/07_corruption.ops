@@ -7,9 +7,15 @@ add b fill:2:40
 poke 284 ff
 read a 8192
 list
+# A broken payload CRC is the verifier's business, not the walk's:
+# the walker still finds the file and reports the mismatch.
+walk a
+walk b
 init zeros 8192
 format 4
 add a fill:1:40
 poke 258 ff
 list
 read a 8192
+# A broken headerCrc32 stops the walk where it stands.
+walk a
