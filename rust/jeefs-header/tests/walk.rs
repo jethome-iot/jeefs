@@ -134,6 +134,49 @@ fn corruption_is_detected() {
 }
 
 #[test]
+fn a_failed_walk_stays_failed() {
+    // The C walker stores the error where it stores its terminals, so
+    // jeefs_walk_want stops asking. A step-driven loop here would
+    // otherwise ask for the window that just failed, forever.
+    let mut img = fresh_with(&[("alpha", 10), ("beta", 20)]);
+    img[HDR + 1] ^= 0x40; // name byte, header CRC now stale
+
+    let mut w = Walk::begin(&img[..HDR], IMG as u16, "beta").unwrap();
+    let at = match w.step() {
+        Step::Want { offset, .. } => offset as usize,
+        other => panic!("expected Want, got {other:?}"),
+    };
+    assert!(matches!(
+        w.feed(&img[at..at + FHDR]),
+        Err(FsError::EepromCorrupted)
+    ));
+
+    assert_eq!(w.step(), Step::Failed(FsError::EepromCorrupted));
+    // Feeding again reports the same failure rather than resuming.
+    assert!(matches!(
+        w.feed(&img[at..at + FHDR]),
+        Err(FsError::EepromCorrupted)
+    ));
+    assert_eq!(w.step(), Step::Failed(FsError::EepromCorrupted));
+
+    // A wrong-length window is a failure of the same kind.
+    let mut w2 = Walk::begin(&img[..HDR], IMG as u16, "beta").unwrap();
+    assert!(matches!(w2.feed(&img[..FHDR - 1]), Err(FsError::BufferNotValid)));
+    assert_eq!(w2.step(), Step::Failed(FsError::BufferNotValid));
+}
+
+#[test]
+fn a_terminal_walk_ignores_further_feeding() {
+    let img = fresh_with(&[("alpha", 10)]);
+    let mut w = Walk::begin(&img[..HDR], IMG as u16, "alpha").unwrap();
+    let found = drive(&mut w, &img).0;
+    assert!(matches!(found, Step::Found(_)));
+    // Found and NotFound are not failures: feeding is a no-op, as in C.
+    assert!(w.feed(&img[HDR..HDR + FHDR]).is_ok());
+    assert_eq!(w.step(), found);
+}
+
+#[test]
 fn found_stops_before_a_corrupt_tail() {
     // The walker certifies the chain prefix up to the match and stops
     // there — unlike read_file, which validates the rest of the chain.

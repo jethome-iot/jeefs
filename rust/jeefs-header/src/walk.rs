@@ -30,6 +30,7 @@
 //!         }
 //!         Step::Found(f) => break Some(f),
 //!         Step::NotFound => break None,
+//!         Step::Failed(e) => return Err(e),
 //!     }
 //! };
 //!
@@ -81,6 +82,10 @@ pub enum Step {
     Found(Found),
     /// The chain ended without a match.
     NotFound,
+    /// Validation failed and the walk is over. The same error [`Walk::feed`]
+    /// returned; kept here so a loop driven by [`Walk::step`] terminates
+    /// instead of asking for the window that just failed.
+    Failed(FsError),
 }
 
 /// Internal state. The public shape is [`Step`]; this mirrors the state
@@ -90,6 +95,7 @@ enum State {
     Wanting(u32),
     Found(Found),
     NotFound,
+    Failed(FsError),
 }
 
 /// A walk in progress. See the [module documentation](self).
@@ -156,6 +162,15 @@ impl Walk {
         })
     }
 
+    /// Record a validation failure as the terminal state and hand the
+    /// error back. The C walker stores the error in the same variable it
+    /// stores its terminals in, so `want` stops asking; without this a
+    /// loop driven by `step` would ask for the failing window forever.
+    fn fail(&mut self, e: FsError) -> FsError {
+        self.state = State::Failed(e);
+        e
+    }
+
     /// What the walker needs next, or how the walk ended.
     pub fn step(&self) -> Step {
         match self.state {
@@ -165,6 +180,7 @@ impl Walk {
             },
             State::Found(f) => Step::Found(f),
             State::NotFound => Step::NotFound,
+            State::Failed(e) => Step::Failed(e),
         }
     }
 
@@ -180,10 +196,14 @@ impl Walk {
     pub fn feed(&mut self, header: &[u8]) -> Result<(), FsError> {
         let at = match self.state {
             State::Wanting(offset) => offset,
-            _ => return Ok(()), // already terminal: idempotent
+            // Already terminal: idempotent, and a failed walk keeps
+            // reporting its failure, exactly as the C walker's stored
+            // state does.
+            State::Failed(e) => return Err(e),
+            _ => return Ok(()),
         };
         if header.len() != FHDR {
-            return Err(FsError::BufferNotValid);
+            return Err(self.fail(FsError::BufferNotValid));
         }
 
         // An unwritten slot, in either emptiness domain, ends the chain.
@@ -195,21 +215,21 @@ impl Walk {
         // A written header must checksum before any of its fields is read.
         let stored = u32::from_le_bytes([header[24], header[25], header[26], header[27]]);
         if crc32(&header[..FHDR_CRC_COVERAGE]) != stored {
-            return Err(FsError::EepromCorrupted);
+            return Err(self.fail(FsError::EepromCorrupted));
         }
 
         // Defense in depth behind the CRC: a terminated name, a sane size.
         if header[FILE_NAME_LENGTH] != 0 {
-            return Err(FsError::EepromCorrupted);
+            return Err(self.fail(FsError::EepromCorrupted));
         }
         let data_size = u16::from_le_bytes([header[16], header[17]]);
         if data_size == 0 || data_size == 0xFFFF {
-            return Err(FsError::EepromCorrupted);
+            return Err(self.fail(FsError::EepromCorrupted));
         }
 
         let end = at + FHDR as u32 + data_size as u32;
         if end > self.image_size as u32 {
-            return Err(FsError::EepromCorrupted);
+            return Err(self.fail(FsError::EepromCorrupted));
         }
 
         // An erased link terminates the chain like 0 (RFC #14).
@@ -220,7 +240,7 @@ impl Walk {
         // Contiguity: the link either terminates or names exactly the next
         // slot, and a claimed successor must have room for its own header.
         if next != 0 && (next as u32 != end || end + FHDR as u32 > self.image_size as u32) {
-            return Err(FsError::EepromCorrupted);
+            return Err(self.fail(FsError::EepromCorrupted));
         }
 
         if name_matches(header, &self.target) {
