@@ -224,9 +224,8 @@ fn main() {
                 }
             }
             "poke" => {
-                let val = u8::from_str_radix(arg2.trim_start_matches("0x"), 16).unwrap_or(0);
-                match parse_uint(arg1) {
-                    Some(off) if off < image.len() => {
+                match (parse_uint(arg1), parse_byte(arg2)) {
+                    (Some(off), Some(val)) if off < image.len() => {
                         image[off] = val;
                         println!("{idx} poke ok {off}");
                     }
@@ -263,6 +262,19 @@ fn main() {
 /// accepts a leading `+`. A vector with a malformed offset would then
 /// mutate one runner's image and not the other's — a divergence in the
 /// harness, reported as a divergence between the ports.
+/// A byte value for poke, in the one form both runners accept: an
+/// optional `0x` or `0X` prefix, then one or two hex digits, and nothing
+/// else. `strtoul` read `1ff` as 511 and the cast made it 0xFF, while
+/// `u8::from_str_radix` overflowed and this runner wrote 0x00 — the same
+/// malformed vector produced different media.
+fn parse_byte(s: &str) -> Option<u8> {
+    let digits = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    if digits.is_empty() || digits.len() > 2 || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    u8::from_str_radix(digits, 16).ok()
+}
+
 fn parse_uint(s: &str) -> Option<usize> {
     let (digits, base) = match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
         Some(hex) => (hex, 16),
