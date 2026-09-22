@@ -11,3 +11,6 @@ list
 read a 8192
 read b 8192
 write ghost fill:1:4
+# After a relocating overwrite the file sits behind b in the chain.
+walk a
+walk b

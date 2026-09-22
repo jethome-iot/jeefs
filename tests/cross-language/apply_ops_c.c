@@ -15,6 +15,7 @@
 #include "eepromerr.h"
 #include "jeefs.h"
 #include "jeefs_port.h"
+#include "jeefs_walk.h"
 
 #define MAX_IMG 65535
 #define MAX_FILES 512
@@ -175,6 +176,40 @@ int main(int argc, char **argv) {
             if (off < image_size)
                 image[off] = (uint8_t) val;
             printf("%d poke ok %u\n", idx, off);
+        } else if (strcmp(op, "walk") == 0) {
+            /* Locate the file the way a bounded-RAM environment does: the
+             * pull-model walker plus a running CRC over the payload. The
+             * journal records the read count too, so a port that reaches
+             * the same terminal by a different number of hops diverges. */
+            JEEFSWalk w;
+            uint16_t prefix_len = image_size < 256 ? image_size : 256;
+            int hops = 0;
+            int16_t st = jeefs_walk_begin(&w, image, prefix_len, image_size, arg1);
+            if (st < 0) {
+                printf("%d walk err %s %d\n", idx, err_class(st), hops);
+            } else {
+                uint32_t off;
+                uint16_t len;
+                while (jeefs_walk_want(&w, &off, &len) == 1) {
+                    hops++;
+                    st = jeefs_walk_feed(&w, image + off, len);
+                    if (st != 0)
+                        break;
+                }
+                if (st < 0) {
+                    printf("%d walk err %s %d\n", idx, err_class(st), hops);
+                } else if (w.state == JEEFS_WALK_FOUND) {
+                    uint32_t crc = 0;
+                    for (uint32_t o = 0; o < w.file_size; o += 64) {
+                        uint32_t n = (uint32_t) w.file_size - o < 64 ? (uint32_t) w.file_size - o : 64;
+                        crc = jeefs_crc32_update(crc, image + w.file_offset + o, n);
+                    }
+                    printf("%d walk ok found %d %u %u %08x %d\n", idx, hops, (unsigned) w.file_offset,
+                           (unsigned) w.file_size, (unsigned) w.file_crc32, crc == w.file_crc32 ? 1 : 0);
+                } else {
+                    printf("%d walk ok notfound %d\n", idx, hops);
+                }
+            }
         } else if (strcmp(op, "consistency") == 0) {
             printf("%d consistency ok %d\n", idx, (int) EEPROM_HeaderCheckConsistency(image, image_size));
         } else {

@@ -7,6 +7,7 @@
 //! Usage: apply_ops_rs <scenario.ops> <out.bin>
 
 use jeefs_header::fs::{add_file, delete_file, files, format, header_check_consistency, read_file, write_file, FsError};
+use jeefs_header::walk::{DataVerifier, Step, Walk};
 use std::fs;
 use std::process;
 
@@ -159,6 +160,50 @@ fn main() {
                     }
                 }
             },
+            "walk" => {
+                // Locate the file the way a bounded-RAM environment does:
+                // the pull-model walker plus a running CRC over the
+                // payload. The journal records the read count too, so a
+                // port that reaches the same terminal by a different
+                // number of hops diverges.
+                let prefix_len = image.len().min(256);
+                let mut hops = 0usize;
+                match Walk::begin(&image[..prefix_len], image.len() as u16, arg1) {
+                    Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
+                    Ok(mut w) => {
+                        let outcome = loop {
+                            match w.step() {
+                                Step::Want { offset, len } => {
+                                    let at = offset as usize;
+                                    hops += 1;
+                                    if let Err(e) = w.feed(&image[at..at + len as usize]) {
+                                        break Err(e);
+                                    }
+                                }
+                                terminal => break Ok(terminal),
+                            }
+                        };
+                        match outcome {
+                            Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
+                            Ok(Step::Found(f)) => {
+                                let at = f.offset as usize;
+                                let mut v = DataVerifier::new(&f);
+                                for chunk in image[at..at + f.size as usize].chunks(64) {
+                                    v.update(chunk);
+                                }
+                                println!(
+                                    "{idx} walk ok found {hops} {} {} {:08x} {}",
+                                    f.offset,
+                                    f.size,
+                                    f.crc32,
+                                    if v.finish() { 1 } else { 0 }
+                                );
+                            }
+                            Ok(_) => println!("{idx} walk ok notfound {hops}"),
+                        }
+                    }
+                }
+            }
             "poke" => {
                 let off = parse_uint(arg1);
                 let val = u8::from_str_radix(arg2.trim_start_matches("0x"), 16).unwrap_or(0);

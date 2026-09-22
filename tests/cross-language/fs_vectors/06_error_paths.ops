@@ -15,3 +15,7 @@ read a 10
 read ghost 64
 delete ghost
 list
+# A target outside the name domain is refused before any read.
+walk имя
+walk ghost
+walk a
