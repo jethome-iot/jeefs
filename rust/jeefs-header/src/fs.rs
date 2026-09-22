@@ -154,7 +154,14 @@ fn header_size_of(image: &[u8]) -> Option<usize> {
 
 fn filename_valid(name: &str) -> bool {
     let len = name.len();
-    len > 0 && len <= FILE_NAME_LENGTH
+    if len == 0 || len > FILE_NAME_LENGTH {
+        return false;
+    }
+    // Printable ASCII only (filesystem-v1.md). Taking `&str` already turns
+    // away byte sequences the C core accepts, but it lets through every
+    // non-ASCII character UTF-8 can carry — so the domain has to be a stated
+    // rule here rather than a side effect of the parameter type.
+    name.bytes().all(|b| (0x20..=0x7E).contains(&b))
 }
 
 /// Validated chain iterator. `files` hands out entries; the internal walk
