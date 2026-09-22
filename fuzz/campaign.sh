@@ -110,7 +110,11 @@ seed_dir_for() {
 for target in "${TARGETS[@]}"; do
     bin="$BUILD/fuzz/$target"
     if [ ! -x "$bin" ]; then
-        echo "skip $target: not built (cargo missing for the differential target?)"
+        # A requested target that did not build is a failed campaign, not a
+        # note: otherwise a machine without cargo records a clean run that
+        # never included the C/Rust differential at all.
+        echo "$target was requested but is not built (cargo missing for the differential target?)" >&2
+        failed=1
         continue
     fi
     if ! is_libfuzzer "$bin"; then
@@ -129,10 +133,14 @@ for target in "${TARGETS[@]}"; do
     [ -n "$seeds" ] && cp "$seeds"/*.bin "$work"/ 2>/dev/null || true
 
     echo "=== $target: ${MINUTES}m"
+    started_at=$(date +%s)
+    outcome=clean
     if ! "$bin" -max_total_time=$((MINUTES * 60)) -artifact_prefix=fuzz/crashes/ "$work"; then
         echo "FINDING: $target produced an artifact in fuzz/crashes/"
+        outcome=finding
         failed=1
     fi
+    elapsed=$(( $(date +%s) - started_at ))
 
     # Keep what the run learned, minimised, so the next campaign starts ahead.
     # If the merge fails, the working corpus is the only copy of what this
@@ -143,7 +151,10 @@ for target in "${TARGETS[@]}"; do
         echo "merge failed for $target; discovered inputs kept in $work" >&2
         failed=1
     fi
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $target ${MINUTES}m grown=$(ls "$grown" | wc -l | tr -d ' ')" >> "$LOG"
+    # The log is the evidence for "accumulated time without findings", so it
+    # records the time actually spent and how the run ended — a crash exits
+    # early, and writing the requested duration would overstate both.
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $target requested=${MINUTES}m elapsed=${elapsed}s outcome=$outcome grown=$(ls "$grown" | wc -l | tr -d ' ')" >> "$LOG"
 done
 
 echo "campaign started $STARTED, log in $LOG"
