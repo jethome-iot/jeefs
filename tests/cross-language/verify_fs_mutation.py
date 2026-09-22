@@ -36,8 +36,12 @@ def random_scenario(rng: random.Random) -> str:
         lines.append(f"format {rng.choice([1, 2, 3, 4, 4, 4])}")
     for _ in range(rng.randint(4, 20)):
         op = rng.choices(
-            ["add", "write", "delete", "read", "list", "poke", "consistency"],
-            weights=[35, 15, 15, 15, 10, 8, 2],
+            # walk carries its own weight: the curated vectors drive it over
+            # images they build deliberately, and this half has to reach the
+            # chains nobody wrote down — a poke away from valid, mid-delete,
+            # or on an image a random format left gated.
+            ["add", "write", "delete", "read", "list", "walk", "poke", "consistency"],
+            weights=[35, 15, 15, 15, 10, 12, 8, 2],
         )[0]
         name = rng.choice(NAMES)
         if op in ("add", "write"):
@@ -48,6 +52,8 @@ def random_scenario(rng: random.Random) -> str:
             lines.append(op)
         elif op == "read":
             lines.append(f"read {name} {rng.choice([1, 16, 400, 8192])}")
+        elif op == "walk":
+            lines.append(f"walk {name}")
         else:
             lines.append(f"poke {rng.randrange(size)} {rng.randrange(256):02x}")
     lines.append("list")
