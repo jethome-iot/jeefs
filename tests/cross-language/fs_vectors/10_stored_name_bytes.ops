@@ -1,0 +1,13 @@
+# A stored name outside the printable-ASCII domain, legally sealed. The
+# medium can carry one — whatever wrote it need not have been this library
+# — and enumeration must report the bytes as they are rather than filter
+# them through the port's string type. Rendering the name through a &str
+# once turned it into nothing at all, and the comparison driver could not
+# even decode the C runner's output (#119).
+init zeros 8192
+format 4
+add a 00
+poke 256 80
+reseal 256
+list
+read a 8192

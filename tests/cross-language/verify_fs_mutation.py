@@ -24,6 +24,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ops_program import ScenarioError, compile_scenario  # noqa: E402
+
 NAMES = ["a", "b", "c", "device.id", "cfg", "0123456789abcde", "x.bin"]
 IMAGE_KINDS = ["zeros", "erased", "garbage"]
 
@@ -61,29 +64,57 @@ def random_scenario(rng: random.Random) -> str:
     return "\n".join(lines) + "\n"
 
 
-def run(binary: Path, scenario: Path, out: Path) -> list[str]:
+def compile_to(scenario: Path, work_dir: Path) -> Path:
+    """Parse the scenario once, here, and hand both runners the result.
+
+    The runners used to parse the text themselves, one hand-written parser
+    per language, and they disagreed on malformed input in half a dozen
+    ways — each disagreement showing up as a divergence between the ports
+    (#119). Now the text has exactly one reader.
+    """
+    try:
+        program = compile_scenario(scenario.read_text(), scenario.name)
+    except ScenarioError as exc:
+        print(f"FAIL: {scenario.name}: {exc}")
+        sys.exit(1)
+    path = work_dir / f"{scenario.stem}.jops"
+    path.write_bytes(program)
+    return path
+
+
+def run(binary: Path, scenario: Path, out: Path) -> list[bytes]:
+    """Run one runner over a program, returning its journal as raw lines.
+
+    Bytes, not text: a journal carries stored file names, and a medium can
+    hold a name outside the format's printable-ASCII domain. Decoding here
+    made the comparison crash on exactly the images that most deserve to be
+    compared (#119).
+    """
     proc = subprocess.run(
         [str(binary), str(scenario), str(out)],
         capture_output=True,
-        text=True,
         check=False,
     )
     if proc.returncode != 0:
         print(f"FAIL: {binary.name} exited {proc.returncode} on {scenario.name}")
-        print(proc.stderr.strip())
+        print(proc.stderr.decode("utf-8", "replace").strip())
         sys.exit(1)
     return proc.stdout.splitlines()
 
 
-def compare_journals(scenario: Path, c_log: list[str], rs_log: list[str]) -> bool:
+def _show(line: bytes | None) -> str:
+    return "<missing>" if line is None else line.decode("utf-8", "backslashreplace")
+
+
+def compare_journals(scenario: Path, c_log: list[bytes], rs_log: list[bytes]) -> bool:
     if c_log == rs_log:
         return True
     print(f"FAIL: {scenario.name}: journals differ")
     for i in range(max(len(c_log), len(rs_log))):
-        c_line = c_log[i] if i < len(c_log) else "<missing>"
-        rs_line = rs_log[i] if i < len(rs_log) else "<missing>"
+        c_line = c_log[i] if i < len(c_log) else None
+        rs_line = rs_log[i] if i < len(rs_log) else None
         if c_line != rs_line:
-            print(f"  line {i}:\n    C:    {c_line}\n    Rust: {rs_line}")
+            print(f"  line {i}:\n    C:    {_show(c_line)}\n    Rust: {_show(rs_line)}")
     return False
 
 
@@ -142,10 +173,11 @@ def main() -> None:
 
     failures = 0
     for scenario in scenarios:
+        program = compile_to(scenario, work_dir)
         c_bin = work_dir / f"{scenario.stem}.c.bin"
         rs_bin = work_dir / f"{scenario.stem}.rs.bin"
-        c_log = run(apply_c, scenario, c_bin)
-        rs_log = run(apply_rs, scenario, rs_bin)
+        c_log = run(apply_c, program, c_bin)
+        rs_log = run(apply_rs, program, rs_bin)
 
         ok = compare_journals(scenario, c_log, rs_log)
         ok = compare_images(scenario, c_bin, rs_bin) and ok
