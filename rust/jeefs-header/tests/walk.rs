@@ -260,6 +260,59 @@ fn the_verifier_rejects_a_wrong_payload() {
     assert!(!v.finish());
 }
 
+#[test]
+fn the_verifier_rejects_a_short_or_overlong_stream() {
+    // The bytes fed have to be the file's bytes — all of them and no more.
+    //
+    // For most files the CRC alone rejects a truncated or overlong stream,
+    // so a test built on an ordinary payload passes whether or not the
+    // length is checked at all. This payload's CRC32 is zero, which is
+    // also the CRC32 of the empty stream: feeding nothing matches the
+    // recorded value, and only the length check refuses it. That makes the
+    // check load-bearing here rather than incidental.
+    let mut img = [0u8; IMG];
+    format(&mut img, HEADER_VERSION as u8).expect("format");
+    let zero_crc = [0x9d, 0x0a, 0xd9, 0x6d];
+    add_file(&mut img, "zc", &zero_crc).unwrap();
+    add_file(&mut img, "next", b"tail").unwrap();
+
+    let mut w = Walk::begin(&img[..HDR], IMG as u16, "zc").unwrap();
+    let found = match drive(&mut w, &img).0 {
+        Step::Found(f) => f,
+        other => panic!("expected Found, got {other:?}"),
+    };
+    assert_eq!(found.crc32(), 0, "the payload was chosen for this");
+    let at = found.offset() as usize;
+    let len = found.size() as usize;
+
+    // The whole payload verifies.
+    let mut full = DataVerifier::new(&found);
+    full.update(&img[at..at + len]);
+    assert!(full.finish());
+
+    // Nothing at all: the CRC matches, the length does not.
+    assert!(
+        !DataVerifier::new(&found).finish(),
+        "an empty stream must not verify even when its CRC matches"
+    );
+
+    // One byte short, and one byte too many — the latter reaching into the
+    // file header that follows.
+    let mut short = DataVerifier::new(&found);
+    short.update(&img[at..at + len - 1]);
+    assert!(!short.finish(), "a truncated stream must not verify");
+
+    let mut long = DataVerifier::new(&found);
+    long.update(&img[at..at + len + 1]);
+    assert!(!long.finish(), "an overlong stream must not verify");
+
+    // Overlong in one window is remembered, not cancelled by a later one.
+    let mut mixed = DataVerifier::new(&found);
+    mixed.update(&img[at..at + len + 1]);
+    mixed.update(&[]);
+    assert!(!mixed.finish());
+}
+
 fn reseal_header(img: &mut [u8]) {
     assert!(jeefs_header::update_crc(img));
 }
