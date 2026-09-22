@@ -231,8 +231,10 @@ fn main() {
                 let val = u8::from_str_radix(arg2.trim_start_matches("0x"), 16).unwrap_or(0);
                 if off < image.len() {
                     image[off] = val;
+                    println!("{idx} poke ok {off}");
+                } else {
+                    println!("{idx} poke skip");
                 }
-                println!("{idx} poke ok {off}");
             }
             "consistency" => println!(
                 "{idx} consistency ok {}",
