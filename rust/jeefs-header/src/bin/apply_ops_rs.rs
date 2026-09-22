@@ -165,20 +165,17 @@ fn main() {
                 // after a poke, so a scenario can present a header that was
                 // legally WRITTEN with unusual content rather than merely
                 // corrupted.
-                let base = if arg1.starts_with("0x") || arg1.starts_with("0X") { 16 } else { 10 };
-                let off = usize::from_str_radix(arg1.trim_start_matches("0x").trim_start_matches("0X"), base)
-                    .unwrap_or(usize::MAX);
                 // Checked: a scenario naming a huge offset would otherwise
-                // wrap the bound and slice out of range.
-                if off.checked_add(28).is_some_and(|end| end <= image.len()) {
-                    let c = crc32fast::hash(&image[off..off + 24]);
-                    image[off + 24..off + 28].copy_from_slice(&c.to_le_bytes());
-                    println!("{idx} reseal ok {off}");
-                } else {
-                    // Out of range prints no number: the two runners parse
-                    // an oversized offset into different widths, and the
-                    // journal must compare the ports, not the parsers.
-                    println!("{idx} reseal skip");
+                // wrap the bound and slice out of range. Out of range
+                // prints no number, so a malformed or oversized offset
+                // cannot make the journals differ over the parsers.
+                match parse_uint(arg1) {
+                    Some(off) if off.checked_add(28).is_some_and(|end| end <= image.len()) => {
+                        let c = crc32fast::hash(&image[off..off + 24]);
+                        image[off + 24..off + 28].copy_from_slice(&c.to_le_bytes());
+                        println!("{idx} reseal ok {off}");
+                    }
+                    _ => println!("{idx} reseal skip"),
                 }
             }
             "walk" => {
@@ -227,13 +224,13 @@ fn main() {
                 }
             }
             "poke" => {
-                let off = parse_uint(arg1);
                 let val = u8::from_str_radix(arg2.trim_start_matches("0x"), 16).unwrap_or(0);
-                if off < image.len() {
-                    image[off] = val;
-                    println!("{idx} poke ok {off}");
-                } else {
-                    println!("{idx} poke skip");
+                match parse_uint(arg1) {
+                    Some(off) if off < image.len() => {
+                        image[off] = val;
+                        println!("{idx} poke ok {off}");
+                    }
+                    _ => println!("{idx} poke skip"),
                 }
             }
             "consistency" => println!(
@@ -256,9 +253,23 @@ fn main() {
 /// Decimal, or 0x-prefixed hex — the same two forms the C runner accepts.
 /// Neither reads a leading zero as octal, so a vector cannot make the two
 /// runners disagree on the offset itself.
-fn parse_uint(s: &str) -> usize {
-    match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
-        Some(hex) => usize::from_str_radix(hex, 16).unwrap_or(usize::MAX),
-        None => s.parse().unwrap_or(usize::MAX),
+/// An offset, in the one form both runners accept: an optional `0x` or
+/// `0X` prefix, then one or more digits of that base, and nothing else.
+/// No sign, no trailing characters, no empty token.
+///
+/// The grammar is spelled out rather than delegated because the two
+/// runners' library parsers disagree on every malformed form: `strtoul`
+/// reads `12junk` as 12 and an empty string as 0, while `from_str_radix`
+/// accepts a leading `+`. A vector with a malformed offset would then
+/// mutate one runner's image and not the other's — a divergence in the
+/// harness, reported as a divergence between the ports.
+fn parse_uint(s: &str) -> Option<usize> {
+    let (digits, base) = match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        Some(hex) => (hex, 16),
+        None => (s, 10),
+    };
+    if digits.is_empty() || !digits.chars().all(|c| c.is_digit(base)) {
+        return None;
     }
+    usize::from_str_radix(digits, base).ok()
 }
