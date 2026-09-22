@@ -38,7 +38,10 @@ if(CARGO_FOR_FUZZ)
     # by the C core alone and a branch only the Rust port has could never guide
     # the search. The flags go to a target-specific build so they do not reach
     # build scripts, which are compiled for the host and would fail with them.
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE FFI_TRIPLE OUTPUT_STRIP_TRAILING_WHITESPACE)
+    #
+    # The triple comes from rustc, not from the C compiler: cargo --target takes
+    # a Rust target name, and clang -dumpmachine reports something else on some
+    # hosts (arm64-apple-darwin25.6.0 rather than aarch64-apple-darwin).
     execute_process(COMMAND rustc -vV OUTPUT_VARIABLE RUSTC_VV)
     string(REGEX MATCH "host: ([^
 ]+)" _ "${RUSTC_VV}")
