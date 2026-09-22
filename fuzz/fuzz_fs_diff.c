@@ -22,6 +22,8 @@
 
 #include "eepromerr.h"
 #include "jeefs.h"
+#include "jeefs_port.h"
+#include "jeefs_walk.h"
 
 #define MAX_IMG 8192
 #define MAX_PAYLOAD 512
@@ -34,6 +36,8 @@ int16_t jeefs_rs_write(uint8_t *image, uint16_t size, const uint8_t *name, const
 int16_t jeefs_rs_delete(uint8_t *image, uint16_t size, const uint8_t *name);
 int16_t jeefs_rs_read(const uint8_t *image, uint16_t size, const uint8_t *name, uint8_t *out, uint16_t out_len);
 int16_t jeefs_rs_list(const uint8_t *image, uint16_t size, uint8_t *out, uint16_t max_files);
+int16_t jeefs_rs_walk(const uint8_t *image, uint16_t size, const uint8_t *name, uint32_t *hops, uint32_t *offset,
+                      uint16_t *file_size, uint32_t *crc, uint8_t *verified);
 
 /* A small pool of names: the interesting collisions are repeats and the
  * reserved identity name, not the space of all 15-character strings. The
@@ -128,7 +132,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {
     _Static_assert(sizeof(name_buf) == 16, "the Rust shim reads a 16-byte name field");
 
     for (int op_index = 0; op_index < MAX_OPS && cur.pos < cur.len; op_index++) {
-        uint8_t op = take_u8(&cur) % 6;
+        uint8_t op = take_u8(&cur) % 7;
         const char *name = NAMES[take_u8(&cur) % NAME_COUNT];
         memset(name_buf, 0, sizeof(name_buf));
         strncpy(name_buf, name, JEEFS_FILE_NAME_LENGTH);
@@ -184,6 +188,65 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t len) {
                  * accidental mutation is caught at the operation that made
                  * it, instead of being erased by a later format. */
                 compare_images(c_img, rs_img, size, "read");
+                break;
+            }
+            case 5: { /* walk: the bounded-RAM locator over the same image */
+                uint32_t c_hops = 0, c_off = 0, c_crc = 0;
+                uint16_t c_len = 0;
+                uint8_t c_ok = 0;
+                uint16_t prefix_len = size < 256 ? size : 256;
+                JEEFSWalk w;
+                int16_t c_rc = jeefs_walk_begin(&w, c_img, prefix_len, size, name_buf);
+                if (c_rc >= 0) {
+                    uint32_t at;
+                    uint16_t want;
+                    while (jeefs_walk_want(&w, &at, &want) == 1) {
+                        c_hops++;
+                        c_rc = jeefs_walk_feed(&w, c_img + at, want);
+                        if (c_rc != 0)
+                            break;
+                    }
+                    if (c_rc >= 0) {
+                        if (w.state == JEEFS_WALK_FOUND) {
+                            uint32_t running = 0;
+                            for (uint32_t o = 0; o < w.file_size; o += 64) {
+                                uint32_t n = (uint32_t) w.file_size - o < 64 ? (uint32_t) w.file_size - o : 64;
+                                running = jeefs_crc32_update(running, c_img + w.file_offset + o, n);
+                            }
+                            c_off = w.file_offset;
+                            c_len = w.file_size;
+                            c_crc = w.file_crc32;
+                            c_ok = running == w.file_crc32;
+                            c_rc = JEEFS_WALK_FOUND;
+                        } else {
+                            c_rc = JEEFS_WALK_NOTFOUND;
+                        }
+                    }
+                }
+
+                uint32_t rs_hops = 0, rs_off = 0, rs_crc = 0;
+                uint16_t rs_len = 0;
+                uint8_t rs_ok = 0;
+                int16_t rs_rc = jeefs_rs_walk(rs_img, size, (const uint8_t *) name_buf, &rs_hops, &rs_off, &rs_len,
+                                              &rs_crc, &rs_ok);
+
+                compare_result(c_rc, rs_rc, "walk");
+                /* The read count is part of the contract: reaching the same
+                 * terminal after a different number of header reads means
+                 * the two state machines disagree about the chain. */
+                if (c_hops != rs_hops) {
+                    fprintf(stderr, "after walk: C read %u headers, Rust read %u\n", (unsigned) c_hops,
+                            (unsigned) rs_hops);
+                    divergence("walk hop count");
+                }
+                if (c_rc == JEEFS_WALK_FOUND &&
+                    (c_off != rs_off || c_len != rs_len || c_crc != rs_crc || c_ok != rs_ok)) {
+                    fprintf(stderr, "after walk: C {%u,%u,%08x,%u} Rust {%u,%u,%08x,%u}\n", (unsigned) c_off,
+                            (unsigned) c_len, (unsigned) c_crc, c_ok, (unsigned) rs_off, (unsigned) rs_len,
+                            (unsigned) rs_crc, rs_ok);
+                    divergence("located file");
+                }
+                compare_images(c_img, rs_img, size, "walk");
                 break;
             }
             default: { /* list */

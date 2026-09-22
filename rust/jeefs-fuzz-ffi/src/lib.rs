@@ -7,6 +7,7 @@
 // wraps stays no_std (it is pulled in with default-features = false).
 use core::slice;
 use jeefs_header::fs::{add_file, delete_file, files, format, read_file, write_file, FsError};
+use jeefs_header::walk::{DataVerifier, Step, Walk};
 
 /// Width of the name field in a file header — every name pointer crossing
 /// this boundary points at a buffer of exactly this size.
@@ -163,4 +164,71 @@ pub unsafe extern "C" fn jeefs_rs_list(image: *const u8, size: u16, out: *mut u8
         }
     }
     count
+}
+
+/// Drive the pull-model walker to a terminal state over an in-memory
+/// image, the way a bounded-RAM environment would over a real medium.
+///
+/// Returns 1 (found), 2 (not found) or a negative eepromerr code. On a
+/// find, the out params carry what the C walker puts in its struct, plus
+/// the result of streaming the payload through the running CRC — the C
+/// side computes the same and the harness compares every field.
+///
+/// # Safety
+/// `image` must be valid for reads of `size` bytes, `name` must point to
+/// 16 readable bytes, and every out pointer must be non-null and aligned.
+#[no_mangle]
+pub unsafe extern "C" fn jeefs_rs_walk(
+    image: *const u8,
+    size: u16,
+    name: *const u8,
+    hops: *mut u32,
+    offset: *mut u32,
+    file_size: *mut u16,
+    crc: *mut u32,
+    verified: *mut u8,
+) -> i16 {
+    *hops = 0;
+    *offset = 0;
+    *file_size = 0;
+    *crc = 0;
+    *verified = 0;
+
+    let img = slice::from_raw_parts(image, size as usize);
+    let Some(n) = name_str(name) else {
+        return -4;
+    };
+    let prefix = &img[..img.len().min(256)];
+    let mut w = match Walk::begin(prefix, size, n) {
+        Ok(w) => w,
+        Err(e) => return code(e),
+    };
+
+    loop {
+        match w.step() {
+            Step::Want {
+                offset: at,
+                len,
+            } => {
+                *hops += 1;
+                let at = at as usize;
+                if let Err(e) = w.feed(&img[at..at + len as usize]) {
+                    return code(e);
+                }
+            }
+            Step::Found(f) => {
+                let at = f.offset as usize;
+                let mut v = DataVerifier::new(&f);
+                for chunk in img[at..at + f.size as usize].chunks(64) {
+                    v.update(chunk);
+                }
+                *offset = f.offset;
+                *file_size = f.size;
+                *crc = f.crc32;
+                *verified = u8::from(v.finish());
+                return 1;
+            }
+            Step::NotFound => return 2,
+        }
+    }
 }
