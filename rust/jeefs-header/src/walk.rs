@@ -260,6 +260,9 @@ impl Walk {
         }
         // Contiguity: the link either terminates or names exactly the next
         // slot, and a claimed successor must have room for its own header.
+        // This is also what bounds the walk: `end` is at least one byte
+        // past `at`, so accepted addresses strictly increase and a chain
+        // cannot loop back on itself however the medium is corrupted.
         if next != 0 && (next as u32 != end || end + FHDR as u32 > self.image_size as u32) {
             return Err(self.fail(FsError::EepromCorrupted));
         }

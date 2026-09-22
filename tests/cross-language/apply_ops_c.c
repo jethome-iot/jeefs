@@ -8,6 +8,7 @@
  * Usage: apply_ops_c <scenario.ops> <out.bin>
  */
 
+#include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,15 +26,45 @@
 static uint8_t image[MAX_IMG];
 static uint16_t image_size;
 
-/* Offsets keep their full parsed width until they are bounds-checked.
- * Narrowing first turned 4294967296 into 0 on a 64-bit host, so the C
- * runner poked or resealed the board header while the Rust runner left
- * the image alone — a divergence in the vector parser, not in the ports.
- * Decimal, or 0x for hex, matching the Rust runner: plain
- * strtoul(.., 0) would read a leading zero as octal. */
-static unsigned long parse_offset(const char *s) {
-    int base = (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 16 : 10;
-    return strtoul(s, NULL, base);
+/* An offset, in the one form both runners accept: an optional 0x or 0X
+ * prefix, then one or more digits of that base, and nothing else. No
+ * sign, no trailing characters, no empty token. Returns 0 and leaves
+ * *out untouched when the token does not match.
+ *
+ * The grammar is spelled out rather than delegated to strtoul because
+ * the two runners' library parsers disagree on every malformed form:
+ * strtoul reads "12junk" as 12 and an empty string as 0, while Rust's
+ * from_str_radix accepts a leading '+'. A vector with a malformed offset
+ * would then mutate one runner's image and not the other's — and the
+ * comparison would report a divergence between the ports that is really
+ * a divergence between the parsers. Keeping the full width until the
+ * bounds check matters for the same reason: narrowing first turned
+ * 4294967296 into 0 on a 64-bit host. */
+static int parse_offset(const char *s, unsigned long *out) {
+    unsigned long base = 10;
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+        base = 16;
+        s += 2;
+    }
+    if (*s == '\0')
+        return 0;
+    unsigned long v = 0;
+    for (; *s != '\0'; s++) {
+        unsigned long d;
+        if (*s >= '0' && *s <= '9')
+            d = (unsigned long) (*s - '0');
+        else if (base == 16 && *s >= 'a' && *s <= 'f')
+            d = (unsigned long) (*s - 'a') + 10;
+        else if (base == 16 && *s >= 'A' && *s <= 'F')
+            d = (unsigned long) (*s - 'A') + 10;
+        else
+            return 0;
+        if (v > (ULONG_MAX - d) / base)
+            return 0; /* overflow: out of range by definition */
+        v = v * base + d;
+    }
+    *out = v;
+    return 1;
 }
 
 static const char *err_class(int16_t code) {
@@ -180,9 +211,9 @@ int main(int argc, char **argv) {
             }
         } else if (strcmp(op, "poke") == 0) {
             /* poke <offset> <hexbyte>: corrupt the medium under the reader */
-            unsigned long off = parse_offset(arg1);
+            unsigned long off;
             unsigned val = (unsigned) strtoul(arg2, NULL, 16);
-            if (off < image_size) {
+            if (parse_offset(arg1, &off) && off < image_size) {
                 image[off] = (uint8_t) val;
                 printf("%d poke ok %lu\n", idx, off);
             } else {
@@ -192,11 +223,11 @@ int main(int argc, char **argv) {
             /* reseal <offset>: recompute a file header's headerCrc32 after a
              * poke, so a scenario can present a header that was legally
              * WRITTEN with unusual content rather than merely corrupted. */
-            unsigned long off = parse_offset(arg1);
+            unsigned long off;
             /* Compare against the room left rather than adding to off: a
              * scenario naming a huge offset would wrap the sum and write
              * past the image. */
-            if (off < image_size && image_size - off >= sizeof(JEEFSFileHeaderv1)) {
+            if (parse_offset(arg1, &off) && off < image_size && image_size - off >= sizeof(JEEFSFileHeaderv1)) {
                 uint32_t c = jeefs_crc32(image + off, offsetof(JEEFSFileHeaderv1, headerCrc32));
                 jeefs_put_le32(image + off + offsetof(JEEFSFileHeaderv1, headerCrc32), c);
                 printf("%d reseal ok %lu\n", idx, off);
