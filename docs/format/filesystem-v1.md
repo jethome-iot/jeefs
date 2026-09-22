@@ -156,14 +156,23 @@ Traverse linked list from header end, collecting file names until `nextFileAddre
 - **Max filename:** 15 characters (+ null terminator = 16 bytes).
 - **Filename characters:** printable ASCII, `0x20`-`0x7E`, punctuation
   included — the same range the header's bounded string fields use
-  ([header-common.md](header-common.md)). A space is legal. Bytes outside
-  the range are invalid: an implementation rejects them on write and is
-  not required to interpret them on read. Stating the range is what keeps
-  the ports interchangeable — left open, each one inherits a different
-  domain from its own string type or encoding call, and the same 16 bytes
-  come to mean different things in different languages. The rule also
-  excludes the leading bytes the emptiness heuristic reserves, so a name
-  can never make its own slot read as unwritten.
+  ([header-common.md](header-common.md)). A space is legal.
+
+  The rule binds names the **caller supplies**: creating a file, and
+  naming one to read, overwrite, delete or locate, all reject a name
+  outside the range. Names read back **from the medium** are reported as
+  they are — enumeration never refuses to list a file because something
+  once wrote a name outside the domain, so an image older than this rule
+  still reads. A caller's name outside the range cannot match a
+  conformant image anyway, which is why refusing it early is the honest
+  answer rather than a silent "not found".
+
+  Stating the range is what keeps the ports interchangeable — left open,
+  each one inherits a different domain from its own string type or
+  encoding call, and the same 16 bytes come to mean different things in
+  different languages. The rule also excludes the leading bytes the
+  emptiness heuristic reserves, so a name can never make its own slot
+  read as unwritten.
 - **Max file size:** 32767 bytes (INT16_MAX): the int16_t API returns carry byte counts, so larger payloads are rejected with `BUFFERNOTVALID`.
 - **Zero-size files:** Not allowed (`dataSize = 0` returns `BUFFERNOTVALID`).
 - **File fragmentation:** Not supported — each file is contiguous.
