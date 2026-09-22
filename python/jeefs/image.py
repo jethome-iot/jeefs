@@ -198,6 +198,11 @@ def parse_image(data: bytes) -> ParsedImage:
             raise ValueError(f"file header CRC mismatch at offset {offset}")
         if raw[EEPROM_FILE_NAME_LENGTH] != 0:
             raise ValueError(f"unterminated file name at offset {offset}")
+        # Byte-transparent on purpose, and deliberately laxer than the write
+        # path: the spec constrains what an implementation may write, not
+        # what it must interpret, so an image written before the rule — or by
+        # something that ignored it — still parses and reports its names
+        # rather than failing the whole walk (filesystem-v1.md).
         name = raw[:16].split(b"\x00")[0].decode("latin-1")
         data_size, stored_crc, next_addr = struct.unpack("<HIH", raw[16:24])
         if data_size == 0 or data_size == 0xFFFF:
