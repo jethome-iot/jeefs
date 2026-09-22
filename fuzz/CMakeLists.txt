@@ -69,13 +69,16 @@ if(CARGO_FOR_FUZZ)
         DEPENDS
             ${FFI_DIR}/src/lib.rs
             ${FFI_DIR}/Cargo.toml
+            # The lockfile picks the dependency versions the archive is built
+            # from, so a lockfile-only update has to rebuild it too.
+            ${FFI_DIR}/Cargo.lock
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/Cargo.toml
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/lib.rs
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/fs.rs
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/header.rs
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/devid.rs
             ${jeefs_SOURCE_DIR}/rust/jeefs-header/src/generated.rs
-        COMMENT "Building the instrumented Rust FS shim for the differential fuzzer"
+        COMMENT "Building the Rust FS shim for the differential fuzzer"
     )
     add_custom_target(jeefs_fuzz_ffi DEPENDS ${FFI_LIB})
 
