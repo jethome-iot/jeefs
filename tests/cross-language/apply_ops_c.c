@@ -166,6 +166,19 @@ int main(int argc, char **argv) {
         fprintf(stderr, "%s: cannot open\n", argv[1]);
         return 2;
     }
+    /* A .ops file is text. A NUL byte inside one would end a token here,
+     * where fgets hands the line to sscanf, but not in the Rust runner,
+     * which keeps it as a character — so the same scenario would mutate
+     * two different media. Refuse the file instead of letting the two
+     * runners quietly disagree about where a token ends. */
+    for (int c = fgetc(f); c != EOF; c = fgetc(f)) {
+        if (c == '\0') {
+            fprintf(stderr, "%s: NUL byte in a text scenario\n", argv[1]);
+            fclose(f);
+            return 2;
+        }
+    }
+    rewind(f);
 
     static uint8_t payload[MAX_IMG];
     static char names[MAX_FILES][JEEFS_FILE_NAME_LENGTH + 1];
