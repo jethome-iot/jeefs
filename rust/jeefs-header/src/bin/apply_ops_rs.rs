@@ -71,6 +71,15 @@ fn main() {
         eprintln!("{}: {}", args[1], e);
         process::exit(2);
     });
+    // A .ops file is text. A NUL byte inside one ends a token in the C
+    // runner, where fgets hands the line to sscanf, but not here, where it
+    // stays a character — so the same scenario would mutate two different
+    // media. Refuse the file rather than let the runners quietly disagree
+    // about where a token ends.
+    if script.contains('\0') {
+        eprintln!("{}: NUL byte in a text scenario", args[1]);
+        process::exit(2);
+    }
 
     let mut image = init_image("zeros", 8192);
 
@@ -252,16 +261,6 @@ fn main() {
 /// Decimal, or 0x-prefixed hex — the same two forms the C runner accepts.
 /// Neither reads a leading zero as octal, so a vector cannot make the two
 /// runners disagree on the offset itself.
-/// An offset, in the one form both runners accept: an optional `0x` or
-/// `0X` prefix, then one or more digits of that base, and nothing else.
-/// No sign, no trailing characters, no empty token.
-///
-/// The grammar is spelled out rather than delegated because the two
-/// runners' library parsers disagree on every malformed form: `strtoul`
-/// reads `12junk` as 12 and an empty string as 0, while `from_str_radix`
-/// accepts a leading `+`. A vector with a malformed offset would then
-/// mutate one runner's image and not the other's — a divergence in the
-/// harness, reported as a divergence between the ports.
 /// A byte value for poke, in the one form both runners accept: an
 /// optional `0x` or `0X` prefix, then one or two hex digits, and nothing
 /// else. `strtoul` read `1ff` as 511 and the cast made it 0xFF, while
@@ -275,6 +274,16 @@ fn parse_byte(s: &str) -> Option<u8> {
     u8::from_str_radix(digits, 16).ok()
 }
 
+/// An offset, in the one form both runners accept: an optional `0x` or
+/// `0X` prefix, then one or more digits of that base, and nothing else.
+/// No sign, no trailing characters, no empty token.
+///
+/// The grammar is spelled out rather than delegated because the two
+/// runners' library parsers disagree on every malformed form: `strtoul`
+/// reads `12junk` as 12 and an empty string as 0, while `from_str_radix`
+/// accepts a leading `+`. A vector with a malformed offset would then
+/// mutate one runner's image and not the other's — a divergence in the
+/// harness, reported as a divergence between the ports.
 fn parse_uint(s: &str) -> Option<usize> {
     let (digits, base) = match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
         Some(hex) => (hex, 16),
