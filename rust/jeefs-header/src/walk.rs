@@ -133,6 +133,11 @@ impl Walk {
     /// asking for a single byte: an `fs_version` of 0 (no filesystem), and
     /// an image with no room for a file header after the board header.
     ///
+    /// Unlike the C `jeefs_walk_begin`, a failure here leaves no walker
+    /// behind: C stores the error in the caller's struct because the
+    /// caller owns it and may go straight to the request loop, while here
+    /// there is simply no `Walk` to misuse.
+    ///
     /// # Errors
     /// [`FsError::BufferNotValid`] for a short prefix,
     /// [`FsError::FileNameNotValid`] for a name outside the domain

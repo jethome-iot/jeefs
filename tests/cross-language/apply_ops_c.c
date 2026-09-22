@@ -25,6 +25,17 @@
 static uint8_t image[MAX_IMG];
 static uint16_t image_size;
 
+/* Offsets keep their full parsed width until they are bounds-checked.
+ * Narrowing first turned 4294967296 into 0 on a 64-bit host, so the C
+ * runner poked or resealed the board header while the Rust runner left
+ * the image alone — a divergence in the vector parser, not in the ports.
+ * Decimal, or 0x for hex, matching the Rust runner: plain
+ * strtoul(.., 0) would read a leading zero as octal. */
+static unsigned long parse_offset(const char *s) {
+    int base = (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) ? 16 : 10;
+    return strtoul(s, NULL, base);
+}
+
 static const char *err_class(int16_t code) {
     switch (code) {
         case FILENOTFOUND:
@@ -169,28 +180,26 @@ int main(int argc, char **argv) {
             }
         } else if (strcmp(op, "poke") == 0) {
             /* poke <offset> <hexbyte>: corrupt the medium under the reader */
-            /* Decimal, or 0x for hex — matching the Rust runner. Plain
-             * strtoul(.., 0) would read a leading zero as octal and make
-             * the two runners disagree on the vector, not on the port. */
-            int base = (arg1[0] == '0' && (arg1[1] == 'x' || arg1[1] == 'X')) ? 16 : 10;
-            unsigned off = (unsigned) strtoul(arg1, NULL, base);
+            unsigned long off = parse_offset(arg1);
             unsigned val = (unsigned) strtoul(arg2, NULL, 16);
-            if (off < image_size)
+            if (off < image_size) {
                 image[off] = (uint8_t) val;
-            printf("%d poke ok %u\n", idx, off);
+                printf("%d poke ok %lu\n", idx, off);
+            } else {
+                printf("%d poke skip\n", idx);
+            }
         } else if (strcmp(op, "reseal") == 0) {
             /* reseal <offset>: recompute a file header's headerCrc32 after a
              * poke, so a scenario can present a header that was legally
              * WRITTEN with unusual content rather than merely corrupted. */
-            int base = (arg1[0] == '0' && (arg1[1] == 'x' || arg1[1] == 'X')) ? 16 : 10;
-            unsigned off = (unsigned) strtoul(arg1, NULL, base);
+            unsigned long off = parse_offset(arg1);
             /* Compare against the room left rather than adding to off: a
              * scenario naming a huge offset would wrap the sum and write
              * past the image. */
             if (off < image_size && image_size - off >= sizeof(JEEFSFileHeaderv1)) {
                 uint32_t c = jeefs_crc32(image + off, offsetof(JEEFSFileHeaderv1, headerCrc32));
                 jeefs_put_le32(image + off + offsetof(JEEFSFileHeaderv1, headerCrc32), c);
-                printf("%d reseal ok %u\n", idx, off);
+                printf("%d reseal ok %lu\n", idx, off);
             } else {
                 /* Out of range prints no number: the two runners parse an
                  * oversized offset into different widths, and the journal
