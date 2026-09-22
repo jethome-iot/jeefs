@@ -155,6 +155,17 @@ static void test_add_list_read(void) {
     assert(EEPROM_DeleteFile(image, image_size, "A\xff") == FILENAMENOTVALID);
     // Space is inside the range, so it stays legal.
     assert(EEPROM_AddFile(image, image_size, "my file", d, 4) == 4);
+
+    // The domain binds what we write, not what we report back: a name
+    // outside it, written before the rule or by something that ignored it,
+    // must still enumerate rather than break the walk. Poke the byte and
+    // reseal the header CRC, so the entry is legally written.
+    uint16_t first = HDR_V3;
+    image[first] = 0xE9;
+    reseal_hdr(first);
+    int16_t listed = EEPROM_ListFiles(image, image_size, names, 8);
+    assert(listed == 5);
+    assert((unsigned char) names[0][0] == 0xE9);
     // invalid data
     assert(EEPROM_AddFile(image, image_size, "x", NULL, 4) == BUFFERNOTVALID);
     assert(EEPROM_AddFile(image, image_size, "x", d, 0) == BUFFERNOTVALID);

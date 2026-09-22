@@ -225,6 +225,27 @@ fn names_are_printable_ascii() {
 }
 
 #[test]
+fn a_name_outside_the_domain_still_enumerates() {
+    // The domain binds what a port writes, not what it reports back. A name
+    // written before the rule, or by something that ignored it, must still
+    // come out of the chain walk rather than breaking it — otherwise the
+    // rule would make older images unreadable instead of merely unwritable.
+    let mut img = fresh();
+    add_file(&mut img, "a", b"x").unwrap();
+
+    let off = 256; // v4 board header, so the first file header starts here
+    img[off] = 0xE9;
+    let seal = crc32fast::hash(&img[off..off + 24]);
+    img[off + 24..off + 28].copy_from_slice(&seal.to_le_bytes());
+
+    let names: Vec<Vec<u8>> = files(&img)
+        .unwrap()
+        .map(|e| e.unwrap().name_bytes().to_vec())
+        .collect();
+    assert_eq!(names, [b"\xe9".to_vec()]);
+}
+
+#[test]
 fn payload_sizes_are_validated() {
     let mut img = fresh();
     assert!(matches!(add_file(&mut img, "a", b""), Err(FsError::BufferNotValid)));
