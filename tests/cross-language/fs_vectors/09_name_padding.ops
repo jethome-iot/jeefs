@@ -1,0 +1,26 @@
+# A name field whose bytes after the terminator are not zero. The medium
+# can carry one — whatever wrote it need not have been this library — and
+# the ports have to agree on whether it matches, so the comparison must
+# stop at the terminator instead of sweeping the whole field.
+#
+# The first file header sits at 256: name "a" at 256, terminator at 257,
+# padding from 258. Dirty the padding and reseal, so the header is legally
+# WRITTEN rather than corrupt and the readers get past the CRC gate.
+init zeros 8192
+format 4
+add a fill:1:16
+add bb fill:2:16
+poke 258 7a
+poke 259 7a
+poke 260 ff
+reseal 256
+# Every reader must still see the file as "a": enumeration, the in-memory
+# read, and the bounded-RAM walker alike.
+list
+read a 8192
+walk a
+# The chain past it is untouched, so the second file is still reachable.
+walk bb
+# A target that equals the dirty bytes must NOT match — the padding is
+# not part of the name.
+walk azz
