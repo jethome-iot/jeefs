@@ -25,13 +25,13 @@ byte is `0`; readers of a `0` image see zero files.
 <!-- STRUCT: JEEFSFileHeaderv1 -->
 <!-- SIZE: 28 -->
 
-| Offset | Size | Field           | Type       | Endianness    | Description                            |
-|--------|------|-----------------|------------|---------------|----------------------------------------|
-| 0-15   | 16   | name            | char[16]   | -             | Filename, null-terminated (max 15 ch.) |
-| 16-17  | 2    | dataSize        | uint16_t   | little-endian | File data size in bytes                |
-| 18-21  | 4    | crc32           | uint32_t   | little-endian | CRC32 of file data only (not header)   |
-| 22-23  | 2    | nextFileAddress | uint16_t   | little-endian | Absolute offset of next file, 0 = end  |
-| 24-27  | 4    | headerCrc32     | uint32_t   | little-endian | CRC32 of header bytes 0-23             |
+| Offset | Size | Field           | Type     | Endianness    | Description                                             |
+|--------|------|-----------------|----------|---------------|---------------------------------------------------------|
+| 0-15   | 16   | name            | char[16] | -             | Filename, printable ASCII, null-terminated (max 15 ch.) |
+| 16-17  | 2    | dataSize        | uint16_t | little-endian | File data size in bytes                                 |
+| 18-21  | 4    | crc32           | uint32_t | little-endian | CRC32 of file data only (not header)                    |
+| 22-23  | 2    | nextFileAddress | uint16_t | little-endian | Absolute offset of next file, 0 = end                   |
+| 24-27  | 4    | headerCrc32     | uint32_t | little-endian | CRC32 of header bytes 0-23                              |
 
 The first 24 bytes keep the pre-versioning layout exactly; `headerCrc32`
 closes the one unprotected span in the format — without it a bit flip in
@@ -154,6 +154,16 @@ Traverse linked list from header end, collecting file names until `nextFileAddre
 ## Constraints
 
 - **Max filename:** 15 characters (+ null terminator = 16 bytes).
+- **Filename characters:** printable ASCII, `0x20`-`0x7E`, punctuation
+  included — the same range the header's bounded string fields use
+  ([header-common.md](header-common.md)). A space is legal. Bytes outside
+  the range are invalid: an implementation rejects them on write and is
+  not required to interpret them on read. Stating the range is what keeps
+  the ports interchangeable — left open, each one inherits a different
+  domain from its own string type or encoding call, and the same 16 bytes
+  come to mean different things in different languages. The rule also
+  excludes the leading bytes the emptiness heuristic reserves, so a name
+  can never make its own slot read as unwritten.
 - **Max file size:** 32767 bytes (INT16_MAX): the int16_t API returns carry byte counts, so larger payloads are rejected with `BUFFERNOTVALID`.
 - **Zero-size files:** Not allowed (`dataSize = 0` returns `BUFFERNOTVALID`).
 - **File fragmentation:** Not supported — each file is contiguous.

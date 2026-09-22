@@ -64,6 +64,15 @@ Every port provides these over raw byte buffers, with no I/O dependency:
   16-bit link (`0xFFFF`) terminates the file chain like `0`; an
   all-`0x00`/`0xFF` buffer where a header or record is expected means
   *nothing written*, not *corrupt*.
+- **Filenames are printable ASCII** (`0x20`-`0x7E`, punctuation included,
+  space legal), 1 to 15 content bytes, NUL-terminated
+  ([filesystem-v1.md](format/filesystem-v1.md)). Every port implementing FS
+  validates the range itself and returns its invalid-name error; none may
+  leave the domain to whatever its string type happens to allow. The rule
+  exists because that is precisely how the ports drifted apart: length-only
+  validation let C accept any byte, Rust accept any character UTF-8 can
+  carry, and Python accept anything latin-1 could encode — three domains
+  for one 16-byte field (#116).
 - **Wire is little-endian** everywhere; implementations must be correct on
   big-endian hosts (C: `jeefs_endian.h`; Rust: generated `from_le`
   accessors; Python: explicit `<` struct formats).

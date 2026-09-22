@@ -340,7 +340,7 @@ impl DeviceIdentityV1 {
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 pub struct JeefsFileHeaderV1 {
-    pub name: [u8; 16],  // Filename, null-terminated (max 15 ch.)
+    pub name: [u8; 16],  // Filename, printable ASCII, null-terminated (max 15 ch.)
     pub data_size: u16,  // File data size in bytes
     pub crc32: u32,  // CRC32 of file data only (not header)
     pub next_file_address: u16,  // Absolute offset of next file, 0 = end
