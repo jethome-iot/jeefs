@@ -167,6 +167,11 @@ static void test_begin_rejects_bad_input(void) {
     assert(jeefs_walk_begin(&w, image, 8, IMG_SIZE, "alpha") == BUFFERNOTVALID); // prefix < 12
     assert(jeefs_walk_begin(&w, image, HDR, IMG_SIZE, "") == FILENAMENOTVALID);
     assert(jeefs_walk_begin(&w, image, HDR, IMG_SIZE, "name-way-too-long") == FILENAMENOTVALID);
+    // The target is caller-supplied, so it faces the same name domain the
+    // FS core applies — a walker that accepted more would find files
+    // EEPROM_ReadFile refuses to name.
+    assert(jeefs_walk_begin(&w, image, HDR, IMG_SIZE, "A\xff") == FILENAMENOTVALID);
+    assert(jeefs_walk_begin(&w, image, HDR, IMG_SIZE, "a\tb") == FILENAMENOTVALID);
     uint8_t junk[16];
     memset(junk, 0xAB, sizeof(junk));
     assert(jeefs_walk_begin(&w, junk, sizeof(junk), IMG_SIZE, "alpha") == EEPROMCORRUPTED);

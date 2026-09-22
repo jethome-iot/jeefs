@@ -184,27 +184,6 @@ static int16_t fs_stamp(uint8_t *image, uint16_t imageSize) {
     return jeefs_header_update_crc(image, imageSize) == 0 ? 0 : EEPROMCORRUPTED;
 }
 
-static bool filename_valid(const char *filename) {
-    if (!filename)
-        return false;
-    size_t len = strnlen(filename, JEEFS_FILE_NAME_LENGTH + 1);
-    if (len == 0 || len > JEEFS_FILE_NAME_LENGTH)
-        return false;
-    /*
-     * Printable ASCII only (filesystem-v1.md). Length alone leaves the
-     * character domain to whatever string type each port happens to use,
-     * and the same 16 bytes then mean different things per language. It
-     * also keeps a name out of the range the emptiness heuristic reserves:
-     * a leading 0xFF would make the slot read as never written.
-     */
-    for (size_t i = 0; i < len; i++) {
-        unsigned char c = (unsigned char) filename[i];
-        if (c < 0x20 || c > 0x7E)
-            return false;
-    }
-    return true;
-}
-
 /*
  * Public API
  */
@@ -292,7 +271,7 @@ int16_t EEPROM_ListFiles(const uint8_t *image, uint16_t imageSize, char fileList
 
 int16_t EEPROM_ReadFile(const uint8_t *image, uint16_t imageSize, const char *filename, uint8_t *buffer,
                         uint16_t bufferSize) {
-    if (!filename_valid(filename))
+    if (!jeefs_filename_valid(filename))
         return FILENAMENOTVALID;
     if (!buffer || bufferSize == 0)
         return BUFFERNOTVALID;
@@ -319,7 +298,7 @@ int16_t EEPROM_ReadFile(const uint8_t *image, uint16_t imageSize, const char *fi
 
 int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
                        uint16_t dataSize) {
-    if (!filename_valid(filename))
+    if (!jeefs_filename_valid(filename))
         return FILENAMENOTVALID;
     if (!data || dataSize == 0 || dataSize > INT16_MAX)
         return BUFFERNOTVALID;
@@ -438,7 +417,7 @@ int16_t EEPROM_AddFile(uint8_t *image, uint16_t imageSize, const char *filename,
 }
 
 int16_t EEPROM_DeleteFile(uint8_t *image, uint16_t imageSize, const char *filename) {
-    if (!filename_valid(filename))
+    if (!jeefs_filename_valid(filename))
         return FILENAMENOTVALID;
 
     JEEFSIter victim;
@@ -501,7 +480,7 @@ int16_t EEPROM_DeleteFile(uint8_t *image, uint16_t imageSize, const char *filena
 
 int16_t EEPROM_WriteFile(uint8_t *image, uint16_t imageSize, const char *filename, const uint8_t *data,
                          uint16_t dataSize) {
-    if (!filename_valid(filename))
+    if (!jeefs_filename_valid(filename))
         return FILENAMENOTVALID;
     if (!data || dataSize == 0 || dataSize > INT16_MAX)
         return BUFFERNOTVALID;
