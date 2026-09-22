@@ -143,9 +143,15 @@ def _payload(token: str, what: str) -> bytes:
     if len(token) % 2 or not token:
         raise ScenarioError(f"{what}: hex payload must be an even number of digits: {token!r}")
     try:
-        return bytes.fromhex(token)
+        data = bytes.fromhex(token)
     except ValueError as exc:
         raise ScenarioError(f"{what}: not hex: {token!r}") from exc
+    # The same ceiling the fill form gets: a payload past it is one the
+    # runners refuse, and a scenario the runners refuse has to fail here
+    # instead — that is the whole point of there being one parser.
+    if len(data) > MAX_DATA:
+        raise ScenarioError(f"{what}: payload of {len(data)} bytes, over the {MAX_DATA}-byte limit")
+    return data
 
 
 def compile_scenario(text: str, source: str = "<scenario>") -> bytes:
