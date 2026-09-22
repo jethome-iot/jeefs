@@ -208,16 +208,16 @@ fn main() {
                         match outcome {
                             Err(e) => println!("{idx} walk err {} {hops}", err_class(e)),
                             Ok(Step::Found(f)) => {
-                                let at = f.offset as usize;
+                                let at = f.offset() as usize;
                                 let mut v = DataVerifier::new(&f);
-                                for chunk in image[at..at + f.size as usize].chunks(64) {
+                                for chunk in image[at..at + f.size() as usize].chunks(64) {
                                     v.update(chunk);
                                 }
                                 println!(
                                     "{idx} walk ok found {hops} {} {} {:08x} {}",
-                                    f.offset,
-                                    f.size,
-                                    f.crc32,
+                                    f.offset(),
+                                    f.size(),
+                                    f.crc32(),
                                     if v.finish() { 1 } else { 0 }
                                 );
                             }

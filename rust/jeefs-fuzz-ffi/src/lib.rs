@@ -217,14 +217,14 @@ pub unsafe extern "C" fn jeefs_rs_walk(
                 }
             }
             Step::Found(f) => {
-                let at = f.offset as usize;
+                let at = f.offset() as usize;
                 let mut v = DataVerifier::new(&f);
-                for chunk in img[at..at + f.size as usize].chunks(64) {
+                for chunk in img[at..at + f.size() as usize].chunks(64) {
                     v.update(chunk);
                 }
-                *offset = f.offset;
-                *file_size = f.size;
-                *crc = f.crc32;
+                *offset = f.offset();
+                *file_size = f.size();
+                *crc = f.crc32();
                 *verified = u8::from(v.finish());
                 return 1;
             }
