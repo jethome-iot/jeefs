@@ -73,6 +73,9 @@ struct reader {
  * that as an operation outcome would make the journals compare the harness
  * rather than the ports — so it ends the run instead. _Noreturn is what lets
  * the readers below treat a failed bounds check as the end of the road. */
+/* The whole program, kept reachable for the reason main explains. */
+static uint8_t *g_program;
+
 static _Noreturn void truncated(const char *what) {
     fprintf(stderr, "truncated program: %s\n", what);
     exit(2);
@@ -214,8 +217,15 @@ int main(int argc, char **argv) {
         return 2;
     }
     size_t len = 0;
-    uint8_t *program = read_program(argv[1], &len);
-    struct reader r = {program, len, 0};
+    /* Held in a file-scope pointer, not a local: the readers end a damaged
+     * program through _Noreturn exits and the operation loop can return
+     * early, so a buffer owned by main alone would be unreachable at exit
+     * on those paths. A leak checker then reports it and replaces the exit
+     * code — which made this runner answer 1 where the Rust one answered 2
+     * on an unknown opcode, and the damaged-program comparison caught it.
+     * Reachable from here, it is not a leak on any path. */
+    g_program = read_program(argv[1], &len);
+    struct reader r = {g_program, len, 0};
 
     if (r.len < 4 || memcmp(r.data, "JOPS", 4) != 0)
         malformed("not a program");
@@ -387,7 +397,8 @@ int main(int argc, char **argv) {
         }
         idx++;
     }
-    free(program);
+    free(g_program);
+    g_program = NULL;
 
     FILE *out = fopen(argv[2], "wb");
     if (!out) {
