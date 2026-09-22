@@ -188,7 +188,21 @@ static bool filename_valid(const char *filename) {
     if (!filename)
         return false;
     size_t len = strnlen(filename, JEEFS_FILE_NAME_LENGTH + 1);
-    return len > 0 && len <= JEEFS_FILE_NAME_LENGTH;
+    if (len == 0 || len > JEEFS_FILE_NAME_LENGTH)
+        return false;
+    /*
+     * Printable ASCII only (filesystem-v1.md). Length alone leaves the
+     * character domain to whatever string type each port happens to use,
+     * and the same 16 bytes then mean different things per language. It
+     * also keeps a name out of the range the emptiness heuristic reserves:
+     * a leading 0xFF would make the slot read as never written.
+     */
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char) filename[i];
+        if (c < 0x20 || c > 0x7E)
+            return false;
+    }
+    return true;
 }
 
 /*

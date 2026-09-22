@@ -144,6 +144,17 @@ static void test_add_list_read(void) {
     assert(EEPROM_AddFile(image, image_size, NULL, d, 4) == FILENAMENOTVALID);
     assert(EEPROM_AddFile(image, image_size, "", d, 4) == FILENAMENOTVALID);
     assert(EEPROM_AddFile(image, image_size, "abcdefghijklmnop", d, 4) == FILENAMENOTVALID);
+    // The name field is printable ASCII (0x20-0x7E). Without the check each
+    // port fills the gap its own way and the same name means three things.
+    assert(EEPROM_AddFile(image, image_size, "A\xff", d, 4) == FILENAMENOTVALID);
+    assert(EEPROM_AddFile(image, image_size, "\xd0\xbf", d, 4) == FILENAMENOTVALID); // "п" in UTF-8
+    assert(EEPROM_AddFile(image, image_size, "a\tb", d, 4) == FILENAMENOTVALID); // control byte
+    assert(EEPROM_AddFile(image, image_size, "a\x7f", d, 4) == FILENAMENOTVALID); // DEL, just past the range
+    assert(EEPROM_ReadFile(image, image_size, "A\xff", d, 4) == FILENAMENOTVALID);
+    assert(EEPROM_WriteFile(image, image_size, "A\xff", d, 4) == FILENAMENOTVALID);
+    assert(EEPROM_DeleteFile(image, image_size, "A\xff") == FILENAMENOTVALID);
+    // Space is inside the range, so it stays legal.
+    assert(EEPROM_AddFile(image, image_size, "my file", d, 4) == 4);
     // invalid data
     assert(EEPROM_AddFile(image, image_size, "x", NULL, 4) == BUFFERNOTVALID);
     assert(EEPROM_AddFile(image, image_size, "x", d, 0) == BUFFERNOTVALID);
