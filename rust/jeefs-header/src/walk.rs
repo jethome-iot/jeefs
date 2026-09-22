@@ -36,7 +36,7 @@
 //!
 //! if let Some(f) = found {
 //!     let mut v = DataVerifier::new(&f);
-//!     // stream the payload from f.offset in windows
+//!     // stream the payload from f.offset() in windows
 //!     # let chunk = [0u8; 4];
 //!     v.update(&chunk);
 //!     assert!(v.finish());
@@ -60,16 +60,32 @@ const VERSION_PROBE: usize = 12;
 /// A located file: where its payload starts, how long it is, and the CRC32
 /// the payload must have.
 ///
-/// Only reachable through [`Step::Found`], so the fields cannot be read
-/// before the walk has actually found something.
+/// Produced only by a walk that reached [`Step::Found`]: the fields are
+/// private and there is no constructor, so a `Found` cannot be assembled
+/// by hand and handed to [`DataVerifier`] with a CRC the chain never
+/// recorded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Found {
+    offset: u32,
+    size: u16,
+    crc32: u32,
+}
+
+impl Found {
     /// Offset of the first payload byte in the image.
-    pub offset: u32,
+    pub fn offset(&self) -> u32 {
+        self.offset
+    }
+
     /// Payload length in bytes.
-    pub size: u16,
-    /// Expected CRC32 of the payload.
-    pub crc32: u32,
+    pub fn size(&self) -> u16 {
+        self.size
+    }
+
+    /// Expected CRC32 of the payload, as the chain recorded it.
+    pub fn crc32(&self) -> u32 {
+        self.crc32
+    }
 }
 
 /// What the walker needs next, or how the walk ended.
@@ -295,8 +311,8 @@ impl DataVerifier {
     pub fn new(found: &Found) -> Self {
         DataVerifier {
             hasher: crc32fast::Hasher::new(),
-            expect: found.crc32,
-            remaining: found.size as u32,
+            expect: found.crc32(),
+            remaining: found.size() as u32,
             overrun: false,
         }
     }

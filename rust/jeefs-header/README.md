@@ -21,6 +21,7 @@ cargo add jeefs-header --no-default-features    # firmware (bare no_std)
 | `generated` | packed structs for headers v1-v4 and `DeviceIdentityV1`, with little-endian accessors | nothing |
 | `devid` | the `device.id` record: parse, build, verify | nothing |
 | `fs` | filesystem over a caller buffer: `format`, `files`, `read_file`, `add_file`, `write_file`, `delete_file` | nothing |
+| `walk` | pull-model locator for bounded RAM: `Walk`, `Step`, `DataVerifier` | nothing |
 | `image` | whole-image `build_image` / `parse_image` | `alloc` |
 
 Features: `std` (default, implies `alloc`), `alloc`, `bins` (the

@@ -61,14 +61,14 @@ fn found_matches_read_file() {
     let mut expect = [0u8; 512];
     let n = read_file(&img, "beta", &mut expect).unwrap();
     assert_eq!(n, 200);
-    assert_eq!(found.size, 200);
-    let at = found.offset as usize;
+    assert_eq!(found.size(), 200);
+    let at = found.offset() as usize;
     assert_eq!(&img[at..at + 200], &expect[..200]);
 
     // Stream verification in windows, the running-CRC form a bounded-RAM
     // target uses instead of holding the payload.
     let mut v = DataVerifier::new(&found);
-    for chunk in img[at..at + found.size as usize].chunks(64) {
+    for chunk in img[at..at + found.size() as usize].chunks(64) {
         v.update(chunk);
     }
     assert!(v.finish());
@@ -250,7 +250,7 @@ fn the_verifier_rejects_a_wrong_payload() {
         other => panic!("expected Found, got {other:?}"),
     };
 
-    let at = found.offset as usize;
+    let at = found.offset() as usize;
     let mut payload = [0u8; 40];
     payload.copy_from_slice(&img[at..at + 40]);
     payload[0] ^= 0xFF;
