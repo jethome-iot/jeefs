@@ -14,7 +14,8 @@ The long-term goal is a **universal multi-language library** (C/C++/Python/Rust/
 ### Code generation policy
 
 The build never runs the generator: `include/jeefs_generated.h`,
-`python/jeefs/constants_generated.py` and `rust/jeefs-header/src/generated.rs`
+`python/jeefs/constants_generated.py`, `rust/jeefs-header/src/generated.rs`
+and `go/generated.go`
 are committed, reviewed files. `docs/format/*.md` is the canonical format
 description; CI (`codegen-check`) and the prek hook reject any drift between
 the two. **Never edit generated files by hand; never change the format outside
@@ -146,7 +147,7 @@ Negative return values are errors defined in `EEPROMError` enum: `FILEEXISTS`, `
 
 ### Known Issues / TODOs in Code
 
-- Go and TypeScript implementations planned, not yet started (C, C++, Python and Rust are live with an NxN cross-language test matrix)
+- TypeScript implementation planned; C, C++, Python, Rust and Go are live with an NxN cross-language test matrix
 - Header v4 (board-scoped) and the DeviceIdentityV1 record have generated structs; full parser/tooling coverage is tracked in issues #58 and #60
 
 ## CMake Options

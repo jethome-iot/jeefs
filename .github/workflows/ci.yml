@@ -16,6 +16,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.9'
+          cache: false
+
       - name: Install system dependencies
         # No-op on a provisioned runner: skips apt (and its lock) entirely.
         run: |
@@ -39,10 +45,10 @@ jobs:
       - name: CMake configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: CMake build (C, C++, Rust verifiers)
+      - name: CMake build (C, C++, Rust, Go verifiers)
         run: cmake --build build
 
-      - name: Run all ctest (C / C++ / Python / Rust cross-language)
+      - name: Run all ctest (C / C++ / Python / Rust / Go cross-language)
         run: cd build && ctest --verbose --output-on-failure
 
       - name: Show test results
@@ -102,12 +108,40 @@ jobs:
       - name: Rust image tests under no_std + alloc
         run: cargo test --manifest-path rust/jeefs-header/Cargo.toml --no-default-features --features alloc --verbose
 
+  # ── Go native tests and vet ──
+  go-tests:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.9'
+          cache: false
+
+      - name: Test and vet the Go package
+        working-directory: go
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go test -race ./...
+          go vet ./...
+          test -z "$(gofmt -l .)"
+
   # ── Python tests ──
   python-tests:
     runs-on: [self-hosted, amd64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.9'
+          cache: false
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -131,6 +165,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.9'
+          cache: false
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -152,47 +192,8 @@ jobs:
                     ../docs/format/filesystem-v1.md \
             --validate-only
 
-      - name: Check generated C header is up-to-date
-        working-directory: tools
-        run: |
-          python -m jeefs_codegen \
-            --specs ../docs/format/header-common.md \
-                    ../docs/format/header-v1.md \
-                    ../docs/format/header-v2.md \
-                    ../docs/format/header-v3.md \
-                    ../docs/format/header-v4.md \
-                    ../docs/format/device-identity-v1.md \
-                    ../docs/format/filesystem-v1.md \
-            --c-output /tmp/jeefs_generated.h
-          diff -u ../include/jeefs_generated.h /tmp/jeefs_generated.h
-
-      - name: Check generated Python constants are up-to-date
-        working-directory: tools
-        run: |
-          python -m jeefs_codegen \
-            --specs ../docs/format/header-common.md \
-                    ../docs/format/header-v1.md \
-                    ../docs/format/header-v2.md \
-                    ../docs/format/header-v3.md \
-                    ../docs/format/header-v4.md \
-                    ../docs/format/device-identity-v1.md \
-                    ../docs/format/filesystem-v1.md \
-            --py-output /tmp/constants_generated.py
-          diff -u ../python/jeefs/constants_generated.py /tmp/constants_generated.py
-
-      - name: Check generated Rust module is up-to-date
-        working-directory: tools
-        run: |
-          python -m jeefs_codegen \
-            --specs ../docs/format/header-common.md \
-                    ../docs/format/header-v1.md \
-                    ../docs/format/header-v2.md \
-                    ../docs/format/header-v3.md \
-                    ../docs/format/header-v4.md \
-                    ../docs/format/device-identity-v1.md \
-                    ../docs/format/filesystem-v1.md \
-            --rs-output /tmp/generated.rs
-          diff -u ../rust/jeefs-header/src/generated.rs /tmp/generated.rs
+      - name: Check all generated files, including Go
+        run: sh tools/check_codegen_sync.sh
 
   # ── ASan/UBSan: full ctest under sanitizers (#20) ──
   sanitizers:
@@ -200,6 +201,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.9'
+          cache: false
 
       - name: Install system dependencies
         # No-op on a provisioned runner: skips apt (and its lock) entirely.
@@ -228,6 +235,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.9'
+          cache: false
 
       - name: Install system dependencies
         # No-op on a provisioned runner: skips apt (and its lock) entirely.
@@ -361,7 +374,7 @@ jobs:
   # ── Publish to crates.io (on tag push, or manual dispatch for backfill) ──
   publish-crates:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [build-and-test, rust-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
+    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     steps:
@@ -386,7 +399,7 @@ jobs:
   # ── Publish to PyPI (on tag push only) ──
   publish-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-and-test, rust-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
+    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     permissions:
@@ -423,7 +436,7 @@ jobs:
     # Gated on the test matrix, not the registry publishes: an immutable
     # registry conflict must not block the GitHub Release for a green tag.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-and-test, rust-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
+    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     permissions:

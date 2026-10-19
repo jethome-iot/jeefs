@@ -14,8 +14,10 @@ trap 'rm -rf "$TMP"' EXIT
 python3 -m jeefs_codegen --specs $SPECS \
     --c-output "$TMP/jeefs_generated.h" \
     --py-output "$TMP/constants_generated.py" \
-    --rs-output "$TMP/generated.rs" >/dev/null
+    --rs-output "$TMP/generated.rs" \
+    --go-output "$TMP/generated.go" >/dev/null
 diff -u ../include/jeefs_generated.h "$TMP/jeefs_generated.h"
 diff -u ../python/jeefs/constants_generated.py "$TMP/constants_generated.py"
 diff -u ../rust/jeefs-header/src/generated.rs "$TMP/generated.rs"
+diff -u ../go/generated.go "$TMP/generated.go"
 echo "generated files are in sync with docs/format/*.md"

@@ -66,8 +66,9 @@ before it added a third. Fuzzing
 evidence accrues by the calendar, so campaigns keep running in the
 background while the steps below proceed.
 
-1. **Go port** (#110) — the contract's first external validation; the matrix
-   grows to 5×5. Needs a `go_generator.py`, which does not exist yet.
+1. **Go port** (#110) — implemented locally: Core + Record, spec-driven
+   codegen and the 5×5 matrix. Release and CI validation are pending. No
+   behavioral contract correction was required.
 2. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
    against a real embedding, which needs production integration to start.
 
