@@ -31,14 +31,15 @@ GPL-2.0-or-later / Apache-2.0.
 | C (headers + record + FS + walker) | `src/`, `include/` | CMake package `jeefs` (`jeefs::header`, `jeefs::fs`) or pkg-config |
 | C++17 (header-only wrappers) | `include/*.hpp` | ships with the C package |
 | Python (headers + record + image build/parse) | `python/` | `pip install jeefs` |
+| Go (headers + record, standard library only) | `go/` | module `github.com/jethome-iot/jeefs/go` (release pending) |
 | Rust (headers + record + FS, all `no_std`; image build/parse under `alloc`) | `rust/jeefs-header/` | `cargo add jeefs-header` |
 
 All ports conform to the
 [implementation contract](docs/IMPLEMENTATION_CONTRACT.md) and are locked
 together by a cross-language test matrix, golden images and committed
 binary vectors. The machine-readable format specs in
-[docs/format/](docs/format/) are the single source of truth — C, Python
-and Rust structures are generated from them
+[docs/format/](docs/format/) are the single source of truth — C, Python, Rust
+and Go structures are generated from them
 ([policy](docs/CODEGEN.md)).
 
 ## Building

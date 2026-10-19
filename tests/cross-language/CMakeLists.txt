@@ -76,6 +76,33 @@ set(GEN_cpp     $<TARGET_FILE:generate_cpp>)
 set(VER_c       $<TARGET_FILE:verify_c>)
 set(VER_cpp     $<TARGET_FILE:verify_cpp>)
 
+# Go tooling is built without generating library sources or writing into the source tree.
+find_program(GO_EXECUTABLE go)
+if(GO_EXECUTABLE)
+    set(GO_CRATE_DIR ${CMAKE_SOURCE_DIR}/go)
+    file(GLOB_RECURSE GO_SOURCES CONFIGURE_DEPENDS ${GO_CRATE_DIR}/*.go)
+    set(GO_BINARIES)
+    foreach(mode generate verify golden record)
+        set(GO_${mode} ${CMAKE_CURRENT_BINARY_DIR}/${mode}_go${CMAKE_EXECUTABLE_SUFFIX})
+        add_custom_command(
+            OUTPUT ${GO_${mode}}
+            COMMAND ${CMAKE_COMMAND} -E env GOTOOLCHAIN=local
+                GOCACHE=${CMAKE_BINARY_DIR}/go-cache
+                ${GO_EXECUTABLE} build -trimpath "-ldflags=-X=main.mode=${mode}"
+                -o ${GO_${mode}} ./cmd/jeefs-conformance
+            WORKING_DIRECTORY ${GO_CRATE_DIR}
+            DEPENDS ${GO_SOURCES} ${GO_CRATE_DIR}/go.mod
+            VERBATIM
+        )
+        list(APPEND GO_BINARIES ${GO_${mode}})
+    endforeach()
+    add_custom_target(go_conformance ALL DEPENDS ${GO_BINARIES})
+    add_test(NAME go_unit_tests COMMAND ${CMAKE_COMMAND} -E env
+        GOTOOLCHAIN=local GOCACHE=${CMAKE_BINARY_DIR}/go-cache
+        ${GO_EXECUTABLE} test ./...)
+    set_tests_properties(go_unit_tests PROPERTIES WORKING_DIRECTORY ${GO_CRATE_DIR})
+endif()
+
 # Assemble language lists
 set(LANGUAGES c cpp)
 
@@ -89,6 +116,13 @@ if(CARGO)
     list(APPEND LANGUAGES rs)
     set(GEN_rs  ${GENERATE_RS})
     set(VER_rs  ${VERIFY_RS})
+endif()
+
+if(GO_EXECUTABLE)
+    list(APPEND LANGUAGES go)
+    set(GEN_go ${GO_generate})
+    set(VER_go ${GO_verify})
+    set(GO_REJECTION_VERIFIER ${GO_verify})
 endif()
 
 file(GLOB VECTOR_JSONS "${VECTORS_DIR}/*.json")
@@ -192,6 +226,7 @@ if(Python3_FOUND)
             $<TARGET_FILE:verify_cpp>
             "${Python3_EXECUTABLE}\t${CMAKE_CURRENT_SOURCE_DIR}/verify_py.py"
             ${VERIFY_RS}
+            ${GO_REJECTION_VERIFIER}
     )
 
     # The committed test-vectors/vectors/*.bin must match their .json
@@ -250,4 +285,11 @@ if(CARGO)
         NAME golden_rs_verify_v4
         COMMAND ${VERIFY_GOLDEN_RS} ${GOLDEN_BIN_V4} 4
     )
+endif()
+
+if(GO_EXECUTABLE)
+    add_test(NAME golden_go_verify COMMAND ${GO_golden} ${GOLDEN_BIN} ${GOLDEN_JSON})
+    add_test(NAME golden_go_verify_v4 COMMAND ${GO_golden} ${GOLDEN_BIN_V4} ${GOLDEN_JSON_V4})
+    add_test(NAME record_go_verify COMMAND ${GO_record}
+        ${VECTORS_DIR}/devid_record_v1.bin ${VECTORS_DIR}/devid_record_v1.json)
 endif()

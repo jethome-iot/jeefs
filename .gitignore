@@ -44,6 +44,7 @@
 
 # Kernel Module Compile Results
 *.mod*
+!go/go.mod
 *.cmd
 .tmp_versions/
 modules.order
@@ -86,6 +87,7 @@ python/.venv/
 # local tooling artifacts
 graphify-out/
 docs/wrapup/
+docs/validation/*.log
 
 # Fuzzing: curated seeds live in fuzz/corpus/ and are reviewed; what a
 # campaign discovers is rebuildable and would bury a diff.

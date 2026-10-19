@@ -2,7 +2,7 @@
 
 ## The model: committed code, checked against the spec
 
-The build never runs the generator. The C, Python and Rust artifacts are
+The build never runs the generator. The C, Python, Rust and Go artifacts are
 ordinary committed files, reviewed like any other code; the kernel, the
 firmware and every consumer compile **only what is in git**. The markdown
 specs in [docs/format/](format/) are the canonical description of the
@@ -19,7 +19,7 @@ simply the way to fix that diff.
 | Role | Files |
 |------|-------|
 | Source of truth (edit these) | `docs/format/header-common.md`, `header-v1.md`, `header-v2.md`, `header-v3.md`, `header-v4.md`, `device-identity-v1.md`, `filesystem-v1.md` |
-| Generated (never edit by hand) | `include/jeefs_generated.h`, `python/jeefs/constants_generated.py`, `rust/jeefs-header/src/generated.rs` |
+| Generated (never edit by hand) | `include/jeefs_generated.h`, `python/jeefs/constants_generated.py`, `rust/jeefs-header/src/generated.rs`, `go/generated.go` |
 | Generator | `tools/jeefs_codegen/` (parser, validator, per-language generators) |
 
 ## Hard rules
@@ -49,7 +49,7 @@ simply the way to fix that diff.
 # 1. Edit the spec table / metadata
 $EDITOR docs/format/header-v3.md
 
-# 2. Regenerate all three artifacts
+# 2. Regenerate all four artifacts (Go generation also requires gofmt)
 cd tools && python3 -m jeefs_codegen \
     --specs ../docs/format/header-common.md ../docs/format/header-v1.md \
             ../docs/format/header-v2.md ../docs/format/header-v3.md \
@@ -57,7 +57,8 @@ cd tools && python3 -m jeefs_codegen \
             ../docs/format/filesystem-v1.md \
     --c-output ../include/jeefs_generated.h \
     --py-output ../python/jeefs/constants_generated.py \
-    --rs-output ../rust/jeefs-header/src/generated.rs
+    --rs-output ../rust/jeefs-header/src/generated.rs \
+    --go-output ../go/generated.go
 
 # 3. Verify (the prek hook runs this automatically on commit,
 #    provided hooks are installed: `brew install prek && prek install`,
@@ -66,7 +67,7 @@ sh tools/check_codegen_sync.sh
 
 # 4. Commit the spec and the artifacts together
 git add docs/format include/jeefs_generated.h \
-        python/jeefs/constants_generated.py rust/jeefs-header/src/generated.rs
+        python/jeefs/constants_generated.py rust/jeefs-header/src/generated.rs go/generated.go
 ```
 
 The validator refuses gaps or overlaps in the byte layout, sizes that do

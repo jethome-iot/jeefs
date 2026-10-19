@@ -1,7 +1,7 @@
 # Implementation contract
 
 What every language implementation of the JEEFS formats must provide, and
-how conformance is enforced. New language ports (Go and TypeScript are
+how conformance is enforced. New language ports (TypeScript is
 planned) gate on this contract from day one. The byte-level ground truth is
 [docs/format/](format/); this document defines the *behavioral* surface.
 
@@ -97,25 +97,25 @@ Conformance is not a claim, it is the following tests passing in CI:
 | Layer | What it proves |
 |-------|----------------|
 | NxN cross-language matrix | every generator × every verifier × every committed header vector (v1-v4, minimal + max-length bounded) produce and accept identical bytes |
-| Golden images (v3 and v4) | full FS + header images verified by all four languages, byte-stable across commits |
+| Golden images (v3 and v4) | full FS + header images verified by all five languages, byte-stable across commits |
 | `generate_vectors.py --check` (CI + prek) | committed vector binaries never drift from their JSON descriptions |
-| Committed record vector | `devid_record_v1.bin` parsed by all four languages against the JSON expectations |
-| Per-language unit suites | ctest (C/C++), pytest, cargo test — erased buffers, unknown versions, CRC gates, bounded round-trips, byte-level LE locks |
+| Committed record vector | `devid_record_v1.bin` parsed by all five languages against the JSON expectations |
+| Per-language unit suites | ctest (C/C++), pytest, cargo test, go test — erased buffers, unknown versions, CRC gates, bounded round-trips, byte-level LE locks |
 | FS mutation vectors (`fs_vectors/*.ops`) | every port implementing FS applies the same scenario — format, append, `device.id` insert, overwrite, delete, claim, corruption, gates — and must produce the same operation journal and the same image bytes as the C core. A port that also implements the bounded-RAM locator answers the `walk` op: the terminal state, the number of header reads it took, the located file's offset, size and CRC, and whether the streamed payload verified. A port supplies a runner that executes the compiled program described in `tests/cross-language/ops_program.py` — it never parses the scenario text, because one hand-written parser per language is how the existing runners came to disagree (#119) |
 | Differential fuzzing (`fuzz_fs_diff`) | the same operation stream is applied to the C core and the Rust port on byte-identical images; libFuzzer steers it toward untaken paths, and any difference in a return value or a single image byte aborts the run. The stream includes the bounded-RAM locator, so the two walkers are compared on the same generated images |
 | Verifier rejection suite (`verifiers_reject_mutations`) | the matrix only feeds verifiers valid input, so each one is also required to reject a set of deliberately broken headers and malformed vector metadata — otherwise a check could be dropped and every matrix cell would stay green |
 
-## Conformance status (2026-08)
+## Conformance status (2026-10)
 
-| Requirement | C | C++ | Python | Rust |
-|-------------|---|-----|--------|------|
-| detect_version | `jeefs_header_detect_version` | `HeaderView::detect_version` | `detect_version` | `detect_version` |
-| verify/update/init | `jeefs_header_*` | `HeaderBuffer` | model classes | `verify_crc`/`update_crc`/`initialize_header` |
-| is_empty | `jeefs_header_is_empty` | `HeaderView::is_empty` | `header_is_empty` | `header_is_empty` |
-| bounded strings | raw bytes (caller-decoded) | `strnlen` views | `_pack_bounded`/`_unpack_string` | `str_from_bytes` |
-| LE on BE hosts | `jeefs_endian.h` | via C core | `<` struct formats | generated `from_le` accessors |
-| record ops | `jeefs_devid.h` | `DeviceIdView`/`DeviceIdBuffer` | `DeviceIdentityV1` | `devid` module |
-| header build | `init` + struct writes | `HeaderBuffer` + struct access | `EEPROMHeaderV3`/`V4` | `initialize_header` + byte ops |
+| Requirement | C | C++ | Python | Rust | Go |
+|-------------|---|-----|--------|------| ------ |
+| detect_version | `jeefs_header_detect_version` | `HeaderView::detect_version` | `detect_version` | `detect_version` | `DetectVersion` |
+| verify/update/init | `jeefs_header_*` | `HeaderBuffer` | model classes | `verify_crc`/`update_crc`/`initialize_header` | `VerifyCRC`/`UpdateCRC`/`InitHeader` |
+| is_empty | `jeefs_header_is_empty` | `HeaderView::is_empty` | `header_is_empty` | `header_is_empty` | `HeaderIsEmpty` |
+| bounded strings | raw bytes (caller-decoded) | `strnlen` views | `_pack_bounded`/`_unpack_string` | `str_from_bytes` | `String`/`SetString` |
+| LE on BE hosts | `jeefs_endian.h` | via C core | `<` struct formats | generated `from_le` accessors | `encoding/binary.LittleEndian` |
+| record ops | `jeefs_devid.h` | `DeviceIdView`/`DeviceIdBuffer` | `DeviceIdentityV1` | `devid` module | `NewRecord`/`InitRecord` |
+| header build | `init` + struct writes | `HeaderBuffer` + struct access | `EEPROMHeaderV3`/`V4` | `initialize_header` + byte ops | `InitHeader` + checked setters |
 
 Optional per-port extras (not required by the contract): the Python and
 Rust ports ship a whole-image tooling surface — `build_image`/`parse_image`
@@ -151,3 +151,16 @@ Known, accepted deviations:
    versions, CRC corruption, a full-width bounded-string round-trip, and a
    byte-level little-endian decode lock.
 7. Add the language's native test runner to CI.
+
+## Go implementation
+
+The native `go/` module implements Core and Record using checked byte views
+(`NewHeader`, `NewRecord`). Detection and CRC verification are separate from
+header signature interpretation. Methods revalidate caller-owned memory on
+every call. `Bytes` returns a CRC-sealed copy; for records it clears reserved
+fields and flags. String limits are byte counts; overflow and embedded NUL
+are errors. See [the Go package guide](../go/README.md).
+
+Go supplies the fifth generator/verifier in the matrix, both golden image
+verifiers, the record-vector verifier and the verifier rejection suite.
+No behavioral contract corrections were required to implement the port.

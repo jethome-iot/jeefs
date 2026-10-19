@@ -15,13 +15,14 @@ from pathlib import Path
 from .generators.c_generator import generate_c_header
 from .generators.python_generator import generate_python_constants
 from .generators.rust_generator import generate_rust_module
+from .generators.go_generator import generate_go_module
 from .parser import parse_files
 from .validator import validate_spec
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate C and Python code from JEEFS markdown format specs."
+        description="Generate C, Python, Rust and Go code from JEEFS markdown format specs."
     )
     parser.add_argument(
         "--specs",
@@ -53,6 +54,8 @@ def main() -> int:
         action="store_true",
         help="Only validate specs, do not generate code",
     )
+
+    parser.add_argument("--go-output", type=Path, default=None, help="Output Go wire metadata")
 
     args = parser.parse_args()
 
@@ -102,8 +105,12 @@ def main() -> int:
         args.rs_output.write_text(rs_code, encoding="utf-8")
         print(f"Generated Rust module: {args.rs_output} ({len(rs_code)} bytes)")
 
-    if not args.c_output and not args.py_output and not args.rs_output:
-        print("No output files specified. Use --c-output, --py-output, and/or --rs-output.")
+    if args.go_output:
+        args.go_output.parent.mkdir(parents=True, exist_ok=True)
+        args.go_output.write_text(generate_go_module(spec), encoding="utf-8")
+
+    if not args.c_output and not args.py_output and not args.rs_output and not args.go_output:
+        print("No output files specified. Use --c-output, --py-output, --rs-output, and/or --go-output.")
 
     return 0
 
