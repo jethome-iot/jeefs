@@ -42,7 +42,9 @@ algorithms remain detectable and CRC-checkable, but interpretation fails.
 reject unknown record/signature versions. Use `InitRecord` to initialize,
 `record.VerifyCRC()` to verify. Nonzero reserved content is accepted on
 read. `record.Bytes()` zeroes reserved fields/flags in an owned copy and
-seals its CRC; it does not alter the original memory.
+seals its CRC; it does not alter the original memory. Serialization also
+zeroes unused signature bytes for known algorithms in headers and records.
+Unknown header algorithms remain uninterpreted.
 
 Views alias caller buffers and revalidate on every operation. Do not mutate
 or share the backing memory concurrently. Setters invalidate stored CRC.
