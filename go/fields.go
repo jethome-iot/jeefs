@@ -168,13 +168,21 @@ func (v view) UpdateCRC() error {
 }
 
 // Bytes returns an owned, CRC-sealed serialization. Device-record reserved fields
-// and flags are zeroed in the copy; caller memory remains unchanged.
+// and flags are zeroed in the copy. Unused signature bytes are zeroed for known
+// algorithms; unknown header algorithms remain uninterpreted. Caller memory
+// remains unchanged.
 func (v view) Bytes() ([]byte, error) {
 	l, e := v.layout()
 	if e != nil {
 		return nil, e
 	}
 	out := bytes.Clone(v.b[:l.size])
+	if signature, ok := l.fields["signature"]; ok {
+		algorithm := l.fields["signature_version"]
+		if n, known := signatureSize(SignatureAlgorithm(out[algorithm.offset])); known {
+			clear(out[signature.offset+n : signature.offset+signature.size])
+		}
+	}
 	if v.record {
 		for _, name := range []string{"reserved1", "reserved2", "flags"} {
 			f := l.fields[name]
