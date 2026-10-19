@@ -66,11 +66,14 @@ before it added a third. Fuzzing
 evidence accrues by the calendar, so campaigns keep running in the
 background while the steps below proceed.
 
-1. **Go port** (#110) — implemented locally: Core + Record, spec-driven
-   codegen and the 5×5 matrix. Release and CI validation are pending. No
-   behavioral contract correction was required.
-2. **`examples/uboot/`** (#111) — last: its value is verifying PORTING.md
-   against a real embedding, which needs production integration to start.
+The **Go port** (#110) is merged: Core + Record, spec-driven codegen and
+all 5×5 matrix cells pass without a behavioral contract correction.
+Publication is still pending.
+
+1. **`examples/uboot/`** (#111) — J100 is the selected integration target.
+   The example builds the actual AArch64 U-Boot ELF from a pinned revision,
+   with first-slot identity reads tested on the host. The CI job is added;
+   execution on a physical board remains a separate validation step.
 
 Out of this repository's scope, but gating the freeze: **consumer
 migration** — jethome-iot/testsuite\* onto the `jeefs` PyPI package, and

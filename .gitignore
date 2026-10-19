@@ -60,6 +60,7 @@ CMakeFiles/
 cmake_install.cmake
 CTestTestfile.cmake
 Makefile
+!examples/uboot/Makefile
 Testing/
 
 # Rust: the normal build tree, plus the extra ones a fuzzing build creates

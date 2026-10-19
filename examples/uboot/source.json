@@ -1,0 +1,5 @@
+{
+  "url": "https://github.com/u-boot/u-boot.git",
+  "commit": "0eaa4b337336dbbe93395d1f2ccc18937eaafea2",
+  "defconfig": "jethub_j100_defconfig"
+}
