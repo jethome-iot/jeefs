@@ -59,7 +59,7 @@ def build(source: Path, stage: Path, cross_compile: str, jobs: int) -> dict:
     subprocess.run(command + [config["defconfig"]], check=True)
     subprocess.run(command + [f"-j{jobs}", "u-boot"], check=True)
     elf = output / "u-boot"
-    symbols = subprocess.check_output([cross_compile + "nm", str(elf)], text=True)
+    symbols = subprocess.check_output([cross_compile + "nm", "--defined-only", str(elf)], text=True)
     for symbol in ["do_jeefs_identity", "jeefs_example_read_identity", "jeefs_walk_feed"]:
         if not any(line.split()[-1:] == [symbol] for line in symbols.splitlines()):
             raise ValueError(f"linked U-Boot ELF is missing {symbol}")
