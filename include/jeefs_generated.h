@@ -62,7 +62,7 @@ typedef struct {
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-term.
     uint8_t serial[32];  // 32B, offset 76, Board serial (bounded str.)
-    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID (bounded)
+    uint8_t usid[32];  // 32B, offset 108, Internal device identifier, USID (bounded)
     uint8_t cpuid[32];  // 32B, offset 140, CPU ID (bounded string)
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved for extended MAC
@@ -79,7 +79,7 @@ typedef struct {
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-term.
     uint8_t serial[32];  // 32B, offset 76, Board serial (bounded str.)
-    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID (bounded)
+    uint8_t usid[32];  // 32B, offset 108, Internal device identifier, USID (bounded)
     uint8_t cpuid[32];  // 32B, offset 140, CPU ID (bounded string)
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved for extended MAC
@@ -97,7 +97,7 @@ typedef struct {
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-terminated
     uint8_t serial[32];  // 32B, offset 76, Board serial number (bounded string)
-    uint8_t usid[32];  // 32B, offset 108, CPU eFuse USID (bounded string)
+    uint8_t usid[32];  // 32B, offset 108, Internal device identifier, USID (bounded string)
     uint8_t cpuid[32];  // 32B, offset 140, CPU ID / factory MAC (bounded string)
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved for extended MAC
@@ -116,7 +116,7 @@ typedef struct {
     char boardname[32];  // 32B, offset 12, Board name, null-terminated
     char boardversion[32];  // 32B, offset 44, Board version, null-terminated
     uint8_t board_serial[32];  // 32B, offset 76, Board serial number (bounded string)
-    uint8_t usid[32];  // 32B, offset 108, Board CPU/eFuse USID, if available
+    uint8_t usid[32];  // 32B, offset 108, Internal device identifier, USID, if available
     uint8_t cpuid[32];  // 32B, offset 140, Board CPU ID, if available
     uint8_t mac[6];  // 6B, offset 172, MAC address (6 raw bytes)
     uint8_t reserved2[2];  // 2B, offset 178, Reserved (alignment)

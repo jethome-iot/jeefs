@@ -87,7 +87,7 @@ image = header.to_partition_image()  # 4096-byte flash image
 | `boardname` | `str` | Board name (max 31 chars) |
 | `boardversion` | `str` | Board version (max 31 chars) |
 | `serial` | `str` | Serial number (max 31 chars) |
-| `usid` | `str` | CPU eFuse USID |
+| `usid` | `str` | Internal device identifier, USID (platform-dependent storage) |
 | `cpuid` | `str` | CPU ID |
 | `mac` | `str` | MAC address ("AA:BB:CC:DD:EE:FF") |
 | `signature` | `bytes` | ECDSA signature (raw r\|\|s) |

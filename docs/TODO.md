@@ -5,7 +5,7 @@ whose "Next — ordered" section carries the current plan and its issues.
 The 2026-08 audit backlog (#5–#30) is fully resolved; this file keeps only
 small tactical items that have no issue of their own yet.
 
-- **Human review of the Rust FS core** (`rust/jeefs-header/src/fs.rs`):
+- **Human review of the JEEFS/Rust filesystem core** (`rust/jeefs-header/src/fs.rs`):
   in-place mutation logic is safety-critical, and the automated reviewers
   that passed it said as much. No defect is known — it is held by the
   shared mutation vectors and differential runs against C — but it has not
