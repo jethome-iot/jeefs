@@ -39,3 +39,9 @@ add_subdirectory(test_07_devid)
 add_subdirectory(test_08_devid_first)
 add_subdirectory(test_09_walk)
 add_subdirectory(cross-language)
+
+# Test the environment-owned reader without substituting U-Boot headers.
+add_executable(test_uboot_example test_uboot_example.c ../examples/uboot/read_identity.c)
+target_include_directories(test_uboot_example PRIVATE ${CMAKE_SOURCE_DIR}/examples/uboot)
+target_link_libraries(test_uboot_example jeefs::fs jeefs::header)
+add_test(NAME uboot_identity_reader COMMAND test_uboot_example)

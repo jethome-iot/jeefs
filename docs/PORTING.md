@@ -17,10 +17,17 @@ caller's: operate on a buffer one context owns.
 | headers | `include/` (public surface: `jeefs.h`, `jeefs_header.h`, `jeefs_devid.h`, `jeefs_walk.h`, `jeefs_generated.h`, `jeefs_endian.h`, `jeefs_port.h`, `eepromerr.h`) |
 
 The primary boot scenario — read the board header and `device.id` before
-the OS — needs only the first row: the header API is prefix-friendly
-(detection needs 12 bytes, verification one 256/512-byte read), and with
-`device.id` stored first the whole device identity is a bounded prefix of
-256 + 28 + 256 = 540 bytes.
+the OS — uses the header + record APIs **and the walker** to validate the
+file wrapper before accepting the record. The header API is prefix-friendly
+(detection needs 12 bytes, verification one 256/512-byte read). With
+`device.id` stored first the identity occupies a bounded prefix:
+256 + 28 + 256 = 540 bytes for headers v2/v3/v4; v1 needs 796 bytes.
+Verify the file's payload CRC as well as the record's own CRC.
+
+[The J100 example](../examples/uboot/README.md) reads that prefix through
+U-Boot's Driver Model I²C API and compiles into a real, pinned J100 U-Boot
+ELF in CI. It does not change the board's existing provisioning path or
+assume an EEPROM address.
 
 ## CRC32 provider (include/jeefs_port.h)
 
@@ -75,14 +82,18 @@ stay buffer-centric by design.
 
 ## Required environment surface
 
-- Compiler-provided freestanding headers: `<stdint.h>`, `<stddef.h>`,
-  `<stdbool.h>`.
+- Freestanding integer, size and boolean types: `<stdint.h>`, `<stddef.h>`,
+  `<stdbool.h>` in standalone builds. **U-Boot has its own dummy
+  `stdint.h`**, so compile the JEEFS translation units with U-Boot's
+  `<linux/types.h>` included first. The example's Kbuild file uses
+  `-include $(srctree)/include/linux/types.h`; the default freestanding
+  compiler smoke alone does not exercise this integration.
 - String functions (the kernel, U-Boot and newlib all provide them):
   `memcpy`, `memmove`, `memset`, `memcmp`, `strncmp`, `strncpy`,
   `strnlen`.
 - Nothing else: no heap, no POSIX, no stdio (see logging below).
 
-CI compiles the four core files with `-ffreestanding -Os -Wvla -Werror`
+CI compiles the five core files with `-ffreestanding -Os -Wvla -Werror`
 for aarch64 and riscv64 on every change (the deployment targets are all
 little-endian; the wire codec is endian-correct regardless).
 
@@ -98,7 +109,7 @@ default pulls in `<stdio.h>`.
 
 - no heap, no VLAs; stack usage per operation is bounded by a few file
   headers (~100 bytes) — the image itself is the caller's buffer;
-- payloads ≤ `INT16_MAX`; images ≤ 64 KiB (`uint16_t` addressing, 8 KiB
+- payloads ≤ `INT16_MAX`; image sizes ≤ 65535 bytes (`uint16_t`, 8 KiB
   by design);
 - all errors are negative `EEPROMError` values (`eepromerr.h`) — the
   library never traps, asserts or exits;

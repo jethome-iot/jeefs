@@ -288,6 +288,40 @@ jobs:
             echo "$cc: OK"
           done
 
+  # Real U-Boot J100 embedding: use its Kbuild, integer headers and CRC provider.
+  uboot-example:
+    runs-on: [self-hosted, amd64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install U-Boot build dependencies
+        run: |
+          dpkg -s gcc-aarch64-linux-gnu gcc make git bc bison flex libssl-dev libgnutls28-dev python3-dev python3-setuptools python3-pyelftools swig >/dev/null 2>&1 || {
+            sudo apt-get -o DPkg::Lock::Timeout=600 update
+            sudo apt-get -o DPkg::Lock::Timeout=600 install -y gcc-aarch64-linux-gnu gcc make git bc bison flex libssl-dev libgnutls28-dev python3-dev python3-setuptools python3-pyelftools swig
+          }
+
+      - name: Fetch pinned U-Boot and build J100
+        run: |
+          SOURCE_DIR=$(mktemp -d "$RUNNER_TEMP/jeefs-uboot-source.XXXXXX")
+          STAGE_PARENT=$(mktemp -d "$RUNNER_TEMP/jeefs-uboot-stage.XXXXXX")
+          trap 'rm -rf "$SOURCE_DIR" "$STAGE_PARENT"' EXIT
+          python - "$SOURCE_DIR" <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          source = json.loads(Path("examples/uboot/source.json").read_text())
+          subprocess.run(["git", "init", sys.argv[1]], check=True)
+          subprocess.run(["git", "-C", sys.argv[1], "fetch", "--depth=1", source["url"], source["commit"]], check=True)
+          PY
+          python examples/uboot/build.py --source "$SOURCE_DIR" --stage "$STAGE_PARENT/tree"
+          cat "$STAGE_PARENT/tree/result.json" >> "$GITHUB_STEP_SUMMARY"
+
   # ── Fuzz smoke: bounded libFuzzer run over the buffer APIs ──
   fuzz-smoke:
     runs-on: [self-hosted, amd64]
@@ -374,7 +408,7 @@ jobs:
   # ── Publish to crates.io (on tag push, or manual dispatch for backfill) ──
   publish-crates:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
+    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check, uboot-example]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     steps:
@@ -399,7 +433,7 @@ jobs:
   # ── Publish to PyPI (on tag push only) ──
   publish-pypi:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
+    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check, uboot-example]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     permissions:
@@ -436,7 +470,7 @@ jobs:
     # Gated on the test matrix, not the registry publishes: an immutable
     # registry conflict must not block the GitHub Release for a green tag.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check]
+    needs: [build-and-test, rust-tests, go-tests, python-tests, codegen-check, sanitizers, strict-warnings, format-check, uboot-example]
     runs-on: [self-hosted, amd64]
     timeout-minutes: 10
     permissions:
