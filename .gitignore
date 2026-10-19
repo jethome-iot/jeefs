@@ -85,6 +85,8 @@ python/.venv/
 .claude/backlog/
 
 # local tooling artifacts
+.Codex/state/
+.Codex/backlog/
 graphify-out/
 docs/wrapup/
 docs/validation/*.log
