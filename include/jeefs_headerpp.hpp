@@ -59,7 +59,8 @@ namespace jeefs {
         /// The v4 name of the same slot (header v4 renames serial to board_serial).
         std::string_view board_serial() const { return string_at(76, 32); }
 
-        /// CPU eFuse USID (bounded string at offset 108, RFC #13).
+        /// Internal device identifier, USID (bounded string at offset 108, RFC #13).
+        /// Physical storage is platform-dependent, including eFuse when available.
         std::string_view usid() const { return string_at(108, 32); }
 
         /// CPU ID (bounded string at offset 140, RFC #13).

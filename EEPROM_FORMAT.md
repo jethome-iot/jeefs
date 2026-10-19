@@ -41,7 +41,7 @@ Each board EEPROM carries a structured **board-scoped** header followed by optio
 | 12-43     | 32    | boardname         | Board name (e.g. "JXD-CPU-E1ETH")              |
 | 44-75     | 32    | boardversion      | Board version (e.g. "1.3")                     |
 | 76-107    | 32    | serial            | Device serial number                           |
-| 108-139   | 32    | usid              | CPU eFuse USID                                 |
+| 108-139   | 32    | usid              | Internal device identifier, USID |
 | 140-171   | 32    | cpuid             | CPU ID / factory MAC                           |
 | 172-177   | 6     | mac               | MAC address (6 raw bytes)                      |
 | 178-179   | 2     | reserved2         | Reserved for extended MAC                      |
@@ -100,7 +100,7 @@ This ensures any corruption in the signature area is detected.
 | 12-43     | 32    | boardname         | -             | Board name, null-terminated          |
 | 44-75     | 32    | boardversion      | -             | Board version, null-terminated       |
 | 76-107    | 32    | serial            | -             | Device serial number                 |
-| 108-139   | 32    | usid              | -             | CPU eFuse USID                       |
+| 108-139   | 32    | usid              | -             | Internal device identifier, USID |
 | 140-171   | 32    | cpuid             | -             | CPU ID                               |
 | 172-177   | 6     | mac               | -             | MAC address (6 raw bytes)            |
 | 178-179   | 2     | reserved2         | -             | Reserved for extended MAC             |
@@ -117,7 +117,7 @@ This ensures any corruption in the signature area is detected.
 | 12-43     | 32    | boardname         | -             | Board name, null-terminated          |
 | 44-75     | 32    | boardversion      | -             | Board version, null-terminated       |
 | 76-107    | 32    | serial            | -             | Device serial number                 |
-| 108-139   | 32    | usid              | -             | CPU eFuse USID                       |
+| 108-139   | 32    | usid              | -             | Internal device identifier, USID |
 | 140-171   | 32    | cpuid             | -             | CPU ID                               |
 | 172-177   | 6     | mac               | -             | MAC address (6 raw bytes)            |
 | 178-179   | 2     | reserved2         | -             | Reserved for extended MAC             |
@@ -140,7 +140,9 @@ This ensures any corruption in the signature area is detected.
 All device identifiers come from test context:
 
 - **serial**: Assigned during testing (from batch allocation)
-- **usid**: Unique System ID (from signature service)
+- **usid**: internal identifier assigned during production. Physical storage
+  is platform-dependent: eFuse when capacity permits (for example, JetHub H1),
+  or another location. The header field is independent of that storage.
 - **cpuid**: CPU ID / factory MAC (read from device)
 - **mac**: Primary MAC address (programmed in eFuse)
 - **signature**: ECDSA signature (from signature service CSV/API)

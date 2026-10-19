@@ -19,6 +19,11 @@ This file defines constants, enumerations, and shared properties used across all
   `0xFF`, and an erased 16-bit link (`0xFFFF`) terminates the file chain
   like `0`. An all-`0x00`/all-`0xFF` buffer where a header or record is
   expected means "nothing written", not "corrupt".
+- **USID:** an internal identifier assigned during production. Its physical
+  storage is platform-dependent: eFuse may be used when capacity permits
+  (for example, JetHub H1), or another storage location may be used. The
+  `usid` header field carries the identifier independently of that location;
+  it does not imply that the value originates from the CPU.
 - **String fields:** two kinds (RFC #13):
   - *name-like* (`boardname`, `boardversion`): null-terminated, zero-padded
     — at most `size - 1` content bytes;
